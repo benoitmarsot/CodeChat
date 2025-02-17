@@ -1,11 +1,19 @@
 package com.unbumpkin.codechat.service;
 
+import com.unbumpkin.codechat.domain.LoginResponse;
 import com.unbumpkin.codechat.domain.User;
 import com.unbumpkin.codechat.repository.UserRepository;
 import com.unbumpkin.codechat.security.JwtUtil;
+import com.unbumpkin.codechat.service.auth.RegisterRequest;
+import com.unbumpkin.codechat.util.ValidationUtil;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import java.util.Optional;
+
+import javax.naming.AuthenticationException;
 
 @Service
 public class AuthService {
@@ -19,18 +27,25 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
-    public String register(User user) {
-        //user.setPassword(passwordEncoder.encode(user.password()));
-        user=new User(user.id(),user.name(),user.email(),passwordEncoder.encode(user.password()),user.role());
+    public ResponseEntity<String> register(RegisterRequest userRequest) {
+        ValidationUtil.validate(userRequest);
+        User user=new User(0,userRequest.name(),userRequest.email(),passwordEncoder.encode(userRequest.password()),userRequest.role());
         userRepository.create(user);
-        return "User registered successfully";
+        return ResponseEntity.ok("User registered successfully");
+    }
+    public LoginResponse login(String email, String password) throws AuthenticationException {
+        User user = userRepository.findByEmail(email);
+        if(user==null||!passwordEncoder.matches(password, user.password())) {
+            throw new AuthenticationException("Invalid credentials");
+        }
+        String token = jwtUtil.generateToken(user);
+        
+        // Create authentication token
+        UsernamePasswordAuthenticationToken authentication = 
+            new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        
+        return new LoginResponse(token, user);
     }
 
-    public String login(String email, String password) {
-        Optional<User> user = userRepository.findByEmail(email);
-        if (user.isPresent() && passwordEncoder.matches(password, user.get().password())) {
-            return jwtUtil.generateToken(email);
-        }
-        throw new RuntimeException("Invalid credentials");
-    }
 }

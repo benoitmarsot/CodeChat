@@ -1,48 +1,51 @@
 package com.unbumpkin.codechat.controller;
 
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.unbumpkin.codechat.domain.Greeting;
 import com.unbumpkin.codechat.domain.User;
 import com.unbumpkin.codechat.repository.UserRepository;
-
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
-
+import com.unbumpkin.codechat.security.JwtUtil;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 public class UserController {
-    private static final String template = "Hello, %s!";
-    private final AtomicLong counter = new AtomicLong();
 
     @Autowired
     private final UserRepository userRepository;
 
+    @Autowired
+    private final JwtUtil jwtUtil;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
     }
     
     @GetMapping
-    public Iterable<User> getAllUsers() {
-        return userRepository.findAll();
+    public ResponseEntity<Iterable<User>> getAllUsers() {
+        return ResponseEntity.ok(userRepository.findAll());
     }    
 
-    @PostMapping
-    public Optional<User> createUser(@RequestBody User user) {
-        return userRepository.create(user);
-    }
+    @GetMapping("/current-user")
+    public ResponseEntity<Map<String,String>> getCurrentUserId(
+        @RequestHeader("Authorization") String authHeader
+    ) {
+        String token=authHeader.substring(7);
+        int id =jwtUtil.getUserIdFromToken(token);
+        User user = userRepository.findById(id);
+        return ResponseEntity.ok(
+            Map.of("userid", String.valueOf(user.userid()),
+            "name", user.name(),
+            "email", user.email(),
+            "role", user.role().toString()
+        ));
 
-    @GetMapping("/count")
-    public int count() {
-        return userRepository.count();
-    }
-    
 
-    @GetMapping("/greeting")
-    public Greeting greeting(@RequestParam(value = "name", defaultValue = "World") String name) {
-        return new Greeting(counter.incrementAndGet(), String.format(template, name));
     }
 }
+
+

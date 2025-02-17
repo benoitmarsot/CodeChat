@@ -1,11 +1,14 @@
 package com.unbumpkin.codechat.domain.openai;
 
 public record OaiFile(
+    int fId,
+    int userId,
     String fileId, 
     String fileName, 
     String rootdir, 
     String filePath, 
-    Purposes purpose
+    Purposes purpose,
+    int linecount
 ) {
     /**
      * Enum for the purposes of the file upload
@@ -15,10 +18,20 @@ public record OaiFile(
      * - "fine-tune" for Fine-tuning.
      */
     public enum Purposes {
-        assistants,
-        vision,
-        batch,
-        fine_tune
+        assistants("assistants"),
+        vision("vision"),
+        batch("batch"),
+        fine_tune("fine-tune");
+        private String purpose;
+        Purposes(String purpose) {
+            this.purpose = purpose;
+        }
+        @Override
+        public String toString() {
+            return purpose;
+        }
     }
-
+    public OaiFile getUidLcOaiFile(int userId, int lineCount) {
+        return new OaiFile(fId,userId,fileId,fileName,rootdir,filePath,purpose,linecount);
+    }
 }

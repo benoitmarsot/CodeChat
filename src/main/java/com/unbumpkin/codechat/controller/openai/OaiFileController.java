@@ -1,30 +1,37 @@
 package com.unbumpkin.codechat.controller.openai;
 
+import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.unbumpkin.codechat.domain.openai.OaiFile;
 import com.unbumpkin.codechat.domain.openai.OaiFile.Purposes;
+import com.unbumpkin.codechat.exception.ResourceNotFoundException;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
+import com.unbumpkin.codechat.security.JwtUtil;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
+import com.unbumpkin.codechat.service.openai.request.UploadDirRequest;
+import com.unbumpkin.codechat.service.openai.request.UploadFileRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 
@@ -35,165 +42,188 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 
 @RestController
-@RequestMapping("/api/openai/files")
+@RequestMapping("/api/v1/openai/files")
 @Tag(name = "OpenAI File Controller", description = "Endpoints for managing OpenAI files")
-//@SecurityRequirement(name = "bearerAuth")
 public class OaiFileController {
     @Autowired
     private final OaiFileService oaiFileService;
 
     @Autowired
     private final OaiFileRepository oaiFileRepository;
+
+    @Autowired
+    private final JwtUtil jwtUtil;
     
-    public OaiFileController(OaiFileService oaiFileService, OaiFileRepository oaiFileRepository) {
+    
+    public OaiFileController(OaiFileService oaiFileService, OaiFileRepository oaiFileRepository, JwtUtil jwtUtil) {
         this.oaiFileService = oaiFileService;
         this.oaiFileRepository = oaiFileRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @Operation(summary = "Get all files")
     @GetMapping()
-    public ResponseEntity<Iterable<OaiFile>> getAllFiles() {
-        try {
-            List<String> fileIds = oaiFileService.listFiles();
-            List<OaiFile> files = oaiFileRepository.retrieveFiles(fileIds);
-            return ResponseEntity.ok(files);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
+    public ResponseEntity<Iterable<OaiFile>> getAllFiles(
+        @RequestHeader("Authorization") String authHeader
+    ) throws IOException {
+        int userId=getUserIdFromAuthHeader(authHeader);
+        List<String> fileIds = oaiFileService.listFiles();
+        List<OaiFile> files = oaiFileRepository.retrieveFiles(fileIds, userId);
+        return ResponseEntity.ok(files);
     }
-    record UploadDirRequest(String rootDir, String extension, String purpose) {}
     @Operation(summary = "Upload a directory")
     @PostMapping("/uploadDir")
     public ResponseEntity<Map<String,OaiFile>> uploadDir(
+        @RequestHeader("Authorization") String authHeader, 
         @RequestBody UploadDirRequest request 
-    ) {
-        try {
-            Map<String,OaiFile> files = oaiFileService.uploadFiles(
-                request.rootDir(), 
-                request.extension(), 
-                Purposes.valueOf(request.purpose().toLowerCase())
-            );
-            try {
-                oaiFileRepository.storeOaiFiles(files);
-            } catch (IOException | SQLException e) {
-                for (OaiFile file : files.values()) {
-                    oaiFileService.deleteFile(file.fileId());
-                }
-                throw e;
-            }
-            return ResponseEntity.ok(files);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+    ) throws IOException,SQLException {
+        int userId=getUserIdFromAuthHeader(authHeader);
+        if(!new File(request.rootDir()).isDirectory()) {
+            throw new IllegalArgumentException("Invalid directory path: " + request.rootDir());
         }
-    }
 
-    record UploadFileRequest(String filepath, String purpose) {}
+        Map<String,OaiFile> files = oaiFileService.uploadFiles(
+            request.rootDir(), 
+            request.extension(), 
+            Purposes.valueOf(request.purpose().toLowerCase()),
+            userId
+        );
+        try {
+
+            oaiFileRepository.storeOaiFiles(files.values(),userId);
+        } catch (DataAccessException e) {
+            for (OaiFile file : files.values()) {
+                oaiFileService.deleteFile(file.fileId());
+            }
+            throw e;
+        }
+        return ResponseEntity.ok(files);
+    }
+    private int getUserIdFromAuthHeader(String authHeader) {
+        String token=authHeader.substring(7);
+        return jwtUtil.getUserIdFromToken(token);
+    }   
+
     @Operation(summary = "Upload a file")
     @PutMapping("/uploadFile")
     public ResponseEntity<OaiFile> uploadFile(
+        @RequestHeader("Authorization") String authHeader, 
         @RequestBody UploadFileRequest request
-    ) {
-        try {
-            OaiFile file = oaiFileService.uploadFile(
-                request.filepath(), 
-                Purposes.valueOf(request.purpose().toLowerCase()));
-            try {
-                oaiFileRepository.storeOaiFile(file);
-            } catch (IOException e) {
-                oaiFileService.deleteFile(file.fileId());
-                throw e;
-            }
-            return ResponseEntity.ok(file);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e);
+    ) throws IOException {
+        int userId=getUserIdFromAuthHeader(authHeader);
+        if(!new File(request.filepath()).exists()) {
+            throw new IllegalArgumentException("Invalid file path: " + request.filepath());
         }
-    }
 
+        OaiFile file = oaiFileService.uploadFile(
+            request.filepath(), 
+            Purposes.valueOf(request.purpose().toLowerCase()),
+            userId
+        );
+        try {
+            oaiFileRepository.storeOaiFile(file,userId);
+        } catch (IOException e) {
+            oaiFileService.deleteFile(file.fileId());
+            throw e;
+        }
+        return ResponseEntity.ok(file);
+
+    }
     @Operation(summary = "get a OaiFile")
     @GetMapping("/{fileId}")
     public ResponseEntity<OaiFile> getFile(
+        @RequestHeader("Authorization") String authHeader, 
         @PathVariable String fileId
     ) {
-        try {
-            OaiFile file = oaiFileRepository.retrieveFile(fileId);
-            return ResponseEntity.ok(file);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
+        int userId=getUserIdFromAuthHeader(authHeader);
+        OaiFile file = oaiFileRepository.retrieveFile(fileId, userId);
+        return ResponseEntity.ok(file);
     }
     @Operation(summary = "Delete a file")
     @DeleteMapping("/{fileId}")
-    public ResponseEntity<Void> deleteFile(String fileId) {
-        try {
-            oaiFileService.deleteFile(fileId);
-            oaiFileRepository.deleteFile(fileId);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public ResponseEntity<Void> deleteFile(
+        @RequestHeader("Authorization") String authHeader, 
+        @PathVariable String fileId
+    ) throws IOException {
+        int userId=getUserIdFromAuthHeader(authHeader);
+        oaiFileService.deleteFile(fileId);
+        oaiFileRepository.deleteFile(fileId, userId);
+        return ResponseEntity.ok().build();
     }
     @Operation(summary = "Delete all files")
     @DeleteMapping("/all")
-    public ResponseEntity<Void> deleteAllFiles() {
-        try {
-            List<String> fileIds = oaiFileService.cleanUpFiles();
-            oaiFileRepository.deleteAllFiles();
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    public ResponseEntity<Void> deleteAllFiles(
+        @RequestHeader("Authorization") String authHeader
+    ) throws IOException {
+        int userId=getUserIdFromAuthHeader(authHeader);
+        List<String> fileIds=oaiFileRepository.deleteAllFiles(userId);
+        for(String fileId:fileIds) {
+            oaiFileService.deleteFile(fileId);
         }
+        
+        return ResponseEntity.ok().build();
     }
     @Operation(summary = "Get all files from a root directory")
     @GetMapping("rootDir")
     public ResponseEntity<List<OaiFile>> getFilesFromRootDir(
+        @RequestHeader("Authorization") String authHeader,
         @RequestParam String rootDir
     ) {
-        try {
-            List<OaiFile> files = oaiFileRepository.retrieveFiles(rootDir);
-            return ResponseEntity.ok(files);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        int userId=getUserIdFromAuthHeader(authHeader);
+        if(!new File(rootDir).isDirectory()) {
+            throw new IllegalArgumentException("Invalid directory path: " + rootDir);
         }
+
+        List<OaiFile> files = oaiFileRepository.retrieveFiles(rootDir,userId);
+        return ResponseEntity.ok(files);
     }
     @Operation(summary = "Get a file info from OpenAI")
     @GetMapping("/fileinfo/{fileId}")
     public ResponseEntity<JsonNode> getFileInfo(
-        @PathVariable String fileId) {
-        try {
-            JsonNode file = oaiFileService.retrieveFile(fileId);
-            return ResponseEntity.ok(file);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
+        @PathVariable String fileId
+    ) throws IOException {
+        JsonNode file = oaiFileService.retrieveFile(fileId);
+        return ResponseEntity.ok(file);
+    }
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("error", ex.getMessage()));
     }
     @Operation(summary = "Download a file to a specific path")
     @GetMapping("/downloadInto/{fileId}")
     public ResponseEntity<Void> downloadFile(
+        @RequestHeader("Authorization") String authHeader,
         @PathVariable String fileId, 
         @RequestParam String outPath
-    ) {
-        try {
-            oaiFileService.downloadFile(fileId, outPath);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+    ) throws IOException {
+        int userId=getUserIdFromAuthHeader(authHeader);
+        if(!new File(outPath).exists()) {
+            throw new IllegalArgumentException("Invalid file path: " + outPath);
         }
+        if(!oaiFileRepository.fileExists(fileId, userId)) {
+            throw new ResourceNotFoundException("The file doesn't exist or the user does'nt have the right to it.");
+        }
+        oaiFileService.downloadFile(fileId, outPath);
+        return ResponseEntity.ok().build();
+    }
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(Map.of("error", ex.getMessage()));
     }
     @Operation(summary = "Download a file")
     @GetMapping("/download/{fileId}")
-    public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) {
-        try {
-            byte[] fileContent = oaiFileService.downloadFile(fileId);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentDispositionFormData("attachment", fileId);
-            return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
+    public ResponseEntity<byte[]> downloadFile(
+        @PathVariable String fileId
+    ) throws IOException {
+        byte[] fileContent = oaiFileService.downloadFile(fileId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", fileId);
+        return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
     }
-    
-
-    
 
 }

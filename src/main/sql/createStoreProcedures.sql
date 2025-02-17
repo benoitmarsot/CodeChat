@@ -71,53 +71,80 @@
 -- call core.createuser(
 --     '{"id":0,"name":"Josie Marsot","email":"josiemarsot@hotmail.com"}'::json
 -- )
-drop procedure core.createuser;
-create or replace procedure core.createuser(
+DROP PROCEDURE IF EXISTS core.createuser;
+CREATE OR REPLACE PROCEDURE core.createuser(
     jsonUser json,
-    inout userid int default null
-) as $$
-declare
-    username varchar(50);
-    useremail varchar(100);
-	userrole varchar(20);
-begin
-    --check if the user is already registered
-    if exists(select 1 from core.user u where u.email=jsonUser->>'email') then 
-        raise exception 'User with email % already exist.', jsonUser->>'email'
-            using hint = 'Please login in instead.';
-    end if;
+    INOUT out_userid int DEFAULT NULL
+) AS $$
+DECLARE
+    v_name varchar(50);
+    v_email varchar(100);
+    v_role varchar(20);
+BEGIN
+    -- check if the user is already registered
+    IF EXISTS(SELECT 1 FROM core.user u WHERE u.email = jsonUser->>'email') THEN 
+        RAISE EXCEPTION 'User with email % already exist.', jsonUser->>'email'
+            USING HINT = 'Please login in instead.';
+    END IF;
+    
     -- create the user
-    insert into core.user (
-    	name,email,password,role
-    ) values (
-        jsonUser->>'name',jsonUser->>'email',jsonUser->>'password',jsonUser->>'role'
-    ) returning id,name,email into userid,username,useremail;
-    raise notice 'Created user: % name: % with email: % and role: %', userid, username, useremail, userrole;
-end
-$$
-language plpgsql;
+    INSERT INTO core.user (
+        name, email, password, role
+    ) VALUES (
+        jsonUser->>'name',
+        jsonUser->>'email',
+        jsonUser->>'password',
+        jsonUser->>'role'
+    ) RETURNING 
+        core.user.userid,
+        core.user.name,
+        core.user.email 
+    INTO 
+        out_userid,
+        v_name,
+        v_email;
+        
+    RAISE NOTICE 'Created user: % name: % with email: % and role: %', out_userid, v_name, v_email, v_role;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Create a OaiFile
 -- Example:
--- call core.oaifile(
---     '{OaiFile fields and values}'::json
--- )
-drop procedure core.createoaifile;
-create or replace procedure core.createoaifile(
-    jsonFile json
-) as $$
-begin
+-- call core.createoaifile('{"fileId":"file-G8esRwhimXuLiYXVd5RuXE","fileName":"Recovery.java","rootdir":"/Users/benoitmarsot/dealerfx/dev/dbtools/java/dbtools-base/dbcompare/src/main/java/dev/platform5/dbtools/dbcompare","filePath":"/Users/benoitmarsot/dealerfx/dev/dbtools/java/dbtools-base/dbcompare/src/main/java/dev/platform5/dbtools/dbcompare/Recovery.java","purpose":"assistants"}'::json)
+--
+DROP PROCEDURE IF EXISTS core.createoaifile;
+CREATE OR REPLACE PROCEDURE core.createoaifile(
+    jsonFile json,
+    userId int
+) AS $$
+DECLARE
+    fid int;
+    v_file_name varchar(255);
+BEGIN
     -- check if the file is already registered
-    if exists(select 1 from core.oaifile f where f.fileid=jsonFile->>'fileId') then 
-        raise exception 'File with fileId % already exist.', jsonFile->>'fileId'
-    end if;
-    -- insert the file
-    insert into core.file (
-    	fileId,filename,rootdir,filepath,purpose
-    ) values (
-        jsonFile->>'fileId',jsonFile->>'fileName',jsonFile->>'rootdir',jsonFile->>'filePath',jsonFile->>'purpose'
-    ) returning id,name,email into userid,username,useremail;
-    raise notice 'Created file: % name: % for %.', jsonFile->>'fileId', jsonFile->>'fileName', jsonFile->>'purpose'; 
-end
-$$
-language plpgsql;
+    IF EXISTS(SELECT 1 FROM core.oaifile f WHERE f.oai_f_id = jsonFile->>'fileId') THEN 
+        RAISE EXCEPTION 'File with OpenAI file_id % already exists.', jsonFile->>'fileId'
+            USING HINT = 'Use a different file ID.';
+    END IF;
+    
+    -- create the file record
+    INSERT INTO core.oaifile (
+        userid, oai_f_id, file_name, rootdir, filepath, purpose, linecount
+    ) VALUES (
+        userId,
+        jsonFile->>'fileId',
+        jsonFile->>'fileName',
+        jsonFile->>'rootdir',
+        jsonFile->>'filePath',
+        jsonFile->>'purpose',
+        (jsonFile->>'linecount')::int
+    ) RETURNING 
+        core.oaifile.fid,
+        core.oaifile.file_name
+    INTO 
+        fid,
+        v_file_name;
+        
+    RAISE NOTICE 'Created file: % name: %', fid, v_file_name;
+END;
+$$ LANGUAGE plpgsql;

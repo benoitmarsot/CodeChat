@@ -1,5 +1,6 @@
 package com.unbumpkin.codechat.service.openai;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -7,8 +8,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.unbumpkin.codechat.domain.openai.OaiFile;
@@ -36,9 +39,9 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, String extension
+        String rootDir, String extension, int userId
     ) throws IOException {
-        return this.uploadFiles(rootDir, extension, Purposes.assistants);
+        return this.uploadFiles(rootDir, extension, Purposes.assistants, userId);
     }
     /**
      * Upload recursively all files in a directory with a specific extension 
@@ -49,19 +52,20 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, String extension, Purposes purpose
+        String rootDir, String extension, Purposes purpose,
+        int userId
     ) throws IOException {
         //recursivly read a directory and find files with a specific extension
-        List<String> files= FileUtils.listFiles(rootDir, extension);
+        List<File> files= FileUtils.listFiles(rootDir, Set.of(extension));
 
         Map<String,OaiFile> fileIdMap=new HashMap<>(files.size());
         System.out.println("Uploading files...");
-        for(String file:files){
-            if(FileUtils.getFileSize(file)==0) {
-                System.out.println("File "+file+" is empty, skipping...");
+        for(File file:files) {
+            if(file.length()==0) {
+                System.out.println("File "+file.getName()+" is empty, skipping...");
                 continue;
             }
-            OaiFile oaiFile=this.uploadFile(file, purpose);
+            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), purpose, userId);
             fileIdMap.put(oaiFile.fileId(), oaiFile);
             System.out.println(String.format("File %s uploaded with id: %s...",file,oaiFile.fileId()));
         }
@@ -99,13 +103,15 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @return the OaiFile object
      * @throws IOException
      */
-    public OaiFile uploadFile(String filePath, Purposes purpose) throws IOException {
+    public OaiFile uploadFile(String filePath, Purposes purpose, int userId ) throws IOException {
         String url = API_URL;
 
-        RequestBody fileBody = RequestBody.create(new java.io.File(filePath), JSON_MEDIA_TYPE);
+        File file=new java.io.File(filePath);
+        int linecount=FileUtils.countLines(file);
+        RequestBody fileBody = RequestBody.create(file, JSON_MEDIA_TYPE);
         RequestBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addFormDataPart("purpose", purpose.name())
+                .addFormDataPart("purpose", purpose.toString())
                 .addFormDataPart("file", filePath, fileBody)
                 .build();
 
@@ -114,12 +120,14 @@ public class OaiFileService  extends BaseOpenAIClient {
                 .post(requestBody)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .build();
-        OaiFile oaiFile = new OaiFile(
+        OaiFile oaiFile = new OaiFile( 0,
+            userId ,
             this.executeRequest(request).get("id").asText(),
             Paths.get(filePath).getFileName().toString(),
             Paths.get(filePath).getParent().toString(),
             filePath,
-            purpose
+            purpose,
+            linecount
         );
         return oaiFile;
     }
@@ -187,7 +195,8 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @param outputPath: the path to save the file
      * @throws IOException
      */
-    public void downloadFile(String fileId, String outputPath) throws IOException {
+    public void downloadFile(
+        @RequestParam String fileId, String outputPath) throws IOException {
         String url = String.format(API_URL_WITH_FILE_CONTENT, fileId);
 
         Request request = new Request.Builder()
@@ -197,9 +206,9 @@ public class OaiFileService  extends BaseOpenAIClient {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            String responseBody = response.body().string();
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected code " + responseBody);
+                String responseBody = response.body().string();
+                throw new IOException(responseBody);
             }
             Files.write(Paths.get(outputPath), response.body().bytes());
             System.out.println("File content saved to " + outputPath);
@@ -216,15 +225,15 @@ public class OaiFileService  extends BaseOpenAIClient {
         String url = String.format(API_URL_WITH_FILE_CONTENT, fileId);
 
         Request request = new Request.Builder()
-                .url(url)
-                .get()
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .build();
+            .url(url)
+            .get()
+            .addHeader("Authorization", "Bearer " + API_KEY)
+            .build();
 
         try (Response response = client.newCall(request).execute()) {
-            String responseBody = response.body().string();
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected code " + responseBody);
+                String responseBody = response.body().string();
+                throw new IOException(responseBody);
             }
             return response.body().bytes();
         }

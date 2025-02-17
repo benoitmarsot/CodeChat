@@ -1,30 +1,66 @@
 package com.unbumpkin.codechat.domain;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
+import java.util.Collection;
+import java.util.List;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 public record User(
-    int id, 
-    @NotBlank(message = "Name is mandatory")
+    int userid, 
     String name, 
-    @NotBlank(message = "Name is mandatory")
-    @Email(message = "Email should be valid")
     String email,
-    @NotBlank(message = "Password is mandatory")
-    @Pattern(
-        regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{8,}$", 
-        message = "Password should contain at least one digit, one lowercase, one uppercase, one special character and should be at least 8 characters long")
     String password,
     Role role
-) {
+) implements UserDetails {
+    
     public enum Role {
         USER, ADMIN
     }
-    //here we can add custom methods to the record
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    public int userid() {
+        return userid;
+    }
+
+    
+
     public boolean isAdmin() {
         return role == Role.ADMIN;
     }
-    
-    
+
 }

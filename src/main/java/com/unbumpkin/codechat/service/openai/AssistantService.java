@@ -8,20 +8,52 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
 @Service
-public class Assistant extends BaseOpenAIClient {
+public class AssistantService extends BaseOpenAIClient {
     private static final String API_URL = "https://api.openai.com/v1/assistants";
     public enum AssistantTools {
         code_interpreter,
         file_search,
         function
     }
-    public Assistant() {
-        super();
+    public AssistantBuilder testAssistantService() {
+        return new AssistantBuilder(Models.gpt_4o)
+            .setName("Code chat assistant")
+            .setDescription("Help in the reviewing of code")
+            .setInstructions("You are a code reviewer. When asked a question, provide feedback on the code base provided in your vector store.")
+            .setReasoningEffort(ReasoningEffort.high)
+            .addFileSearchTool()
+            .addFileSearchAssist()
+            .setToolResourcesFileSearch(List.of("vs_67aec52acf3c819198ef877500651d8f"))
+            .addFunction()
+                .setFunctionName("countLines")
+                .setFunctionDescription("This function will return the number of lines in a file")
+                .FunctionAddParameter("fileid", "string", "The id of the file")
+            .addFunction()
+                .setFunctionName("getFilename")
+                .setFunctionDescription("This function will return the name of file")
+                .FunctionAddParameter("fileid", "string", "The id of the file");
+                
+    }
+    public String CreateAssistant(AssistantBuilder helper) throws IOException {
+        String json = objectMapper.writeValueAsString(helper);
+        //System.out.println(json);
+        RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
+
+        Request request = new Request.Builder()
+            .url(API_URL)
+            .post(body)
+            .addHeader("Authorization", "Bearer " + API_KEY)
+            .addHeader("OpenAI-Beta", "assistants=v2")
+            .addHeader("Content-Type", "application/json")
+            .build();
+            JsonNode jsonNode = this.executeRequest(request);
+            return jsonNode.get("id").asText();
     }
     public String createAssistant(
         Models model, String name, List<AssistantTools> tools, String instructions

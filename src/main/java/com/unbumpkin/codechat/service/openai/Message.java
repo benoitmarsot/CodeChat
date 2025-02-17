@@ -22,7 +22,7 @@ public class Message extends BaseOpenAIClient {
 
     public String createMessage(Roles role, String content) throws IOException {
         String url = String.format(API_URL, threadId);
-        String json = String.format("{\"role\": \"%s\", \"content\": \"%s\"}", role.name(), content);
+        String json = String.format("{\"role\": \"%s\", \"content\": \"%s\"}", role.toString(), content);
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()

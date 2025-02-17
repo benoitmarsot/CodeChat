@@ -3,8 +3,11 @@ package com.unbumpkin.codechat.service.openai;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -35,7 +38,7 @@ public abstract class BaseOpenAIClient {
     }
 
     protected static final String API_KEY = System.getenv("OPENAI_API_KEY");
-    protected static MediaType JSON_MEDIA_TYPE = MediaType.parse("application/json; charset=utf-8");
+    protected static MediaType JSON_MEDIA_TYPE = MediaType.parse("application/json");
     protected OkHttpClient client;
     protected ObjectMapper objectMapper;
 
@@ -46,13 +49,15 @@ public abstract class BaseOpenAIClient {
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build();
         this.objectMapper = new ObjectMapper();
-    }
+        this.objectMapper.registerModule(new JavaTimeModule());
+        this.objectMapper.setSerializationInclusion(Include.NON_NULL);
 
+    }
     protected JsonNode executeRequest(Request request) throws IOException {
         try (Response response = client.newCall(request).execute()) {
             String responseBody = response.body().string();
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected code " + responseBody);
+                throw new IOException(responseBody);
             }
             return objectMapper.readTree(responseBody);
         }

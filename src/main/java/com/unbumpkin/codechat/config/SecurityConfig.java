@@ -7,10 +7,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
@@ -24,6 +26,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
     private final JwtUtil jwtUtil;
     private final IpWhitelistFilter ipWhitelistFilter;
@@ -40,7 +43,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                             // Authentication endpoints
-                            "/auth/**"
+                            "/api/v1/auth/**"
                         ).permitAll()
                         .requestMatchers(
                             // Swagger endpoints
@@ -78,7 +81,7 @@ class JwtFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain chain)
             throws ServletException, IOException {
         String token = request.getHeader("Authorization");
         if (token != null && token.startsWith("Bearer ")) {
@@ -91,3 +94,22 @@ class JwtFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 }
+
+
+// @Configuration
+// @EnableWebSecurity
+// public class SecurityConfig {
+
+//     @Bean
+//     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+//         http
+//             .authorizeRequests(authorizeRequests ->
+//                 authorizeRequests
+//                     .requestMatchers("/api/openai/files/**").permitAll() // Allow access to your endpoints
+//                     .anyRequest().authenticated()
+//             )
+//             .csrf().disable(); // Disable CSRF for simplicity, enable it in production with proper configuration
+
+//         return http.build();
+//     }
+// }
