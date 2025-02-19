@@ -87,9 +87,10 @@ class JwtFilter extends OncePerRequestFilter {
         String token = request.getHeader("Authorization");
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
+            String username = jwtUtil.validateToken(token);
             int userId = jwtUtil.getUserIdFromToken(token);
-            String username = jwtUtil.validateTokenAndGetEmail(token);
-            UserDetails userDetails = User.withUsername(username).password("").roles("USER").build();
+            String role = jwtUtil.getRoleFromToken(token);
+            UserDetails userDetails = User.withUsername(username).password("").roles(role).build();
             CustomAuthentication auth = new CustomAuthentication(userDetails, null, userDetails.getAuthorities(), userId);
             SecurityContextHolder.getContext().setAuthentication(auth);
         }
