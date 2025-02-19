@@ -16,6 +16,7 @@ import com.unbumpkin.codechat.domain.openai.VectorStore;
 import com.unbumpkin.codechat.domain.openai.VectorStore.VectorStoreResponse;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
+import com.unbumpkin.codechat.service.openai.ProgramVectorStores.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreFile;
 import com.unbumpkin.codechat.service.openai.VectorStoreFileBatch;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
@@ -63,6 +64,7 @@ public class VectorStoreController {
         String Description,
         Instant created,
         long dayskeep,
+        Types type,
         VectorStoreResponse openai_response
     ) { }
     /**
@@ -82,6 +84,7 @@ public class VectorStoreController {
             repoStore.description(),
             repoStore.created(),
             repoStore.dayskeep(),
+            repoStore.type(),
             vectorStoreResponse
         );
         return ResponseEntity.ok(fullResponse);

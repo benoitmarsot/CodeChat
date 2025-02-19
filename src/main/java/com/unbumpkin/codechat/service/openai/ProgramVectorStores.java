@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 
 public class ProgramVectorStores {
     public enum Types {
-        code, markup, config
+        code, markup, config, full
     }
     public static final Set<String> CodeExtensions = Set.of(
         "py", "js", "jsx", "java", "cs", "php", "rb", "swift", "go", "c", "cpp", "rs", "ts", 

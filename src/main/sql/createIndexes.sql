@@ -29,6 +29,66 @@ begin
         raise notice 'Creating core.vectorstore_oaifile index idx_vectorstore_oaifile_vsid...';
         create index idx_vectorstore_oaifile_vsid on core.vectorstore_oaifile(vsid);
     end if;
+    
+    -- Add unique index for assistant.oai_aid
+    if not exists (
+        select indexname 
+        from pg_indexes 
+        where tablename = 'assistant' 
+            and schemaname = 'core' 
+            and indexname = 'idx_assistant_oai_aid'
+    ) then
+        raise notice 'Creating unique index idx_assistant_oai_aid on core.assistant(oai_aid)...';
+        create unique index idx_assistant_oai_aid on core.assistant(oai_aid);
+    end if;
+
+    -- Add unique index for thread.oai_threadid
+    if not exists (
+        select indexname 
+        from pg_indexes 
+        where tablename = 'thread' 
+            and schemaname = 'core' 
+            and indexname = 'idx_thread_oai_threadid'
+    ) then
+        raise notice 'Creating unique index idx_thread_oai_threadid on core.thread(oai_threadid)...';
+        create unique index idx_thread_oai_threadid on core.thread(oai_threadid);
+    end if;
+
+    -- Add index for message.did
+    if not exists (
+        select indexname 
+        from pg_indexes 
+        where tablename = 'message' 
+            and schemaname = 'core' 
+            and indexname = 'idx_message_did'
+    ) then
+        raise notice 'Creating index idx_message_did on core.message(did)...';
+        create index idx_message_did on core.message(did);
+    end if;
+
+    -- Add index for discussion.projectid
+    if not exists (
+        select indexname 
+        from pg_indexes 
+        where tablename = 'discussion' 
+            and schemaname = 'core' 
+            and indexname = 'idx_discussion_projectid'
+    ) then
+        raise notice 'Creating index idx_discussion_projectid on core.discussion(projectid)...';
+        create index idx_discussion_projectid on core.discussion(projectid);
+    end if;
+
+    -- Add index for thread.did
+    if not exists (
+        select indexname 
+        from pg_indexes 
+        where tablename = 'thread' 
+            and schemaname = 'core' 
+            and indexname = 'idx_thread_did'
+    ) then
+        raise notice 'Creating index idx_thread_did on core.thread(did)...';
+        create index idx_thread_did on core.thread(did);
+    end if;
 end; $$;
 
 call public.sp_CreateIndexes();

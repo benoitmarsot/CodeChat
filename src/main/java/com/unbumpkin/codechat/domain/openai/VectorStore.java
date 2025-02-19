@@ -6,6 +6,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.unbumpkin.codechat.service.openai.ProgramVectorStores.Types;
 
 public class VectorStore {
 
@@ -20,7 +21,8 @@ public class VectorStore {
     private ChunkingStrategy chunkingStrategy;
     private Map<String, String> metadata; // JSONB column as a String (adjust type as needed)
     private VectorStoreResponse vectorStoreResponse;
-
+    private Types type;
+    
     public record ExpiresAfter(String anchor, int days) {
         public ExpiresAfter(int days) {
             this("last_active_at", 0);
@@ -82,18 +84,23 @@ public class VectorStore {
     }
 
     // Repository constructor
-    public VectorStore(int vsId, String oaiVsId, String vsname, String vsdesc, Instant created, Integer dayskeep) {
+    public VectorStore(int vsId, String oaiVsId, String vsname, String vsdesc, Instant created, Integer dayskeep, Types type) {
         this.vsid = vsId;
         this.oaiVsId = oaiVsId;
         this.vsname = vsname;
         this.vsdesc = vsdesc;
         this.created = created;
         this.dayskeep = dayskeep;
+        this.type = type;
     }
 
     // OpenAI service constructor
     // Parameterized constructor
-    public VectorStore(String vsname, String vsdesc, List<String> fileIds, ExpiresAfter expiresAfter, ChunkingStrategy chunkingStrategy, Map<String, String> metadata) {
+    public VectorStore(
+        String vsname, String vsdesc, List<String> fileIds, 
+        ExpiresAfter expiresAfter, ChunkingStrategy chunkingStrategy, 
+        Map<String, String> metadata
+    ) {
         this.vsname = vsname;
         this.vsdesc = vsdesc;
         this.fileIds = fileIds;
@@ -183,6 +190,9 @@ public class VectorStore {
 
     public void setMetadata(Map<String, String> metadata) {
         this.metadata = metadata;
+    }
+    public Types getType() {
+        return type;
     }
 
 }

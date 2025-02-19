@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.domain.openai.VectorStore;
+import com.unbumpkin.codechat.service.openai.ProgramVectorStores.Types;
 
 @Repository
 public class VectorStoreRepository {
@@ -29,7 +30,8 @@ public class VectorStoreRepository {
         String name,
         String description,
         Instant created,
-        long dayskeep
+        long dayskeep,
+        Types type
     ) { }
 
     private final RowMapper<RepoVectorStoreResponse> rowMapper = (rs, rowNum) -> {
@@ -39,7 +41,8 @@ public class VectorStoreRepository {
             rs.getString("vs_name"),
             rs.getString("vs_desc"),
             rs.getTimestamp("created").toInstant(),
-            rs.getInt("dayskeep")
+            rs.getInt("dayskeep"),
+            Types.valueOf(rs.getString("type"))
         );
         return vectorStore;
     };
