@@ -7,42 +7,41 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.unbumpkin.codechat.config.TestSecurityConfig;
 import com.unbumpkin.codechat.domain.openai.OaiFile;
 import com.unbumpkin.codechat.domain.openai.VectorStore;
 import com.unbumpkin.codechat.domain.openai.VectorStore.Static;
-import com.unbumpkin.codechat.repository.UserRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.domain.openai.VectorStore.ChunkingStrategy;
 import com.unbumpkin.codechat.domain.openai.VectorStore.ExpiresAfter;
 
 @SpringBootTest
 @Transactional
+@Import(TestSecurityConfig.class)
 public class VectorStoreRepositoryIntegrationTests {
 
     @Autowired
     private VectorStoreRepository vectorStoreRepository;
     @Autowired
     private OaiFileRepository fileRepository;
-    @Autowired
-    private UserRepository userRepository;
 
     private static final String VS_ID_1 = "vs1";
     private static final String VS_ID_2 = "vs2";
 
     private static int TEST_USER_ID = 0;
-    @BeforeEach
-    public void setUp() {
-        if(TEST_USER_ID == 0) {
-            TEST_USER_ID = userRepository.findFirstUserId();
-        }
-    }
+    // @BeforeEach
+    // public void setUp() {
+    //     if(TEST_USER_ID == 0) {
+    //         TEST_USER_ID = userRepository.findFirstUserId();
+    //     }
+    // }
 
     @Test
     public void testStoreAndRetrieveVectorStore() throws JsonProcessingException {
@@ -74,11 +73,12 @@ public class VectorStoreRepositoryIntegrationTests {
 
     @Test
     public void testGetAllVectorStores() throws JsonProcessingException {
+        int count = vectorStoreRepository.getAllVectorStores().size();
         vectorStoreRepository.storeVectorStore(createTestVectorStore(VS_ID_1));
         vectorStoreRepository.storeVectorStore(createTestVectorStore(VS_ID_2));
 
         List<RepoVectorStoreResponse> vectorStores = vectorStoreRepository.getAllVectorStores();
-        assertEquals(2, vectorStores.size());
+        assertEquals(count+2, vectorStores.size());
     }
 
     @Test
@@ -93,8 +93,8 @@ public class VectorStoreRepositoryIntegrationTests {
         String fileId = "file1";
         OaiFile file = new OaiFile(0, TEST_USER_ID, fileId, "test.txt", "/root", "/path/test.txt", 
             OaiFile.Purposes.assistants, 100);
-        fileRepository.storeOaiFile(file,TEST_USER_ID);
-        OaiFile fileRetrieved=fileRepository.retrieveFile( fileId,TEST_USER_ID);
+        fileRepository.storeOaiFile(file);
+        OaiFile fileRetrieved=fileRepository.retrieveFile( fileId);
         assertNotNull(fileRetrieved);
 
         // Now add the association and test
@@ -118,7 +118,7 @@ public class VectorStoreRepositoryIntegrationTests {
         OaiFile file3 = new OaiFile(0, TEST_USER_ID, "file3", "Test File 3", "/root2", "/path3", 
             OaiFile.Purposes.assistants, 300);
         
-        fileRepository.storeOaiFiles(List.of( file1, file2, file3),TEST_USER_ID);
+        fileRepository.storeOaiFiles(List.of( file1, file2, file3));
         List<String> fileIds = List.of("file1", "file2", "file3");
         vectorStoreRepository.addFiles(VS_ID_1, (Collection<String>)fileIds);
         

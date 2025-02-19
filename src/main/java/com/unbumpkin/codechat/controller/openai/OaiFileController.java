@@ -51,33 +51,33 @@ public class OaiFileController {
     @Autowired
     private final OaiFileRepository oaiFileRepository;
 
-    @Autowired
-    private final JwtUtil jwtUtil;
-    
     
     public OaiFileController(OaiFileService oaiFileService, OaiFileRepository oaiFileRepository, JwtUtil jwtUtil) {
         this.oaiFileService = oaiFileService;
         this.oaiFileRepository = oaiFileRepository;
-        this.jwtUtil = jwtUtil;
+    }
+
+    @Operation(summary = "Get my repo files")
+    @GetMapping("/myrepo")
+    public ResponseEntity<Iterable<OaiFile>> getMyRepoFiles(
+    ) throws IOException {
+        List<OaiFile> files = oaiFileRepository.listAllFiles();
+        return ResponseEntity.ok(files);
     }
 
     @Operation(summary = "Get all files")
     @GetMapping()
-    public ResponseEntity<Iterable<OaiFile>> getAllFiles(
-        @RequestHeader("Authorization") String authHeader
-    ) throws IOException {
-        int userId=getUserIdFromAuthHeader(authHeader);
+    public ResponseEntity<Iterable<OaiFile>> getAllFiles() throws IOException {
         List<String> fileIds = oaiFileService.listFiles();
-        List<OaiFile> files = oaiFileRepository.retrieveFiles(fileIds, userId);
+        List<OaiFile> files = oaiFileRepository.retrieveFiles(fileIds);
         return ResponseEntity.ok(files);
     }
+
     @Operation(summary = "Upload a directory")
     @PostMapping("/uploadDir")
     public ResponseEntity<Map<String,OaiFile>> uploadDir(
-        @RequestHeader("Authorization") String authHeader, 
         @RequestBody UploadDirRequest request 
     ) throws IOException,SQLException {
-        int userId=getUserIdFromAuthHeader(authHeader);
         if(!new File(request.rootDir()).isDirectory()) {
             throw new IllegalArgumentException("Invalid directory path: " + request.rootDir());
         }
@@ -85,12 +85,10 @@ public class OaiFileController {
         Map<String,OaiFile> files = oaiFileService.uploadFiles(
             request.rootDir(), 
             request.extension(), 
-            Purposes.valueOf(request.purpose().toLowerCase()),
-            userId
+            Purposes.valueOf(request.purpose().toLowerCase())
         );
         try {
-
-            oaiFileRepository.storeOaiFiles(files.values(),userId);
+            oaiFileRepository.storeOaiFiles(files.values());
         } catch (DataAccessException e) {
             for (OaiFile file : files.values()) {
                 oaiFileService.deleteFile(file.fileId());
@@ -99,10 +97,6 @@ public class OaiFileController {
         }
         return ResponseEntity.ok(files);
     }
-    private int getUserIdFromAuthHeader(String authHeader) {
-        String token=authHeader.substring(7);
-        return jwtUtil.getUserIdFromToken(token);
-    }   
 
     @Operation(summary = "Upload a file")
     @PutMapping("/uploadFile")
@@ -110,18 +104,16 @@ public class OaiFileController {
         @RequestHeader("Authorization") String authHeader, 
         @RequestBody UploadFileRequest request
     ) throws IOException {
-        int userId=getUserIdFromAuthHeader(authHeader);
         if(!new File(request.filepath()).exists()) {
             throw new IllegalArgumentException("Invalid file path: " + request.filepath());
         }
 
         OaiFile file = oaiFileService.uploadFile(
             request.filepath(), 
-            Purposes.valueOf(request.purpose().toLowerCase()),
-            userId
+            Purposes.valueOf(request.purpose().toLowerCase())
         );
         try {
-            oaiFileRepository.storeOaiFile(file,userId);
+            oaiFileRepository.storeOaiFile(file);
         } catch (IOException e) {
             oaiFileService.deleteFile(file.fileId());
             throw e;
@@ -135,8 +127,7 @@ public class OaiFileController {
         @RequestHeader("Authorization") String authHeader, 
         @PathVariable String fileId
     ) {
-        int userId=getUserIdFromAuthHeader(authHeader);
-        OaiFile file = oaiFileRepository.retrieveFile(fileId, userId);
+        OaiFile file = oaiFileRepository.retrieveFile(fileId);
         return ResponseEntity.ok(file);
     }
     @Operation(summary = "Delete a file")
@@ -145,9 +136,8 @@ public class OaiFileController {
         @RequestHeader("Authorization") String authHeader, 
         @PathVariable String fileId
     ) throws IOException {
-        int userId=getUserIdFromAuthHeader(authHeader);
         oaiFileService.deleteFile(fileId);
-        oaiFileRepository.deleteFile(fileId, userId);
+        oaiFileRepository.deleteFile(fileId);
         return ResponseEntity.ok().build();
     }
     @Operation(summary = "Delete all files")
@@ -155,8 +145,7 @@ public class OaiFileController {
     public ResponseEntity<Void> deleteAllFiles(
         @RequestHeader("Authorization") String authHeader
     ) throws IOException {
-        int userId=getUserIdFromAuthHeader(authHeader);
-        List<String> fileIds=oaiFileRepository.deleteAllFiles(userId);
+        List<String> fileIds=oaiFileRepository.deleteAllFiles();
         for(String fileId:fileIds) {
             oaiFileService.deleteFile(fileId);
         }
@@ -169,12 +158,11 @@ public class OaiFileController {
         @RequestHeader("Authorization") String authHeader,
         @RequestParam String rootDir
     ) {
-        int userId=getUserIdFromAuthHeader(authHeader);
         if(!new File(rootDir).isDirectory()) {
             throw new IllegalArgumentException("Invalid directory path: " + rootDir);
         }
 
-        List<OaiFile> files = oaiFileRepository.retrieveFiles(rootDir,userId);
+        List<OaiFile> files = oaiFileRepository.retrieveFiles(rootDir);
         return ResponseEntity.ok(files);
     }
     @Operation(summary = "Get a file info from OpenAI")
@@ -198,11 +186,10 @@ public class OaiFileController {
         @PathVariable String fileId, 
         @RequestParam String outPath
     ) throws IOException {
-        int userId=getUserIdFromAuthHeader(authHeader);
         if(!new File(outPath).exists()) {
             throw new IllegalArgumentException("Invalid file path: " + outPath);
         }
-        if(!oaiFileRepository.fileExists(fileId, userId)) {
+        if(!oaiFileRepository.fileExists(fileId)) {
             throw new ResourceNotFoundException("The file doesn't exist or the user does'nt have the right to it.");
         }
         oaiFileService.downloadFile(fileId, outPath);

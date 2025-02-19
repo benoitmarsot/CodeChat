@@ -57,7 +57,6 @@ public class JwtUtil {
     public String validateTokenAndGetEmail(String token) {
         return decodeToken(token).getSubject();
     }
-
     public int getUserIdFromToken(String token) {
         return decodeToken(token).getClaim("userId").asInt();
     }

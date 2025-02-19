@@ -2,12 +2,14 @@ package com.unbumpkin.codechat.controller;
 
 import com.unbumpkin.codechat.domain.LoginResponse;
 import com.unbumpkin.codechat.exception.DuplicateEmailException;
+import com.unbumpkin.codechat.repository.UserRepository;
 import com.unbumpkin.codechat.service.AuthService;
 import com.unbumpkin.codechat.service.auth.AuthRequest;
 import com.unbumpkin.codechat.service.auth.RegisterRequest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,8 @@ public class AuthController {
     private final AuthService authService;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     
+    @Autowired
+    UserRepository userRepository;
 
     public AuthController(AuthService authService) {
         this.authService = authService;
@@ -28,6 +32,10 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegisterRequest user) {
+        if(userRepository.existsByEmail(user.email())) {
+            throw new DuplicateEmailException("User with email " + user.email() + " already exists");
+        }
+
         logger.debug("Received registration request for email: {}", user.email());
         System.out.println("Received registration request for user: " + user.email());  // Add debug logging
         authService.register(user);

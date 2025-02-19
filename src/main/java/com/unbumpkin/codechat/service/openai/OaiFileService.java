@@ -39,9 +39,9 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, String extension, int userId
+        String rootDir, String extension
     ) throws IOException {
-        return this.uploadFiles(rootDir, extension, Purposes.assistants, userId);
+        return this.uploadFiles(rootDir, extension, Purposes.assistants);
     }
     /**
      * Upload recursively all files in a directory with a specific extension 
@@ -52,8 +52,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, String extension, Purposes purpose,
-        int userId
+        String rootDir, String extension, Purposes purpose
     ) throws IOException {
         //recursivly read a directory and find files with a specific extension
         List<File> files= FileUtils.listFiles(rootDir, Set.of(extension));
@@ -65,7 +64,7 @@ public class OaiFileService  extends BaseOpenAIClient {
                 System.out.println("File "+file.getName()+" is empty, skipping...");
                 continue;
             }
-            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), purpose, userId);
+            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), purpose);
             fileIdMap.put(oaiFile.fileId(), oaiFile);
             System.out.println(String.format("File %s uploaded with id: %s...",file,oaiFile.fileId()));
         }
@@ -103,7 +102,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @return the OaiFile object
      * @throws IOException
      */
-    public OaiFile uploadFile(String filePath, Purposes purpose, int userId ) throws IOException {
+    public OaiFile uploadFile(String filePath, Purposes purpose) throws IOException {
         String url = API_URL;
 
         File file=new java.io.File(filePath);
@@ -120,8 +119,8 @@ public class OaiFileService  extends BaseOpenAIClient {
                 .post(requestBody)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .build();
-        OaiFile oaiFile = new OaiFile( 0,
-            userId ,
+        OaiFile oaiFile = new OaiFile(0,
+            0, // userId will be set by repository
             this.executeRequest(request).get("id").asText(),
             Paths.get(filePath).getFileName().toString(),
             Paths.get(filePath).getParent().toString(),
