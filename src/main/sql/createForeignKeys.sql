@@ -6,6 +6,7 @@ declare
 begin
 	raise notice 'Create Foreign keys:';
     -- Foreign key for oaifile(userid) -> user(userid)
+
     if not exists (
         select constraint_name
         from information_schema.table_constraints
@@ -17,6 +18,19 @@ begin
         alter table core.oaifile
             add constraint oaifile_fk_user
             foreign key (userid) references core.user(userid);
+    end if;
+    -- Foreign key for oaifile(projectid) -> project(projectid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'oaifile'
+            and constraint_schema = 'core'
+            and constraint_name = 'oaifile_fk_project'
+    ) then
+        raise notice 'Creating oaifile_fk_project...';
+        alter table core.oaifile
+            add constraint oaifile_fk_project
+            foreign key (projectid) references core.project(projectid);
     end if;
     -- Foreign key for vectorstore_oaifile(vsid) -> vectorstore(vsid)
     IF NOT EXISTS (

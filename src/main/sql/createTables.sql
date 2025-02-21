@@ -8,6 +8,7 @@ create table if not exists core.user (
 
 create table if not exists core.oaifile (
     fid serial,
+    projectid int not null,
     userid int not null,
     oai_f_id varchar(30) not null,
     file_name varchar(255) not null,

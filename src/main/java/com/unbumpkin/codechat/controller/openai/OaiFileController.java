@@ -60,8 +60,9 @@ public class OaiFileController {
     @Operation(summary = "Get my repo files")
     @GetMapping("/myrepo")
     public ResponseEntity<Iterable<OaiFile>> getMyRepoFiles(
+        @RequestParam int projectId
     ) throws IOException {
-        List<OaiFile> files = oaiFileRepository.listAllFiles();
+        List<OaiFile> files = oaiFileRepository.listAllFiles(projectId);
         return ResponseEntity.ok(files);
     }
 
@@ -75,20 +76,22 @@ public class OaiFileController {
 
     @Operation(summary = "Upload a directory")
     @PostMapping("/uploadDir")
-    public ResponseEntity<Map<String,OaiFile>> uploadDir(
-        @RequestBody UploadDirRequest request 
-    ) throws IOException,SQLException {
-        if(!new File(request.rootDir()).isDirectory()) {
+    public ResponseEntity<Map<String, OaiFile>> uploadDir(
+        @RequestBody UploadDirRequest request,
+        @RequestParam int projectId
+    ) throws IOException, SQLException {
+        if (!new File(request.rootDir()).isDirectory()) {
             throw new IllegalArgumentException("Invalid directory path: " + request.rootDir());
         }
-
-        Map<String,OaiFile> files = oaiFileService.uploadFiles(
-            request.rootDir(), 
-            request.extension(), 
-            Purposes.valueOf(request.purpose().toLowerCase())
+    
+        Map<String, OaiFile> files = oaiFileService.uploadFiles(
+            request.rootDir(),
+            request.extension(),
+            Purposes.valueOf(request.purpose().toLowerCase()),
+            projectId
         );
         try {
-            oaiFileRepository.storeOaiFiles(files.values());
+            oaiFileRepository.storeOaiFiles(files.values(), projectId);
         } catch (DataAccessException e) {
             for (OaiFile file : files.values()) {
                 oaiFileService.deleteFile(file.fileId());
@@ -102,7 +105,8 @@ public class OaiFileController {
     @PutMapping("/uploadFile")
     public ResponseEntity<OaiFile> uploadFile(
         @RequestHeader("Authorization") String authHeader, 
-        @RequestBody UploadFileRequest request
+        @RequestBody UploadFileRequest request,
+        @RequestParam int projectId
     ) throws IOException {
         if(!new File(request.filepath()).exists()) {
             throw new IllegalArgumentException("Invalid file path: " + request.filepath());
@@ -110,10 +114,11 @@ public class OaiFileController {
 
         OaiFile file = oaiFileService.uploadFile(
             request.filepath(), 
-            Purposes.valueOf(request.purpose().toLowerCase())
+            Purposes.valueOf(request.purpose().toLowerCase()),
+            projectId
         );
         try {
-            oaiFileRepository.storeOaiFile(file);
+            oaiFileRepository.storeOaiFile(file, projectId);
         } catch (IOException e) {
             oaiFileService.deleteFile(file.fileId());
             throw e;
@@ -156,13 +161,14 @@ public class OaiFileController {
     @GetMapping("rootDir")
     public ResponseEntity<List<OaiFile>> getFilesFromRootDir(
         @RequestHeader("Authorization") String authHeader,
-        @RequestParam String rootDir
+        @RequestParam String rootDir,
+        @RequestParam int projectId
     ) {
         if(!new File(rootDir).isDirectory()) {
             throw new IllegalArgumentException("Invalid directory path: " + rootDir);
         }
 
-        List<OaiFile> files = oaiFileRepository.retrieveFiles(rootDir);
+        List<OaiFile> files = oaiFileRepository.retrieveFiles(rootDir,projectId);
         return ResponseEntity.ok(files);
     }
     @Operation(summary = "Get a file info from OpenAI")

@@ -3,6 +3,7 @@ package com.unbumpkin.codechat.domain.openai;
 public record OaiFile(
     int fId,
     int userId,
+    int projectId,
     String fileId, 
     String fileName, 
     String rootdir, 
@@ -32,6 +33,6 @@ public record OaiFile(
         }
     }
     public OaiFile getUidLcOaiFile(int userId, int lineCount) {
-        return new OaiFile(fId,userId,fileId,fileName,rootdir,filePath,purpose,linecount);
+        return new OaiFile(fId,userId,projectId,fileId,fileName,rootdir,filePath,purpose,linecount);
     }
 }

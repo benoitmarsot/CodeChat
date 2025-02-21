@@ -47,12 +47,12 @@ public class OaiFileRepository {
      * @param file: The file to be uploaded.
      * @throws JsonProcessingException
      */
-    public void storeOaiFile(OaiFile file) throws JsonProcessingException, DataAccessException {
+    public void storeOaiFile(OaiFile file, int projectId) throws JsonProcessingException, DataAccessException {
         ObjectMapper mapper=new ObjectMapper();
         String json=mapper.writeValueAsString(file);
 
-        String sql = "call core.createoaifile(?::json,?)";
-        jdbcTemplate.update(sql, json, getCurrentUserId());
+        String sql = "call core.createoaifile(?::json,?,?)";
+        jdbcTemplate.update(sql, json, getCurrentUserId(), projectId);
     }
 
     /**
@@ -62,16 +62,16 @@ public class OaiFileRepository {
      * @throws DataAccessException
      */
     @Transactional
-    public long storeOaiFiles(Collection<OaiFile> files) throws DataAccessException {
+    public long storeOaiFiles(Collection<OaiFile> files,int projectId) throws DataAccessException {
         if (files == null || files.isEmpty()) {
             return 0;
         }
-        String csvData = getFilesCSV(files);
+        String csvData = getFilesCSV(files,projectId);
         
         Long result= jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
             try {
                 CopyManager copyManager = new CopyManager(connection.unwrap(BaseConnection.class));
-                String sql = "COPY core.oaifile (userid, oai_f_id, file_name, rootdir, filepath, purpose, linecount) "
+                String sql = "COPY core.oaifile (projectid, userid, oai_f_id, file_name, rootdir, filepath, purpose, linecount) "
                           + "FROM STDIN WITH (FORMAT csv, HEADER true, NULL 'null')";
                 try (InputStream inputStream = new ByteArrayInputStream(csvData.getBytes())) {
                     return copyManager.copyIn(sql, inputStream);
@@ -156,11 +156,12 @@ public class OaiFileRepository {
      * @param rootDir: The root directory to be retrieved.
      * @return a list of OaiFiles.
      */
-    public List<OaiFile> retrieveFiles(String rootDir) {
-        String sql = "SELECT * FROM core.oaifile where rootdir = ? and userid = ?";
+    public List<OaiFile> retrieveFiles(String rootDir, int projectId) {
+        String sql = "SELECT * FROM core.oaifile where rootdir = ? and userid = ? and projectid=?";
         return jdbcTemplate.query(sql, ps -> {
             ps.setString(1, rootDir);
             ps.setInt(2, getCurrentUserId());
+            ps.setInt(2, projectId);
         }, (rs, rowNum) -> {
             return OaiFileFrom(rs);
         });
@@ -171,9 +172,9 @@ public class OaiFileRepository {
      * return the list of all OaiFiles in the database.
      * @return a list of OaiFiles.
      */
-    public List<OaiFile> listAllFiles() {
+    public List<OaiFile> listAllFiles(int projectId) {
         
-        String sql = "SELECT * FROM core.oaifile where userid = ?";
+        String sql = "SELECT * FROM core.oaifile where userid = ? and projectid=?";
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             return OaiFileFrom(rs);
         }, getCurrentUserId());
@@ -195,6 +196,7 @@ public class OaiFileRepository {
     private OaiFile OaiFileFrom(ResultSet rs) throws SQLException {
         return new OaiFile(
             rs.getInt("fid"),
+            rs.getInt("projectid"),
             rs.getInt("userid"),
             rs.getString("oai_f_id"),
             rs.getString("file_name"),
@@ -209,11 +211,12 @@ public class OaiFileRepository {
      * @param files A map of file names to OaiFile objects.
      * @return A CSV format string.
      */
-    private String getFilesCSV(Collection<OaiFile> files) {
+    private String getFilesCSV(Collection<OaiFile> files, int projectId) {
         int userId = getCurrentUserId();
         StringBuilder sb = new StringBuilder();
-        sb.append("userid,fileid,filename,rootdir,filepath,purpose,linecount\n");
+        sb.append("projectid,userid,fileid,filename,rootdir,filepath,purpose,linecount\n");
         for (OaiFile file : files) {
+            sb.append(String.valueOf(projectId)).append(",");
             sb.append(String.valueOf(userId)).append(",");
             sb.append(quoteAndEscape(file.fileId())).append(",");
             sb.append(quoteAndEscape(file.fileName())).append(",");

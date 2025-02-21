@@ -39,9 +39,9 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, String extension
+        String rootDir, String extension, int projectId
     ) throws IOException {
-        return this.uploadFiles(rootDir, extension, Purposes.assistants);
+        return this.uploadFiles(rootDir, extension, Purposes.assistants, projectId);
     }
     /**
      * Upload recursively all files in a directory with a specific extension 
@@ -52,7 +52,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, String extension, Purposes purpose
+        String rootDir, String extension, Purposes purpose, int projectId
     ) throws IOException {
         //recursivly read a directory and find files with a specific extension
         List<File> files= FileUtils.listFiles(rootDir, Set.of(extension));
@@ -64,7 +64,7 @@ public class OaiFileService  extends BaseOpenAIClient {
                 System.out.println("File "+file.getName()+" is empty, skipping...");
                 continue;
             }
-            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), purpose);
+            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), purpose, projectId);
             fileIdMap.put(oaiFile.fileId(), oaiFile);
             System.out.println(String.format("File %s uploaded with id: %s...",file,oaiFile.fileId()));
         }
@@ -102,7 +102,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @return the OaiFile object
      * @throws IOException
      */
-    public OaiFile uploadFile(String filePath, Purposes purpose) throws IOException {
+    public OaiFile uploadFile(String filePath, Purposes purpose, int projectId) throws IOException {
         String url = API_URL;
 
         File file=new java.io.File(filePath);
@@ -121,6 +121,7 @@ public class OaiFileService  extends BaseOpenAIClient {
                 .build();
         OaiFile oaiFile = new OaiFile(0,
             0, // userId will be set by repository
+            projectId,
             this.executeRequest(request).get("id").asText(),
             Paths.get(filePath).getFileName().toString(),
             Paths.get(filePath).getParent().toString(),
