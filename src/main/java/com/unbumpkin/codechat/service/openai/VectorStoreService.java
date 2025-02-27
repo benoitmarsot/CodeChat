@@ -20,9 +20,11 @@ public class VectorStoreService extends BaseOpenAIClient {
     private static final String API_URL = "https://api.openai.com/v1/vector_stores";
     private static final String API_URL_WITH_ID = "https://api.openai.com/v1/vector_stores/%s";
 
+
     public VectorStoreService() {
         super();
     }
+
     /**
      * Creates a vector store using the OpenAI API.
      *
@@ -33,6 +35,25 @@ public class VectorStoreService extends BaseOpenAIClient {
     public String createVectorStore(
         VectorStore vectorStore
     ) throws IOException {
+        if(vectorStore.getFileIds().size()>100) {
+            System.out.println("Creating vector store with more than 100 files...");
+            List<String> allFileIds=vectorStore.getFileIds();
+            System.out.println("Total files: "+allFileIds.size());
+            //Get the first 100 files
+            List<String> fileIds = new ArrayList<>(vectorStore.getFileIds().subList(0, 100));
+            vectorStore.setFileIds(fileIds);
+            System.out.println("Creating vector store with 100 files...");
+            String vsId=this.createVectorStore(vectorStore);
+            VectorStoreFileBatch vectorStoreFileBatch = new VectorStoreFileBatch(vsId);
+            //Get the rest of the files in chunk of 100
+            for(int i=100; i<allFileIds.size(); i+=100) {
+                fileIds = new ArrayList<>(allFileIds.subList(i, Math.min(i+100, allFileIds.size())));
+                vectorStore.setFileIds(fileIds);
+                System.out.println("Submitting "+fileIds.size()+" files batch to "+vsId+"...");
+                vectorStoreFileBatch.createBatch(fileIds);
+            }
+            return vsId;
+        }
         RequestBody body = RequestBody.create(getCreateRequest(vectorStore), JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()
@@ -134,7 +155,7 @@ public class VectorStoreService extends BaseOpenAIClient {
 
         executeRequest(request);
     }
-    private String getCreateRequest(VectorStore vectoreStore) throws IOException {
+    private String getCreateRequest(VectorStore vectoreStore) throws IOException {        
         Map<String, Object> requestBody = new LinkedHashMap<>();
         if (vectoreStore.getVsname() != null && !vectoreStore.getVsname().isEmpty()) {
             requestBody.put("name", vectoreStore.getVsname());

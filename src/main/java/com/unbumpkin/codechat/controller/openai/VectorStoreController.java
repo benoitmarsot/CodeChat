@@ -16,7 +16,7 @@ import com.unbumpkin.codechat.domain.openai.VectorStore;
 import com.unbumpkin.codechat.domain.openai.VectorStore.VectorStoreResponse;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
-import com.unbumpkin.codechat.service.openai.ProgramVectorStores.Types;
+import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreFile;
 import com.unbumpkin.codechat.service.openai.VectorStoreFileBatch;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;

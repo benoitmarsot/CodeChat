@@ -6,7 +6,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.unbumpkin.codechat.service.openai.ProgramVectorStores.Types;
+import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
 
 public class VectorStore {
 
@@ -84,12 +84,11 @@ public class VectorStore {
     }
 
     // Repository constructor
-    public VectorStore(int vsId, String oaiVsId, String vsname, String vsdesc, Instant created, Integer dayskeep, Types type) {
+    public VectorStore(int vsId, String oaiVsId, String vsname, String vsdesc, Integer dayskeep, Types type) {
         this.vsid = vsId;
         this.oaiVsId = oaiVsId;
         this.vsname = vsname;
         this.vsdesc = vsdesc;
-        this.created = created;
         this.dayskeep = dayskeep;
         this.type = type;
     }
@@ -176,7 +175,7 @@ public class VectorStore {
         this.chunkingStrategy = chunkingStrategy;
     }
 
-    public int getDayskeep() {
+    public Integer getDayskeep() {
         return dayskeep;
     }
 

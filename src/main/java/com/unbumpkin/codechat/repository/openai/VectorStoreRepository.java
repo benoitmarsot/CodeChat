@@ -1,5 +1,6 @@
 package com.unbumpkin.codechat.repository.openai;
 
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Collection;
@@ -9,11 +10,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.domain.openai.VectorStore;
-import com.unbumpkin.codechat.service.openai.ProgramVectorStores.Types;
+import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
 
 @Repository
 public class VectorStoreRepository {
@@ -33,6 +39,15 @@ public class VectorStoreRepository {
         long dayskeep,
         Types type
     ) { }
+
+    private CustomAuthentication getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof CustomAuthentication) {
+            return ((CustomAuthentication) authentication);
+        }
+        throw new IllegalStateException("No authenticated user found");
+    }
+
 
     private final RowMapper<RepoVectorStoreResponse> rowMapper = (rs, rowNum) -> {
         RepoVectorStoreResponse vectorStore = new RepoVectorStoreResponse(
@@ -54,14 +69,24 @@ public class VectorStoreRepository {
      * @throws JsonProcessingException
      * @throws SQLException 
      */
-    public void storeVectorStore(VectorStore vStore) throws DataAccessException, JsonProcessingException {
-        String sql = "INSERT INTO core.vectorstore (oai_vs_id, vs_name, vs_desc, dayskeep) VALUES (?, ?, ?, ?)";
-        String sqlOut=sql.replace("?", "%s");
-        System.out.printf(sqlOut, vStore.getOaiVsid(), vStore.getVsname(), vStore.getVsdesc(), String.valueOf(vStore.getDayskeep()));
-        jdbcTemplate.update(
-            sql, vStore.getOaiVsid(), vStore.getVsname(), vStore.getVsdesc(), 
-            vStore.getDayskeep()
-        );
+    public int storeVectorStore(VectorStore vStore) throws DataAccessException, JsonProcessingException {
+        String sql = "INSERT INTO core.vectorstore (oai_vs_id, vs_name, vs_desc, dayskeep, type) VALUES (?, ?, ?, ?, ?)";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "vsid" });
+            ps.setString(1, vStore.getOaiVsid());
+            ps.setString(2, vStore.getVsname());
+            ps.setString(3, vStore.getVsdesc());
+            if(vStore.getDayskeep() == null) {
+                ps.setNull(4, java.sql.Types.INTEGER);
+            } else {
+                ps.setInt(4, vStore.getDayskeep());
+            }
+            ps.setString(5, vStore.getType().name());
+            return ps;
+        }, keyHolder);
+        Number key = keyHolder.getKey();
+        return key==null?0:key.intValue();
     }
 
     /**
@@ -246,5 +271,19 @@ public class VectorStoreRepository {
                         + "INNER JOIN core.vectorstore v ON v.vsid = vf.vsid "
                     + "WHERE v.oai_vs_id = ?";
         return jdbcTemplate.queryForList(sql, String.class, vsOaiId);
+    }
+    public void deleteAll() {
+        CustomAuthentication user = getCurrentUser();
+        if (user == null || !user.isAdmin()) {
+            throw new IllegalStateException("Only admins can delete all messages");
+        }
+
+        // Delete all associations in the vectorstore_oaifile table
+        String deleteAssociationsSql = "DELETE FROM core.vectorstore_oaifile";
+        jdbcTemplate.update(deleteAssociationsSql);
+
+        // Delete all records in the vectorstore table
+        String deleteVectorStoresSql = "DELETE FROM core.vectorstore";
+        jdbcTemplate.update(deleteVectorStoresSql);
     }
 }

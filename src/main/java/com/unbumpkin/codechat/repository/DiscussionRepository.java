@@ -111,4 +111,22 @@ public class DiscussionRepository {
         int userId = getCurrentUserId();
         jdbcTemplate.update(sql, did, userId, userId);
     }
+    private CustomAuthentication getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof CustomAuthentication) {
+            return ((CustomAuthentication) authentication);
+        }
+        throw new IllegalStateException("No authenticated user found");
+    }
+
+    public void deleteAll() {
+        CustomAuthentication currentUser = getCurrentUser();
+        if (currentUser == null || !currentUser.isAdmin()) {
+            throw new IllegalStateException("Only admins can delete all messages");
+        }
+
+        // Delete all records in the discussion table
+        String deleteDiscussionsSql = "DELETE FROM core.discussion";
+        jdbcTemplate.update(deleteDiscussionsSql);
+    }
 }

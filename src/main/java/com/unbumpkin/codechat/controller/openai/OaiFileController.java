@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,7 +27,6 @@ import com.unbumpkin.codechat.domain.openai.OaiFile;
 import com.unbumpkin.codechat.domain.openai.OaiFile.Purposes;
 import com.unbumpkin.codechat.exception.ResourceNotFoundException;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
-import com.unbumpkin.codechat.security.JwtUtil;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
 import com.unbumpkin.codechat.service.openai.request.UploadDirRequest;
 import com.unbumpkin.codechat.service.openai.request.UploadFileRequest;
@@ -34,12 +34,7 @@ import com.unbumpkin.codechat.service.openai.request.UploadFileRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
-
 import org.springframework.http.HttpHeaders;
-
-import org.springframework.web.bind.annotation.RequestParam;
-
-
 
 @RestController
 @RequestMapping("/api/v1/openai/files")
@@ -51,10 +46,18 @@ public class OaiFileController {
     @Autowired
     private final OaiFileRepository oaiFileRepository;
 
-    
-    public OaiFileController(OaiFileService oaiFileService, OaiFileRepository oaiFileRepository, JwtUtil jwtUtil) {
+    public OaiFileController(
+        OaiFileService oaiFileService,
+        OaiFileRepository oaiFileRepository
+    ) {
         this.oaiFileService = oaiFileService;
         this.oaiFileRepository = oaiFileRepository;
+    }
+
+    @Operation(summary = "Simple get test")
+    @GetMapping("/test")
+    public ResponseEntity<String> test() throws IOException {
+        return ResponseEntity.ok("All is good");
     }
 
     @Operation(summary = "Get my repo files")
@@ -83,7 +86,7 @@ public class OaiFileController {
         if (!new File(request.rootDir()).isDirectory()) {
             throw new IllegalArgumentException("Invalid directory path: " + request.rootDir());
         }
-    
+
         Map<String, OaiFile> files = oaiFileService.uploadFiles(
             request.rootDir(),
             request.extension(),
@@ -104,16 +107,16 @@ public class OaiFileController {
     @Operation(summary = "Upload a file")
     @PutMapping("/uploadFile")
     public ResponseEntity<OaiFile> uploadFile(
-        @RequestHeader("Authorization") String authHeader, 
+        @RequestHeader("Authorization") String authHeader,
         @RequestBody UploadFileRequest request,
         @RequestParam int projectId
     ) throws IOException {
-        if(!new File(request.filepath()).exists()) {
+        if (!new File(request.filepath()).exists()) {
             throw new IllegalArgumentException("Invalid file path: " + request.filepath());
         }
 
         OaiFile file = oaiFileService.uploadFile(
-            request.filepath(), 
+            request.filepath(),
             Purposes.valueOf(request.purpose().toLowerCase()),
             projectId
         );
@@ -124,39 +127,41 @@ public class OaiFileController {
             throw e;
         }
         return ResponseEntity.ok(file);
-
     }
-    @Operation(summary = "get a OaiFile")
+
+    @Operation(summary = "Get a OaiFile")
     @GetMapping("/{fileId}")
     public ResponseEntity<OaiFile> getFile(
-        @RequestHeader("Authorization") String authHeader, 
+        @RequestHeader("Authorization") String authHeader,
         @PathVariable String fileId
     ) {
         OaiFile file = oaiFileRepository.retrieveFile(fileId);
         return ResponseEntity.ok(file);
     }
+
     @Operation(summary = "Delete a file")
     @DeleteMapping("/{fileId}")
     public ResponseEntity<Void> deleteFile(
-        @RequestHeader("Authorization") String authHeader, 
+        @RequestHeader("Authorization") String authHeader,
         @PathVariable String fileId
     ) throws IOException {
         oaiFileService.deleteFile(fileId);
         oaiFileRepository.deleteFile(fileId);
         return ResponseEntity.ok().build();
     }
+
     @Operation(summary = "Delete all files")
     @DeleteMapping("/all")
     public ResponseEntity<Void> deleteAllFiles(
         @RequestHeader("Authorization") String authHeader
     ) throws IOException {
-        List<String> fileIds=oaiFileRepository.deleteAllFiles();
-        for(String fileId:fileIds) {
+        List<String> fileIds = oaiFileRepository.deleteAll();
+        for (String fileId : fileIds) {
             oaiFileService.deleteFile(fileId);
         }
-        
         return ResponseEntity.ok().build();
     }
+
     @Operation(summary = "Get all files from a root directory")
     @GetMapping("rootDir")
     public ResponseEntity<List<OaiFile>> getFilesFromRootDir(
@@ -164,13 +169,14 @@ public class OaiFileController {
         @RequestParam String rootDir,
         @RequestParam int projectId
     ) {
-        if(!new File(rootDir).isDirectory()) {
+        if (!new File(rootDir).isDirectory()) {
             throw new IllegalArgumentException("Invalid directory path: " + rootDir);
         }
 
-        List<OaiFile> files = oaiFileRepository.retrieveFiles(rootDir,projectId);
+        List<OaiFile> files = oaiFileRepository.retrieveFiles(rootDir, projectId);
         return ResponseEntity.ok(files);
     }
+
     @Operation(summary = "Get a file info from OpenAI")
     @GetMapping("/fileinfo/{fileId}")
     public ResponseEntity<JsonNode> getFileInfo(
@@ -179,34 +185,38 @@ public class OaiFileController {
         JsonNode file = oaiFileService.retrieveFile(fileId);
         return ResponseEntity.ok(file);
     }
+
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
-        return ResponseEntity
-            .status(HttpStatus.BAD_REQUEST)
-            .body(Map.of("error", ex.getMessage()));
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(
+        IllegalArgumentException ex
+    ) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", ex.getMessage()));
     }
+
     @Operation(summary = "Download a file to a specific path")
     @GetMapping("/downloadInto/{fileId}")
     public ResponseEntity<Void> downloadFile(
         @RequestHeader("Authorization") String authHeader,
-        @PathVariable String fileId, 
+        @PathVariable String fileId,
         @RequestParam String outPath
     ) throws IOException {
-        if(!new File(outPath).exists()) {
+        if (!new File(outPath).exists()) {
             throw new IllegalArgumentException("Invalid file path: " + outPath);
         }
-        if(!oaiFileRepository.fileExists(fileId)) {
-            throw new ResourceNotFoundException("The file doesn't exist or the user does'nt have the right to it.");
+        if (!oaiFileRepository.fileExists(fileId)) {
+            throw new ResourceNotFoundException("The file doesn't exist or the user doesn't have the right to it.");
         }
         oaiFileService.downloadFile(fileId, outPath);
         return ResponseEntity.ok().build();
     }
+
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
-        return ResponseEntity
-            .status(HttpStatus.NOT_FOUND)
-            .body(Map.of("error", ex.getMessage()));
+    public ResponseEntity<Map<String, String>> handleResourceNotFound(
+        ResourceNotFoundException ex
+    ) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
     }
+
     @Operation(summary = "Download a file")
     @GetMapping("/download/{fileId}")
     public ResponseEntity<byte[]> downloadFile(
@@ -218,5 +228,4 @@ public class OaiFileController {
         headers.setContentDispositionFormData("attachment", fileId);
         return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
     }
-
 }

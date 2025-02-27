@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -19,6 +20,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.stereotype.Component;
@@ -39,25 +41,32 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                            // Authentication endpoints
-                            "/api/v1/auth/**"
-                        ).permitAll()
-                        .requestMatchers(
-                            // Swagger endpoints
-                            "/swagger-ui.html", 
-                            "/swagger-ui/**", 
-                            "/v3/api-docs/**", 
-                            "/api-docs/**", 
-                            "/api-docs.yaml"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(ipWhitelistFilter, UsernamePasswordAuthenticationFilter.class) // Add IP whitelist filter before JWT filter
-                .addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+        //Uses the CORS settings defined in WebConfig
+        .cors(Customizer.withDefaults())
+        //Disables CSRF protection (common for stateless REST APIs using tokens)
+        .csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(auth -> auth
+            // Allows OPTIONS requests (needed for CORS preflight)
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            // Public authentication endpoints
+            .requestMatchers("/api/v1/auth/**").permitAll()
+            // Public Swagger documentation endpoints
+            .requestMatchers(
+                "/swagger-ui.html", 
+                "/swagger-ui/**", 
+                "/v3/api-docs/**", 
+                "/api-docs/**", 
+                "/api-docs.yaml"
+            ).permitAll()
+            // All other requests need authentication
+            .anyRequest().authenticated()
+        )
+        //Configures stateless sessions (no session cookies): using JWT-based authentication
+        .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        //Adds IP whitelist filter first
+        .addFilterBefore(ipWhitelistFilter, UsernamePasswordAuthenticationFilter.class) // Add IP whitelist filter before JWT filter
+        //Adds JWT filter after IP whitelist filter
+        .addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

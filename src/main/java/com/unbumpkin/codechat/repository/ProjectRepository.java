@@ -1,9 +1,13 @@
 package com.unbumpkin.codechat.repository;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,10 +40,23 @@ public class ProjectRepository {
      * Add a project to the database.
      * @param project The project to add.
      */
-    public void addProject(Project project) {
-        String sql = "INSERT INTO core.project (projectid, name, description, authorid, aid) VALUES (?, ?, ?, ?, ?)";
-        jdbcTemplate.update(sql, project.projectId(), project.name(), project.description(), 
-            getCurrentUserId(), project.assistantId());
+        /**
+     * Add a project to the database and return the generated project ID.
+     * @param project The project to add.
+     * @return The generated project ID.
+     */
+    public int addProject(String name, String description) {
+        String sql = "INSERT INTO core.project (name, description, authorid) VALUES (?, ?, ?) RETURNING projectid";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, name);
+            ps.setString(2, description);
+            ps.setInt(3, getCurrentUserId());
+            return ps;
+        }, keyHolder);
+        Number key = keyHolder.getKey();
+        return key==null ? 0 : key.intValue();
     }
 
     /**
@@ -51,6 +68,7 @@ public class ProjectRepository {
         String sql = """
             SELECT p.*
             FROM core.project p
+            INNER JOIN core.Assistant a ON a.projectid = p.projectid
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
@@ -64,13 +82,20 @@ public class ProjectRepository {
      */
     public List<Project> getAllProjects() {
         String sql = """
-            SELECT p.*
+            SELECT p.projectid, p.name, p.description, p.authorid, a.aid
             FROM core.project p
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+                INNER JOIN core.Assistant a ON a.projectid = p.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.authorid = ? OR sp.userid = ?
         """;
         int userId = getCurrentUserId();
-        return jdbcTemplate.query(sql, rowMapper, userId, userId);
+        try {
+            List<Project> projects = jdbcTemplate.query(sql, rowMapper, userId, userId);
+            return projects;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     /**
@@ -80,14 +105,14 @@ public class ProjectRepository {
     public void updateProject(Project project) {
         String sql = """
             UPDATE core.project
-            SET name = ?, description = ?, aid = ?
+            SET name = ?, description = ?
             WHERE projectid = ? AND (authorid = ? OR EXISTS (
                 SELECT 1 FROM core.sharedproject
                 WHERE projectid = ? AND userid = ?
             ))
         """;
         int userId = getCurrentUserId();
-        jdbcTemplate.update(sql, project.name(), project.description(), project.assistantId(), 
+        jdbcTemplate.update(sql, project.name(), project.description(),  
             project.projectId(), userId, project.projectId(), userId);
     }
 
@@ -156,5 +181,31 @@ public class ProjectRepository {
         """;
         int currentUserId = getCurrentUserId();
         jdbcTemplate.update(sql, projectId, targetUserId, projectId, currentUserId, currentUserId);
+    }
+    private CustomAuthentication getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof CustomAuthentication) {
+            return ((CustomAuthentication) authentication);
+        }
+        throw new IllegalStateException("No authenticated user found");
+    }
+
+    public void deleteAll() {
+        CustomAuthentication currentUser = getCurrentUser();
+        if (currentUser == null || !currentUser.isAdmin()) {
+            throw new IllegalStateException("Only admins can delete all messages");
+        }
+
+        // Delete all records in the sharedproject table
+        String deleteSharedProjectsSql = "DELETE FROM core.sharedproject";
+        jdbcTemplate.update(deleteSharedProjectsSql);
+
+        // Delete all records in the discussion table
+        String deleteDiscussionsSql = "DELETE FROM core.discussion";
+        jdbcTemplate.update(deleteDiscussionsSql);
+
+        // Delete all records in the project table
+        String deleteProjectsSql = "DELETE FROM core.project";
+        jdbcTemplate.update(deleteProjectsSql);
     }
 }

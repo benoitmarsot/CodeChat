@@ -4,8 +4,11 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 import com.unbumpkin.codechat.domain.openai.Thread;
+import com.unbumpkin.codechat.security.CustomAuthentication;
 
 @Repository
 public class ThreadRepository {
@@ -84,5 +87,27 @@ public class ThreadRepository {
             WHERE threadid = ?
         """;
         jdbcTemplate.update(sql, threadid);
+    }
+    
+
+    private CustomAuthentication getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof CustomAuthentication) {
+            return ((CustomAuthentication) authentication);
+        }
+        throw new IllegalStateException("No authenticated user found");
+    }
+
+    /**
+     * Delete all threads.
+     */
+    public void deleteAll() {
+        CustomAuthentication currentUser = getCurrentUser();
+        if (currentUser == null || !currentUser.isAdmin()) {
+            throw new IllegalStateException("Only admins can delete all messages");
+        }
+        // Delete all records in the thread table
+        String deleteThreadsSql = "DELETE FROM core.thread";
+        jdbcTemplate.update(deleteThreadsSql);
     }
 }

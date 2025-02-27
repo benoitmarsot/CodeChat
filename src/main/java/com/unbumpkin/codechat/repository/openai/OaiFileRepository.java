@@ -26,7 +26,6 @@ import com.unbumpkin.codechat.domain.openai.OaiFile;
 import com.unbumpkin.codechat.domain.openai.OaiFile.Purposes;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
-
 /**
  * Repository for OaiFile objects.
  */
@@ -34,45 +33,47 @@ import com.unbumpkin.codechat.security.CustomAuthentication;
 public class OaiFileRepository {
     @Autowired
     private JdbcTemplate jdbcTemplate;
-    private int getCurrentUserId() {
+
+    private CustomAuthentication getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication).getUserId();
+            return ((CustomAuthentication) authentication);
         }
         throw new IllegalStateException("No authenticated user found");
     }
-    
     /**
      * Uploads a file to the database.
      * @param file: The file to be uploaded.
+     * @param projectId: The project ID to which the file belongs.
      * @throws JsonProcessingException
      */
     public void storeOaiFile(OaiFile file, int projectId) throws JsonProcessingException, DataAccessException {
-        ObjectMapper mapper=new ObjectMapper();
-        String json=mapper.writeValueAsString(file);
+        ObjectMapper mapper = new ObjectMapper();
+        String json = mapper.writeValueAsString(file);
 
-        String sql = "call core.createoaifile(?::json,?,?)";
-        jdbcTemplate.update(sql, json, getCurrentUserId(), projectId);
+        String sql = "call core.createoaifile(?::json,?)";
+        jdbcTemplate.update(sql, json, projectId);
     }
 
     /**
      * Saves the uploaded files to the database.
-     * @param files A map of file names to OaiFile objects to be uploaded.
+     * @param files A collection of OaiFile objects to be uploaded.
+     * @param projectId The project ID to which the files belong.
      * @return The number of files uploaded.
      * @throws DataAccessException
      */
     @Transactional
-    public long storeOaiFiles(Collection<OaiFile> files,int projectId) throws DataAccessException {
+    public long storeOaiFiles(Collection<OaiFile> files, int projectId) throws DataAccessException {
         if (files == null || files.isEmpty()) {
             return 0;
         }
-        String csvData = getFilesCSV(files,projectId);
-        
-        Long result= jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
+        String csvData = getFilesCSV(files, projectId);
+
+        Long result = jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
             try {
                 CopyManager copyManager = new CopyManager(connection.unwrap(BaseConnection.class));
-                String sql = "COPY core.oaifile (projectid, userid, oai_f_id, file_name, rootdir, filepath, purpose, linecount) "
-                          + "FROM STDIN WITH (FORMAT csv, HEADER true, NULL 'null')";
+                String sql = "COPY core.oaifile (projectid, oai_f_id, file_name, rootdir, filepath, purpose, linecount) "
+                           + "FROM STDIN WITH (FORMAT csv, HEADER true, NULL 'null')";
                 try (InputStream inputStream = new ByteArrayInputStream(csvData.getBytes())) {
                     return copyManager.copyIn(sql, inputStream);
                 }
@@ -80,124 +81,122 @@ public class OaiFileRepository {
                 throw new DataAccessException("Failed to copy data: " + e.getMessage(), e) {};
             }
         });
-        return result==null?0:result;
+        return result == null ? 0 : result;
     }
 
     /**
      * Delete files from the database.
-     * @param fileIds: The list of file ids to be deleted.
+     * @param fileIds The list of file IDs to be deleted.
      */
     public void deleteFiles(List<String> fileIds) {
-        String sql = "DELETE FROM core.oaifile WHERE oai_f_id = ANY(?) and userid = ?";
-        jdbcTemplate.update(sql, (Object) fileIds.toArray(new String[0]), getCurrentUserId());
+        String sql = "DELETE FROM core.oaifile WHERE oai_f_id = ANY(?)";
+        jdbcTemplate.update(sql, (Object) fileIds.toArray(new String[0]));
     }
+
     /**
      * Check if a file exists in the database.
-     * @param fileId: The Oai file id to be checked.
-     * @return
+     * @param fileId The Oai file ID to be checked.
+     * @return True if the file exists, false otherwise.
      */
     public boolean fileExists(String fileId) {
-        String sql = "SELECT COUNT(*) FROM core.oaifile WHERE oai_f_id = ? and userid = ?";
+        String sql = "SELECT COUNT(*) FROM core.oaifile WHERE oai_f_id = ?";
         return Objects.requireNonNullElse(
-            jdbcTemplate.queryForObject(sql, Integer.class, fileId, getCurrentUserId()),0
-         ) > 0;
+            jdbcTemplate.queryForObject(sql, Integer.class, fileId), 0
+        ) > 0;
     }
+
     /**
      * Count the number of files in the database.
-     * @return the number of files in the database.
+     * @return The number of files in the database.
      */
     public int countFiles() {
-        String sql = "SELECT COUNT(*) FROM core.oaifile WHERE userid = ?";
-        return Objects.requireNonNullElse(jdbcTemplate.queryForObject(sql, Integer.class, getCurrentUserId()), 0);
+        String sql = "SELECT COUNT(*) FROM core.oaifile";
+        return Objects.requireNonNullElse(jdbcTemplate.queryForObject(sql, Integer.class), 0);
     }
+
     /**
-     * delete a file from the database.
-     * @param fileId: The file id to be deleted.
+     * Delete a file from the database.
+     * @param fileId The file ID to be deleted.
      */
     public void deleteFile(String fileId) {
-        String sql = "DELETE FROM core.oaifile WHERE oai_f_id = ? and userid = ?";
-        jdbcTemplate.update(sql, fileId, getCurrentUserId());
+        String sql = "DELETE FROM core.oaifile WHERE oai_f_id = ?";
+        jdbcTemplate.update(sql, fileId);
     }
 
     /**
      * Delete all files from the database.
+     * @return A list of deleted file IDs.
      */
-    public List<String> deleteAllFiles() {
-        int userId = getCurrentUserId();
-        List<String> fileIds = jdbcTemplate.queryForList
-            ("SELECT oai_f_id FROM core.oaifile where userid = ?", String.class, 
-            userId
-        );
-        String sql = "DELETE FROM core.oaifile where userid=?";
-        jdbcTemplate.update(sql,userId);
-        return fileIds;
+    public List<String> deleteAll() {
+        CustomAuthentication user = getCurrentUser();
+        if (user == null || !user.isAdmin()) {
+            throw new IllegalStateException("Only admins can delete all messages");
+        }
 
+        List<String> fileIds = jdbcTemplate.queryForList(
+            "SELECT oai_f_id FROM core.oaifile", String.class
+        );
+        String sql = "DELETE FROM core.oaifile";
+        jdbcTemplate.update(sql);
+        return fileIds;
     }
 
     /**
-     * return a list of OaiFiles corresponding to the List of fileids.
-     * @param fileIds: The list of file ids to be retrieved.
-     * @return a list of OaiFiles.
+     * Return a list of OaiFiles corresponding to the list of file IDs.
+     * @param fileIds The list of file IDs to be retrieved.
+     * @return A list of OaiFiles.
      */
     public List<OaiFile> retrieveFiles(List<String> fileIds) {
-        String sql = "SELECT * FROM core.oaifile WHERE oai_f_id = ANY(?) and userid = ?";
+        String sql = "SELECT * FROM core.oaifile WHERE oai_f_id = ANY(?)";
         return jdbcTemplate.query(
-            sql, 
-            ps -> {
-                ps.setArray(1, ps.getConnection().createArrayOf("text", fileIds.toArray()));
-                ps.setInt(2, getCurrentUserId());
-            },
+            sql,
+            ps -> ps.setArray(1, ps.getConnection().createArrayOf("text", fileIds.toArray())),
             (rs, rowNum) -> OaiFileFrom(rs)
         );
     }
 
     /**
-     * return a list of OaiFiles corresponding to the root directory.
-     * @param rootDir: The root directory to be retrieved.
-     * @return a list of OaiFiles.
+     * Return a list of OaiFiles corresponding to the root directory.
+     * @param rootDir The root directory to be retrieved.
+     * @param projectId The project ID to which the files belong.
+     * @return A list of OaiFiles.
      */
     public List<OaiFile> retrieveFiles(String rootDir, int projectId) {
-        String sql = "SELECT * FROM core.oaifile where rootdir = ? and userid = ? and projectid=?";
+        String sql = "SELECT * FROM core.oaifile WHERE rootdir = ? AND projectid = ?";
         return jdbcTemplate.query(sql, ps -> {
             ps.setString(1, rootDir);
-            ps.setInt(2, getCurrentUserId());
             ps.setInt(2, projectId);
-        }, (rs, rowNum) -> {
-            return OaiFileFrom(rs);
-        });
+        }, (rs, rowNum) -> OaiFileFrom(rs));
     }
 
-
     /**
-     * return the list of all OaiFiles in the database.
-     * @return a list of OaiFiles.
+     * Return the list of all OaiFiles in the database.
+     * @param projectId The project ID to which the files belong.
+     * @return A list of OaiFiles.
      */
     public List<OaiFile> listAllFiles(int projectId) {
-        
-        String sql = "SELECT * FROM core.oaifile where userid = ? and projectid=?";
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
-            return OaiFileFrom(rs);
-        }, getCurrentUserId());
+        String sql = "SELECT * FROM core.oaifile WHERE projectid = ?";
+        return jdbcTemplate.query(sql, (rs, rowNum) -> OaiFileFrom(rs), projectId);
     }
 
     /**
-     * get the OaiFile corresponding to the fileid.
-     * @param fileId: The file id to be retrieved.
-     * @return the OaiFile corresponding to the fileid.
+     * Get the OaiFile corresponding to the file ID.
+     * @param fileId The file ID to be retrieved.
+     * @return The OaiFile corresponding to the file ID.
      */
     public OaiFile retrieveFile(String fileId) {
-        String sql = "SELECT * FROM core.oaifile WHERE oai_f_id = ? and userid = ?";
+        String sql = "SELECT * FROM core.oaifile WHERE oai_f_id = ?";
         return jdbcTemplate.queryForObject(
-            sql, 
+            sql,
             (rs, rowNum) -> OaiFileFrom(rs),
-            fileId, getCurrentUserId()
+            fileId
         );
     }
+
     private OaiFile OaiFileFrom(ResultSet rs) throws SQLException {
         return new OaiFile(
             rs.getInt("fid"),
             rs.getInt("projectid"),
-            rs.getInt("userid"),
             rs.getString("oai_f_id"),
             rs.getString("file_name"),
             rs.getString("rootdir"),
@@ -206,18 +205,18 @@ public class OaiFileRepository {
             rs.getInt("linecount")
         );
     }
+
     /**
      * Converts the files map to a CSV format string with double quotes around each field.
-     * @param files A map of file names to OaiFile objects.
+     * @param files A collection of OaiFile objects.
+     * @param projectId The project ID to which the files belong.
      * @return A CSV format string.
      */
     private String getFilesCSV(Collection<OaiFile> files, int projectId) {
-        int userId = getCurrentUserId();
         StringBuilder sb = new StringBuilder();
-        sb.append("projectid,userid,fileid,filename,rootdir,filepath,purpose,linecount\n");
+        sb.append("projectid,fileid,filename,rootdir,filepath,purpose,linecount\n");
         for (OaiFile file : files) {
-            sb.append(String.valueOf(projectId)).append(",");
-            sb.append(String.valueOf(userId)).append(",");
+            sb.append(projectId).append(",");
             sb.append(quoteAndEscape(file.fileId())).append(",");
             sb.append(quoteAndEscape(file.fileName())).append(",");
             sb.append(quoteAndEscape(file.rootdir())).append(",");
@@ -240,5 +239,4 @@ public class OaiFileRepository {
         return "\"" + input.replace("\"", "\\\"") + "\"";
     }
 
-    
 }

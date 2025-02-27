@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
-import com.unbumpkin.codechat.service.openai.ProgramVectorStores;
+import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
@@ -38,7 +38,7 @@ public class AssistantController {
         @RequestBody String rootDir
     ) throws IOException {
         // Create a new assistant
-        ProgramVectorStores pvs=new ProgramVectorStores();
+        ProjectFileCategorizer pvs=new ProjectFileCategorizer();
         //List<String> vsIds=pvs.createVectorStores(rootDir);
         
         

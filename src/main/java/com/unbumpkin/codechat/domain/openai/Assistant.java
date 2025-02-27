@@ -5,6 +5,7 @@ public record Assistant(
     String oaiAid,
     String name,
     String description,
+    int projectid,
     int codevsid,
     int markupvsid,
     int configvsid,

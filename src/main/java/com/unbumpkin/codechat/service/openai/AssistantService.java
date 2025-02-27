@@ -3,6 +3,7 @@ package com.unbumpkin.codechat.service.openai;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
@@ -21,26 +22,7 @@ public class AssistantService extends BaseOpenAIClient {
         file_search,
         function
     }
-    public AssistantBuilder testAssistantService() {
-        return new AssistantBuilder(Models.gpt_4o)
-            .setName("Code chat assistant")
-            .setDescription("Help in the reviewing of code")
-            .setInstructions("You are a code reviewer. When asked a question, provide feedback on the code base provided in your vector store.")
-            .setReasoningEffort(ReasoningEffort.high)
-            .addFileSearchTool()
-            .addFileSearchAssist()
-            .setToolResourcesFileSearch(List.of("vs_67aec52acf3c819198ef877500651d8f"))
-            .addFunction()
-                .setFunctionName("countLines")
-                .setFunctionDescription("This function will return the number of lines in a file")
-                .FunctionAddParameter("fileid", "string", "The id of the file")
-            .addFunction()
-                .setFunctionName("getFilename")
-                .setFunctionDescription("This function will return the name of file")
-                .FunctionAddParameter("fileid", "string", "The id of the file");
-                
-    }
-    public String CreateAssistant(AssistantBuilder helper) throws IOException {
+    public String createAssistant(AssistantBuilder helper) throws IOException {
         String json = objectMapper.writeValueAsString(helper);
         //System.out.println(json);
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
@@ -209,6 +191,25 @@ public class AssistantService extends BaseOpenAIClient {
         public FileSearchResources(List<String> vectorIds) {
             this.vector_store_ids = vectorIds;
         }
+    }
+    public static AssistantBuilder testAssistantService() {
+        return new AssistantBuilder(Models.gpt_4o)
+            .setName("Code chat assistant")
+            .setDescription("Help in the reviewing of code")
+            .setInstructions("You are a code reviewer. When asked a question, provide feedback on the code base provided in your vector store.")
+            .setReasoningEffort(ReasoningEffort.high)
+            .addFileSearchTool()
+            .addFileSearchAssist()
+            .setToolResourcesFileSearch(Set.of("vs_67aec52acf3c819198ef877500651d8f"))
+            .addFunction()
+                .setFunctionName("countLines")
+                .setFunctionDescription("This function will return the number of lines in a file")
+                .FunctionAddParameter("fileid", "string", "The id of the file")
+            .addFunction()
+                .setFunctionName("getFilename")
+                .setFunctionDescription("This function will return the name of file")
+                .FunctionAddParameter("fileid", "string", "The id of the file");
+                
     }
 
 

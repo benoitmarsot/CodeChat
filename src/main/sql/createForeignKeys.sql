@@ -5,20 +5,7 @@ declare
 -- variable declaration
 begin
 	raise notice 'Create Foreign keys:';
-    -- Foreign key for oaifile(userid) -> user(userid)
 
-    if not exists (
-        select constraint_name
-        from information_schema.table_constraints
-        where table_name = 'oaifile'
-            and constraint_schema = 'core'
-            and constraint_name = 'oaifile_fk_user'
-    ) then
-        raise notice 'Creating oaifile_fk_user...';
-        alter table core.oaifile
-            add constraint oaifile_fk_user
-            foreign key (userid) references core.user(userid);
-    end if;
     -- Foreign key for oaifile(projectid) -> project(projectid)
     if not exists (
         select constraint_name
@@ -57,6 +44,19 @@ begin
         alter table core.vectorstore_oaifile 
 			add constraint vectorstore_oaifile_fk_oaifile 
 			foreign key (fid) references core.oaifile(fid);
+    end if;
+    -- Foreign key for assistant(aid) -> project(aid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'assistant'
+            and constraint_schema = 'core'
+            and constraint_name = 'assistant_fk_project'
+    ) then
+        raise notice 'Creating assistant_fk_project...';
+        alter table core.assistant 
+            add constraint assistant_fk_project
+            foreign key (projectid) references core.project(projectid);
     end if;
 
     -- Foreign keys for assistant codevsid, markupvsid, configvsid, fullvsid -> vectorstore(vsid)
@@ -180,20 +180,6 @@ begin
         alter table core.project
             add constraint project_fk_user
             foreign key (authorid) references core.user(userid);
-    end if;
-
-    -- Foreign key for project(aid) -> assistant(aid)
-    if not exists (
-        select constraint_name
-        from information_schema.table_constraints
-        where table_name = 'project'
-            and constraint_schema = 'core'
-            and constraint_name = 'project_fk_assistant'
-    ) then
-        raise notice 'Creating project_fk_assistant...';
-        alter table core.project 
-            add constraint project_fk_assistant
-            foreign key (aid) references core.assistant(aid);
     end if;
 
     -- Foreign key for discussion(projectid) -> project(projectid)

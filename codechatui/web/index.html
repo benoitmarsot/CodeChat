@@ -33,6 +33,15 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    window.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy'; // or 'move'
+    });
+    window.addEventListener('drop', (event) => {
+      event.preventDefault();
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

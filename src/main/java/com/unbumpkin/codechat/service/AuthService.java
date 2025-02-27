@@ -48,4 +48,19 @@ public class AuthService {
         return new LoginResponse(token, user);
     }
 
+    public String refreshToken(String refreshToken) throws AuthenticationException {
+        String subject=jwtUtil.validateToken(refreshToken);
+        if (subject==null || subject.isEmpty() ) {
+            throw new AuthenticationException("Invalid refresh token");
+        }
+        
+        User user = userRepository.findByEmail(subject);
+        
+        if (user == null) {
+            throw new AuthenticationException("User not found");
+        }
+        
+        return jwtUtil.generateToken(user);
+    }
+
 }

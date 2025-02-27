@@ -8,8 +8,13 @@ import java.util.Map;
 import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 
+@JsonSerialize
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AssistantBuilder {
     public enum AssistantTools {
         code_interpreter,
@@ -21,16 +26,26 @@ public class AssistantBuilder {
         medium,
         high
     }
-    final Models model;
+    @JsonProperty("model")
+    final String model;
+    @JsonProperty("name")
     String name;
+    @JsonProperty("description")
     String description;
+    @JsonProperty("instructions")
     String instructions;
     ReasoningEffort reasoningEffort;
+    @JsonProperty("tools")
     final Set<Tool> tools;
-    ToolResources tool_resources;
+    @JsonProperty("tool_resources")
+    Map<String, ToolResources> tool_resources;
+    @JsonProperty("metadata")
     Map<String, String> metadata;
+    @JsonProperty("temperature")
     Double temperature;
+    @JsonProperty("top_p")
     Double top_p;
+    @JsonProperty("response_format")
     Object response_format;
     @JsonIgnore
     private int functionIndex;
@@ -38,7 +53,7 @@ public class AssistantBuilder {
     public AssistantBuilder(
         Models model
     ) {
-        this.model = model;
+        this.model = model.toString();
         this.tools = new HashSet<>();
         this.top_p = null;
         this.response_format = null;
@@ -192,32 +207,32 @@ public class AssistantBuilder {
         functionTool.function.strict = strict;
         return this;
     }
-    public AssistantBuilder setToolResourcesCodeInterpreter(List<String> fileIds) {
+    public AssistantBuilder setToolResourcesCodeInterpreter(Set<String> fileIds) {
         boolean hasCodeInterpreterTool = tools.stream()
             .anyMatch(tool -> tool.type == AssistantTools.code_interpreter);
         if (!hasCodeInterpreterTool) {
             throw new IllegalArgumentException("Code interpreter tool must be added before setting tool resources");
         }
-        CodeInterpreterTool codeInterpreterTool = this.tools.stream()
-            .filter(tool -> tool.type == AssistantTools.code_interpreter)
-            .map(tool -> (CodeInterpreterTool) tool)
-            .findFirst()
-            .get();
-        codeInterpreterTool.tool_Ressources.file_ids = fileIds;
+        if (tool_resources == null) {
+            tool_resources = new HashMap<>();
+        }
+        ToolResources codeInterpreterResource = new ToolResources();
+        codeInterpreterResource.file_ids = fileIds;
+        tool_resources.put("code_interpreter", codeInterpreterResource);
         return this;
     }
-    public AssistantBuilder setToolResourcesFileSearch(List<String> vectorStoreIds) {
+    public AssistantBuilder setToolResourcesFileSearch(Set<String> vectorStoreIds) {
         boolean hasFileSearchTool = tools.stream()
             .anyMatch(tool -> tool.type == AssistantTools.file_search);
         if (!hasFileSearchTool) {
             throw new IllegalArgumentException("File search tool must be added before setting tool resources");
         }
-        FileSearchTool fileSearchTool = this.tools.stream()
-            .filter(tool -> tool.type == AssistantTools.file_search)
-            .map(tool -> (FileSearchTool) tool)
-            .findFirst()
-            .get();
-        fileSearchTool.tool_Ressources.vector_store_ids = vectorStoreIds;
+        if (tool_resources == null) {
+            tool_resources = new HashMap<>();
+        }
+        ToolResources fileSearchResource = new ToolResources();
+        fileSearchResource.vector_store_ids = vectorStoreIds;
+        tool_resources.put("file_search", fileSearchResource);
         return this;
     }
     public AssistantBuilder addAutoResponseFormat() {
@@ -261,51 +276,64 @@ public class AssistantBuilder {
         ((JSonSchemaResponseFormat) this.response_format).json_schema.schema = schema;
         return this;
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class Tool {
+        @JsonProperty("type")
         public final AssistantTools type;
         public Tool(AssistantTools type) {
             this.type = type;
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class CodeInterpreterTool extends Tool {
-        CodeInterpreterToolRessources tool_Ressources;
         public CodeInterpreterTool() {
             super(AssistantTools.code_interpreter);
-            this.tool_Ressources = new CodeInterpreterToolRessources();
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class FileSearchTool extends Tool {
+        @JsonProperty("file_search")
         FileSearch file_search;
-        FileSearchToolRessources tool_Ressources;
         public FileSearchTool() {
             super(AssistantTools.file_search);
-            this.tool_Ressources = new FileSearchToolRessources();
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class FunctionTool extends Tool {
+        @JsonProperty("function")
         Function function;
         public FunctionTool() {
             super(AssistantTools.function);
         }
     }
-
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class FileSearch {
+        @JsonProperty("max_num_results")
         public Integer max_num_results;
+        @JsonProperty("ranking_options")
         public RankingOptions ranking_options;
         public FileSearch() {
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class RankingOptions {
+        @JsonProperty("ranker")
         public String ranker;
+        @JsonProperty("score_threshold")
         public Double score_threshold;
         public RankingOptions() {
         }
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class Function {
+        @JsonProperty("description")
         String description;
+        @JsonProperty("name")
         String name;
+        @JsonProperty("parameters")
         Parameters parameters;
+        @JsonProperty("strict")
         Boolean strict;
         public Function(String name) {
             this.name = name;
@@ -313,60 +341,72 @@ public class AssistantBuilder {
             this.parameters = new Parameters();
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class Parameters {
+        @JsonProperty("type")
         String type;
+        @JsonProperty("properties")
         Map<String, TypeDescription> properties;
         public Parameters() {
             type = "object";
             this.properties = new HashMap<>();
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class TypeDescription {
+        @JsonProperty("description")
         String description;
+        @JsonProperty("type")
         String type;
         public TypeDescription(String type, String description) {
             this.type = type;
             this.description = description;
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class ToolResources {
+        @JsonProperty("file_ids")
+        public Set<String> file_ids;
+        @JsonProperty("vector_store_ids")
+        public Set<String> vector_store_ids;
     }
-    public static class CodeInterpreterToolRessources extends ToolResources {
-        public List<String> file_ids;
-        public CodeInterpreterToolRessources() {
-            this.file_ids = new ArrayList<>();
-        }
-    }
-    public static class FileSearchToolRessources extends ToolResources {
-        public List<String> vector_store_ids;
-        public FileSearchToolRessources() {
-            this.vector_store_ids = new ArrayList<>();
-        }
-    }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class ResponseFormat {}
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class TextResponseFormat extends ResponseFormat {
+        @JsonProperty("type")
         String type;
         public TextResponseFormat() {
             this.type="text";
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class JSonObjectResponseFormat extends ResponseFormat {
+        @JsonProperty("type")
         String type;
         public JSonObjectResponseFormat() {
             this.type="json_object";
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class JSonSchemaResponseFormat extends ResponseFormat {
+        @JsonProperty("type")
         String type;
+        @JsonProperty("json_schema")
         JSonSchema json_schema;
         public JSonSchemaResponseFormat() {
             this.type="json_object";
         }
     }
+    @JsonInclude(JsonInclude.Include.NON_NULL)    
     public static class JSonSchema {
+        @JsonProperty("description")
         String description;
+        @JsonProperty("name")
         String name;
+        @JsonProperty("schema")
         String schema;
+        @JsonProperty("strict")
         Boolean strict;
         public JSonSchema(String name) {
             this.name = name;

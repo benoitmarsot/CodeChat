@@ -9,7 +9,6 @@ create table if not exists core.user (
 create table if not exists core.oaifile (
     fid serial,
     projectid int not null,
-    userid int not null,
     oai_f_id varchar(30) not null,
     file_name varchar(255) not null,
     rootdir varchar(1024) not null,
@@ -37,11 +36,13 @@ create table if not exists core.assistant (
     aid serial,
     oai_aid varchar(30) not null,
     name varchar(256) not null,
-    decsription varchar(512) null,
+    description varchar(512) null,
+    projectid int not null,
     codevsid int not null,
     markupvsid int not null,
     configvsid int not null,
-    fullvsid int not null -- vector store that contains the sum of codevsid, markupvsid and configvsid 
+    -- vector store that contains the sum of codevsid, markupvsid and configvsid 
+    fullvsid int not null 
 );
 
 create table if not exists core.thread (
@@ -54,7 +55,7 @@ create table if not exists core.thread (
 
 -- the same message in different theads will be stored in the same table,
 -- - the internal msgid will be used to identify the message
--- - the openai msgid is diffrent for each thread and is not keeped in the database
+-- - the openai msgid is different for each thread and is not keeped in the database
 -- the msgid of the db is kept in the openai metadata of the message
 create table if not exists core.message (
     msgid serial,
@@ -65,11 +66,10 @@ create table if not exists core.message (
 );
 
 create table if not exists core.project (
-    projectid int not null,
+    projectid serial,
     name varchar(256) not null,
     description varchar(512) null,
-    authorid int not null,
-    aid int not null
+    authorid int not null
 );
 
 create table if not exists core.discussion (

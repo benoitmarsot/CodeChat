@@ -56,6 +56,21 @@ public class AuthController {
             "userId", String.valueOf(response.user().userid())
         ));
     }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<Map<String, String>> refresh(@RequestBody Map<String, String> request
+    ) throws AuthenticationException {
+        String refreshToken = request.get("refreshToken");
+        if (refreshToken == null) {
+            return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", "Refresh token is required"));
+        }
+        
+        String newToken = authService.refreshToken(refreshToken);
+        return ResponseEntity.ok(Map.of("token", newToken));
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, String>> handleAuthenticationException(AuthenticationException ex) {
         return ResponseEntity

@@ -120,7 +120,6 @@ public class OaiFileService  extends BaseOpenAIClient {
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .build();
         OaiFile oaiFile = new OaiFile(0,
-            0, // userId will be set by repository
             projectId,
             this.executeRequest(request).get("id").asText(),
             Paths.get(filePath).getFileName().toString(),

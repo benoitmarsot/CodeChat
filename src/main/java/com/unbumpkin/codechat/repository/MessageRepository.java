@@ -33,6 +33,13 @@ public class MessageRepository {
         }
         throw new IllegalStateException("No authenticated user found");
     }
+    private CustomAuthentication getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof CustomAuthentication) {
+            return ((CustomAuthentication) authentication);
+        }
+        throw new IllegalStateException("No authenticated user found");
+    }
 
     /**
      * Add a message to the database.
@@ -119,5 +126,16 @@ public class MessageRepository {
             )
         """;
         jdbcTemplate.update(sql, msgid, getCurrentUserId());
+    }
+    /**
+     * Delete all messages.
+     */
+    public void deleteAll() {
+        CustomAuthentication user = getCurrentUser();
+        if (user == null || !user.isAdmin()) {
+            throw new IllegalStateException("Only admins can delete all messages");
+        }
+        String sql = "DELETE FROM core.message";
+        jdbcTemplate.update(sql);
     }
 }

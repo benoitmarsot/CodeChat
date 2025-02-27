@@ -15,10 +15,12 @@ public class WebConfig {
             @Override
             public void addCorsMappings(@NonNull CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173", "http://localhost:5000")
-                        .allowedMethods("*")
+                        .allowedOriginPatterns("http://localhost:[*]")  // Allow any port on localhost
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
-                        .allowCredentials(true);
+                        .exposedHeaders("Authorization", "Access-Control-Allow-Origin")
+                        .allowCredentials(true)
+                        .maxAge(0); //todo:3600
             }
         };
     }

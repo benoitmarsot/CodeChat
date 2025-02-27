@@ -7,13 +7,15 @@ import java.util.List;
 import java.util.Set;
 
 public class FileUtils {
+    private static Set<String> ignoreDirSet = Set.of(
+        "node_modules", "dart_tool", ".plugin_symlinks", ".git", ".idea", "build", "dist", "target");
 
     public static List<File> listFiles(
         String rootDir, Set<String> extensions
     ) throws IOException {
         List<File> filePaths = new ArrayList<>();
         File root = new File(rootDir);
-        if (root.exists() && root.isDirectory()) {
+        if (root.exists() && root.isDirectory() && !ignoreDirSet.contains(root.getName())) {
             findFiles(root, extensions, filePaths);
         }
         return filePaths;
@@ -25,7 +27,7 @@ public class FileUtils {
         File[] files = dir.listFiles();
         if (files != null) {
             for (File file : files) {
-                if (file.isDirectory()) {
+                if (file.isDirectory() && !ignoreDirSet.contains(file.getName())) {
                     findFiles(file, extensions, filePaths);
                 } else if (file.isFile() ) {
                     if(

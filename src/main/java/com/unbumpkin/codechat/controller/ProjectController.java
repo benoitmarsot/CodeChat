@@ -8,6 +8,9 @@ import com.unbumpkin.codechat.domain.Project;
 import com.unbumpkin.codechat.repository.ProjectRepository;
 
 import java.util.List;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -16,9 +19,10 @@ public class ProjectController {
     @Autowired
     private ProjectRepository projectRepository;
 
+
     @PostMapping
     public ResponseEntity<Void> createProject(@RequestBody Project project) {
-        projectRepository.addProject(project);
+        projectRepository.addProject(project.name(),project.description());
         return ResponseEntity.ok().build();
     }
 

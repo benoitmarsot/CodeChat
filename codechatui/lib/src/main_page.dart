@@ -1,10 +1,12 @@
+import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:codechatui/src/services/secure_storage.dart';
 import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:codechatui/src/project_page.dart';
 
 
-class MyAppState extends ChangeNotifier {
+class MainPageState extends ChangeNotifier {
   var current = WordPair.random();
   void getNext() {
     current = WordPair.random();
@@ -36,6 +38,7 @@ class _MainPage extends State<MainPage> {
     final secureStorage = SecureStorageService();
     await secureStorage.clearAll();
     if (mounted) {
+      Provider.of<AuthProvider>(context, listen: false).clearAll();
       Navigator.of(context).pushReplacementNamed('/');
     }
   }
@@ -44,7 +47,7 @@ class _MainPage extends State<MainPage> {
     Widget page;
     switch (selectedIndex) {
       case 0:
-        page = GeneratorPage();
+        page = ProjectPage();
       case 1:
         page = FavoritesPage();
       default:
@@ -60,12 +63,12 @@ class _MainPage extends State<MainPage> {
                   extended: constraints.maxWidth > 600,
                   destinations: [
                     NavigationRailDestination(
-                      icon: Icon(Icons.home),
-                      label: Text('Home'),
+                      icon: Icon(Icons.folder),
+                      label: Text('Projects'),
                     ),
                     NavigationRailDestination(
-                      icon: Icon(Icons.favorite),
-                      label: Text('Favorites'),
+                      icon: Icon(Icons.chat),
+                      label: Text('Code assistant'),
                     ),
                     NavigationRailDestination(
                       icon: Icon(Icons.logout),
@@ -99,7 +102,7 @@ class _MainPage extends State<MainPage> {
 class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
+    var appState = context.watch<MainPageState>();
     return Column(
       children: [
         TitleCard(title: 'Favorites'),
@@ -127,7 +130,7 @@ class FavoritesPage extends StatelessWidget {
 class GeneratorPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
+    var appState = context.watch<MainPageState>();
     var pair = appState.current;
 
     IconData icon;
