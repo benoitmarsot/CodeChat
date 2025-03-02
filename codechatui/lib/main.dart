@@ -1,14 +1,15 @@
+import 'package:codechatui/src/models/project.dart';
 import 'package:codechatui/src/services/secure_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'src/login_page.dart';
 import 'src/services/auth_provider.dart';
 import 'src/main_page.dart';
+import 'package:codechatui/src/chat_page.dart';  // Add this import
 
 void main() async {  // Make main async
   WidgetsFlutterBinding.ensureInitialized();  // Required when using async in main
   
-  // Get the stored token
   final secureStorage = SecureStorageService();
   final token = await secureStorage.getToken();
   final userId = await secureStorage.getUserId();
@@ -37,7 +38,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MainPageState()),
       ],
       child: MaterialApp(
-        title: 'Namer App',
+        title: 'Codechat',
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
@@ -47,6 +48,15 @@ class MyApp extends StatelessWidget {
         routes: {
           '': (context) => const LoginPage(),
           'home': (context) => MainPage(),
+          'chat': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments;
+            // Safe handling of potentially null arguments
+            if (args is Project) {
+              return ChatPage(project: args);
+            }
+            // Otherwise go back to home
+            return MainPage();
+          },
         },
       ),
     );

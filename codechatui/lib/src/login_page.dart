@@ -91,10 +91,12 @@ class _LoginPageState extends State<LoginPage> {
           final responseData = jsonDecode(response.body);
           final newToken = responseData['token'];
           await _secureStorage.storeToken(newToken);
-          var authProvider = Provider.of<AuthProvider>(context, listen: false);
-          authProvider.setToken(newToken);
-          print('Debug - Token refreshed: $newToken');
-          Navigator.of(context).pushReplacementNamed('home');
+          if(mounted) {
+            var authProvider = Provider.of<AuthProvider>(context, listen: false);
+            authProvider.setToken(newToken);
+            print('Debug - Token refreshed: $newToken');
+            Navigator.of(context).pushReplacementNamed('home');
+          }
         } else {
           setState(() {
             _errorMessage = 'Token refresh failed: Invalid refresh token';

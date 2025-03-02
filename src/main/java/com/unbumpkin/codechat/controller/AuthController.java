@@ -50,7 +50,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody AuthRequest request) throws AuthenticationException {
-        LoginResponse response = authService.login(request.email(), request.password());
+        LoginResponse response = authService.login(request.email().toLowerCase(), request.password());
         return ResponseEntity.ok(Map.of(
             "token", response.token(),
             "userId", String.valueOf(response.user().userid())

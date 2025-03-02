@@ -5,11 +5,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.unbumpkin.codechat.domain.Project;
+import com.unbumpkin.codechat.domain.openai.Assistant;
+import com.unbumpkin.codechat.domain.openai.OaiFile;
+import com.unbumpkin.codechat.domain.openai.VectorStore;
 import com.unbumpkin.codechat.repository.ProjectRepository;
+import com.unbumpkin.codechat.repository.openai.AssistantRepository;
+import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
+import com.unbumpkin.codechat.service.openai.AssistantService;
+import com.unbumpkin.codechat.service.openai.OaiFileService;
+import com.unbumpkin.codechat.service.openai.VectorStoreService;
 
 import java.util.List;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+
 
 
 @RestController
@@ -18,6 +25,15 @@ public class ProjectController {
 
     @Autowired
     private ProjectRepository projectRepository;
+    @Autowired
+    private AssistantRepository assistantRepository;
+    @Autowired
+    private VectorStoreRepository vectorStoreRepository;
+    @Autowired
+    private OaiFileService oaiFileService;
+
+    @Autowired
+    private AssistantService assistantService;
 
 
     @PostMapping
@@ -42,8 +58,50 @@ public class ProjectController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/{projectId}/markdeleted")
+    public ResponseEntity<Void> markdeleted(
+        @PathVariable int projectId
+    ) {
+        projectRepository.markForDeletion(projectId);
+        return ResponseEntity.ok().build();
+    }
+    
+    // todo: move that delete all to codechat controller (maybe)
     @DeleteMapping("/{projectId}")
     public ResponseEntity<Void> deleteProject(@PathVariable int projectId) {
+        // Project project=projectRepository.getProjectById(projectId);
+        // Assistant assistant=assistantRepository.getAssistantById(project.assistantId());
+        // List<String> vsFiles=vectorStoreRepository.findVectorStoreFiles(assistant.fullvsid());
+        // vsFiles.forEach(vsFile->{
+        //     try {
+        //         oaiFileService.deleteFile(vsFile);
+        //         System.out.println("Deleted file: "+vsFile);
+        //     } catch (Exception e) {
+        //         System.out.println("Error deleting file: "+vsFile);
+        //     }
+        // });
+        // VectorStore vs=vectorStoreRepository.getVectorStoreById(assistant.codevsid());
+        // try {
+        //     vectorStoreRepository.deleteVectorStore((assistant.codevsid());
+        //     System.out.println("Deleted file: "+assistant.configvsid());
+        // } catch (Exception e) {
+        //     System.out.println("Error deleting file: "+assistant.configvsid());
+        // }
+        
+        // Only creating the code vs for now
+        // vectorStoreRepository.deleteVectorStore(assistant.markupvsid());
+        // vectorStoreRepository.deleteVectorStore(assistant.configvsid());
+        // vectorStoreRepository.deleteVectorStore(assistant.fullvsid());
+        
+
+
+        
+        // //Todo: delete everything that have to do with the project, including:
+        // // - the assistant 
+        // // - the vector stores
+        // // - and the oaifiles
+        // assistant.codevsid()
+        // assistantService.deleteAssistant(project.assistantId());
         projectRepository.deleteProject(projectId);
         return ResponseEntity.ok().build();
     }

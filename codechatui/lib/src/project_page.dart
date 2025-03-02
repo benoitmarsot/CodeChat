@@ -4,7 +4,6 @@ import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/project_service.dart';
-import 'services/secure_storage.dart';
 import 'services/codechat_service.dart';
 
 class ProjectPage extends StatefulWidget {
@@ -17,7 +16,6 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   String _createdMessage = '';
   List<Project> _projects = [];
   int? _hoveredIndex;
-  final SecureStorageService _secureStorage = SecureStorageService();
   final TextEditingController _prjNameController = TextEditingController();
   final TextEditingController _prjDesctController = TextEditingController();
   final TextEditingController _prjRootdirController = TextEditingController();
@@ -28,7 +26,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _fetchProjects();
   }
 
@@ -98,7 +96,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       },
     );
     try {
-      final response = await codechatService.createProject(
+      final project = await codechatService.createProject(
         _prjNameController.text,
         _prjDesctController.text,
         _prjRootdirController.text,
@@ -115,7 +113,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       
       // Refresh projects and switch to projects tab
       await _fetchProjects();
-      _tabController.animateTo(0);  // Switch to first tab
+      _selectProject(project);
+      //_tabController.animateTo(0);  // Switch to first tab
       
     } catch (e) {
       setState(() {
@@ -136,13 +135,32 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       _prjRootdirController.text = "Folder path from data";
     });
   }
+  Future<void> _deleteProject(Project project, int index) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final projectService = ProjectService(authProvider: authProvider);
 
-  void _navigateToChatPage(Project project) {
+    try {
+      // Adjust the method below to match your project service code
+      await projectService.deleteProject(project.projectId);
+      setState(() {
+        _projects.removeAt(index);
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to delete project: $e';
+      });
+    }
+  }
+
+  void _redirectToChat(Project project) {
     Navigator.pushNamed(
       context,
-      '/chat',
+      'chat',
       arguments: project,
     );
+  }
+  void _selectProject(Project project) {
+    _redirectToChat(project);
   }
 
   @override
@@ -153,7 +171,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     );
     return DefaultTabController(
       initialIndex: _initialTabIndex,
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Projects'),
@@ -162,11 +180,12 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
             tabs: const <Widget>[
               Tab(icon: Icon(Icons.folder_open)),
               Tab(icon: Icon(Icons.drive_folder_upload_outlined)),
+              Tab(icon: Icon(Icons.group_add)),
             ],
           ),
         ),
         body: TabBarView(
-          controller: _tabController,  // Add controller here
+          controller: _tabController,  
           children: <Widget>[
             Card(
               margin: EdgeInsets.all(20),
@@ -196,7 +215,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                               child: ListTile(
                                 title: Text(project.name),
                                 subtitle: Text(project.description),
-                                onTap: () => _navigateToChatPage(project),
+                                onTap: () => _selectProject(project),
+                                trailing: IconButton(
+                                  icon: Icon(Icons.delete),
+                                  onPressed: () => _deleteProject(project, index),
+                                ),
                               ),
                             ),
                           );
@@ -275,6 +298,103 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                     ),
                     Spacer(),
                     Text(""),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              margin: EdgeInsets.all(20),
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Text('Share your project', style: TextStyle(fontSize: 20)),
+                    ),
+                    SizedBox(height: 20),
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left column - Invitation form
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.all(10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Invite a user',
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  SizedBox(height: 16),
+                                  TextField(
+                                    decoration: InputDecoration(
+                                      labelText: 'Email address',
+                                      hintText: 'Enter user email',
+                                    ),
+                                  ),
+                                  SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      // TODO: Implement invite functionality
+                                    },
+                                    child: Text('Send Invite'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          
+                          // Center divider with debossed look
+                          Container(
+                            width: 1,
+                            margin: EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white,
+                                  offset: Offset(1, 0),
+                                  blurRadius: 0,
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Right column - User list
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.all(10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Users with access',
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  SizedBox(height: 16),
+                                  Expanded(
+                                    child: ListView.builder(
+                                      itemCount: 5, // Replace with actual users count
+                                      itemBuilder: (context, index) {
+                                        return ListTile(
+                                          title: Text('User ${index + 1}'), // Replace with actual user name
+                                          subtitle: Text('user${index + 1}@example.com'), // Replace with actual email
+                                          trailing: IconButton(
+                                            icon: Icon(Icons.remove_circle_outline),
+                                            onPressed: () {
+                                              // TODO: Implement remove user functionality
+                                            },
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

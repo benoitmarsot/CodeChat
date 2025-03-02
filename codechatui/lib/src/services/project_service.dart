@@ -61,8 +61,8 @@ class ProjectService {
   }
 
   Future<void> deleteProject(int projectId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/$projectId'),
+    final response = await http.get(
+      Uri.parse('$baseUrl/$projectId/markdeleted'),
       headers: _headers,
     );
     if (response.statusCode != 200) {

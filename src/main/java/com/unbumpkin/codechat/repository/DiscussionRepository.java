@@ -1,9 +1,17 @@
 package com.unbumpkin.codechat.repository;
 
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.sql.PreparedStatement;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,7 +28,9 @@ public class DiscussionRepository {
         rs.getInt("did"),
         rs.getInt("projectid"),
         rs.getString("name"),
-        rs.getString("description")
+        rs.getString("description"),
+        rs.getBoolean("isfavorite"),
+        rs.getTimestamp("created")
     );
 
     private int getCurrentUserId() {
@@ -32,19 +42,42 @@ public class DiscussionRepository {
     }
 
     /**
-     * Add a discussion to the database.
+     * Add a discussion to the database and return the generated ID.
      * @param discussion The discussion to add.
+     * @return The generated discussion ID.
      */
-    public void addDiscussion(Discussion discussion) {
+    public Discussion addDiscussion(Discussion discussion) {
         String sql = """
-            INSERT INTO core.discussion (did, projectid, name, description)
-            SELECT ?, ?, ?, ?
+            INSERT INTO core.discussion (projectid, name, description)
+            SELECT ?, ?, ?
             FROM core.project p
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
-        """;
+            RETURNING did, projectid, name, description, isfavorite, created
+            """;
+
         int userId = getCurrentUserId();
-        jdbcTemplate.update(sql, discussion.did(), discussion.projectId(), discussion.name(), discussion.description(), discussion.projectId(), userId, userId);
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setInt(1, discussion.projectId());
+            ps.setString(2, discussion.name());
+            ps.setString(3, discussion.description());
+            ps.setInt(4, discussion.projectId());
+            ps.setInt(5, userId);
+            ps.setInt(6, userId);
+            return ps;
+        }, keyHolder);
+
+        // Extract the generated keys
+        Map<String, Object> keys = Objects.requireNonNull(keyHolder.getKeys(), "Failed to retrieve generated key for discussion");
+        int newId = (int) keys.get("did");
+        Timestamp created = (Timestamp) keys.get("created");
+
+        return new Discussion(newId, discussion.projectId(), discussion.name(), discussion.description(),
+                discussion.isFavorite(), created);
+
     }
 
     /**
@@ -76,9 +109,17 @@ public class DiscussionRepository {
             JOIN core.project p ON d.projectid = p.projectid
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE d.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
+            order by d.did
         """;
         int userId = getCurrentUserId();
-        return jdbcTemplate.query(sql, rowMapper, projectId, userId, userId);
+        List<Discussion> discussions ;
+        try {
+            discussions = jdbcTemplate.query(sql, rowMapper, projectId, userId, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+        return discussions;
     }
 
     /**

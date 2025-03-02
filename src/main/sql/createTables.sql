@@ -62,21 +62,25 @@ create table if not exists core.message (
     did int not null, -- discussion id
     role varchar(20) not null, -- system, user or assistant
     authorid int not null,
-    message text not null
+    message text not null,
+    created timestamp DEFAULT now(),
 );
 
 create table if not exists core.project (
     projectid serial,
     name varchar(256) not null,
     description varchar(512) null,
-    authorid int not null
+    authorid int not null,
+    isdeleted boolean default false
 );
 
 create table if not exists core.discussion (
     did serial,
     projectid int not null,
     name varchar(256) null,
-    description varchar(512) null
+    description varchar(512) null,
+    isfavorite boolean default false,
+    created timestamp DEFAULT now()
 );
 
 create table if not exists core.sharedproject (

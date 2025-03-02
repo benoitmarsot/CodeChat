@@ -17,7 +17,8 @@ begin
         raise notice 'Creating oaifile_fk_project...';
         alter table core.oaifile
             add constraint oaifile_fk_project
-            foreign key (projectid) references core.project(projectid);
+            foreign key (projectid) references core.project(projectid)
+            on delete cascade;
     end if;
     -- Foreign key for vectorstore_oaifile(vsid) -> vectorstore(vsid)
     IF NOT EXISTS (
@@ -30,7 +31,8 @@ begin
         RAISE NOTICE 'Creating vectorstore_oaifile_fk_vectorstore...';
         ALTER TABLE core.vectorstore_oaifile 
             ADD CONSTRAINT vectorstore_oaifile_fk_vectorstore 
-            FOREIGN KEY (vsid) REFERENCES core.vectorstore(vsid);
+            FOREIGN KEY (vsid) REFERENCES core.vectorstore(vsid)
+            on delete cascade;
     END IF;
 	-- Foreign key for vectorstore_oaifile(fid) -> oaifile(fid)
     if not exists (
@@ -43,7 +45,8 @@ begin
         raise notice 'Creating vectorstore_oaifile_fk_oaifile...';
         alter table core.vectorstore_oaifile 
 			add constraint vectorstore_oaifile_fk_oaifile 
-			foreign key (fid) references core.oaifile(fid);
+			foreign key (fid) references core.oaifile(fid)
+            on delete cascade;
     end if;
     -- Foreign key for assistant(aid) -> project(aid)
     if not exists (
@@ -56,7 +59,8 @@ begin
         raise notice 'Creating assistant_fk_project...';
         alter table core.assistant 
             add constraint assistant_fk_project
-            foreign key (projectid) references core.project(projectid);
+            foreign key (projectid) references core.project(projectid)
+            on delete cascade;
     end if;
 
     -- Foreign keys for assistant codevsid, markupvsid, configvsid, fullvsid -> vectorstore(vsid)
@@ -70,7 +74,8 @@ begin
         raise notice 'Creating assistant_fk_codevsid...';
         alter table core.assistant
             add constraint assistant_fk_codevsid
-            foreign key (codevsid) references core.vectorstore(vsid);
+            foreign key (codevsid) references core.vectorstore(vsid)
+            on delete cascade;
     end if;
 
     if not exists (
@@ -83,7 +88,8 @@ begin
         raise notice 'Creating assistant_fk_markupvsid...';
         alter table core.assistant
             add constraint assistant_fk_markupvsid
-            foreign key (markupvsid) references core.vectorstore(vsid);
+            foreign key (markupvsid) references core.vectorstore(vsid)
+            on delete cascade;
     end if;
 
     if not exists (
@@ -96,7 +102,8 @@ begin
         raise notice 'Creating assistant_fk_configvsid...';
         alter table core.assistant
             add constraint assistant_fk_configvsid
-            foreign key (configvsid) references core.vectorstore(vsid);
+            foreign key (configvsid) references core.vectorstore(vsid)
+            on delete cascade;
     end if;
 
     if not exists (
@@ -109,7 +116,8 @@ begin
         raise notice 'Creating assistant_fk_fullvsid...';
         alter table core.assistant
             add constraint assistant_fk_fullvsid
-            foreign key (fullvsid) references core.vectorstore(vsid);
+            foreign key (fullvsid) references core.vectorstore(vsid)
+            on delete cascade;
     end if;
 
 	-- Foreign key for thread(vsid) -> vectorstore(vsid)
@@ -123,7 +131,8 @@ begin
         raise notice 'Creating thread_fk_vectorstore...';
         alter table core.thread 
             add constraint thread_fk_vectorstore
-            foreign key (vsid) references core.vectorstore(vsid);
+            foreign key (vsid) references core.vectorstore(vsid)
+            on delete cascade;
     end if;
 
     -- Foreign key for thread(did) -> discussion(did)
@@ -137,7 +146,8 @@ begin
         raise notice 'Creating thread_fk_discussion...';
         alter table core.thread 
             add constraint thread_fk_discussion
-            foreign key (did) references core.discussion(did);
+            foreign key (did) references core.discussion(did)
+            on delete cascade;
     end if;
 
     -- Foreign key for message(did) -> discussion(did)
@@ -151,7 +161,8 @@ begin
         raise notice 'Creating message_fk_discussion...';
         alter table core.message
             add constraint message_fk_discussion
-            foreign key (did) references core.discussion(did);
+            foreign key (did) references core.discussion(did)
+            on delete cascade;
     end if;
 
     -- Foreign key for message(authorid) -> user(userid)
@@ -193,7 +204,8 @@ begin
         raise notice 'Creating discussion_fk_project...';
         alter table core.discussion
             add constraint discussion_fk_project
-            foreign key (projectid) references core.project(projectid);
+            foreign key (projectid) references core.project(projectid)
+            on delete cascade;
     end if;
 
     -- Foreign key for sharedproject(projectid) -> project(projectid)
@@ -207,7 +219,8 @@ begin
         raise notice 'Creating sharedproject_fk_project...';
         alter table core.sharedproject 
             add constraint sharedproject_fk_project
-            foreign key (projectid) references core.project(projectid);
+            foreign key (projectid) references core.project(projectid)
+            on delete cascade;
     end if;
 
     -- Foreign key for sharedproject(userid) -> user(userid)
@@ -221,7 +234,8 @@ begin
         raise notice 'Creating sharedproject_fk_user...';
         alter table core.sharedproject
             add constraint sharedproject_fk_user
-            foreign key (userid) references core.user(userid);
+            foreign key (userid) references core.user(userid)
+            on delete cascade;
     end if;
 end; $$;
 

@@ -32,7 +32,7 @@ BEGIN
     ) RETURNING 
         core.user.userid,
         core.user.name,
-        core.user.email 
+        lower(core.user.email)
     INTO 
         out_userid,
         v_name,

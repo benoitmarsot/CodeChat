@@ -70,7 +70,7 @@ public class ProjectRepository {
             FROM core.project p
             INNER JOIN core.Assistant a ON a.projectid = p.projectid
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
-            WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
+            WHERE p.isdeleted=false and p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
         return jdbcTemplate.queryForObject(sql, rowMapper, projectId, userId, userId);
@@ -86,7 +86,7 @@ public class ProjectRepository {
             FROM core.project p
                 INNER JOIN core.Assistant a ON a.projectid = p.projectid
                 LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
-            WHERE p.authorid = ? OR sp.userid = ?
+            WHERE p.isdeleted=false and (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
         try {
@@ -106,7 +106,7 @@ public class ProjectRepository {
         String sql = """
             UPDATE core.project
             SET name = ?, description = ?
-            WHERE projectid = ? AND (authorid = ? OR EXISTS (
+            WHERE p.isdeleted=false and projectid = ? AND (authorid = ? OR EXISTS (
                 SELECT 1 FROM core.sharedproject
                 WHERE projectid = ? AND userid = ?
             ))
@@ -123,13 +123,35 @@ public class ProjectRepository {
     public void deleteProject(int projectId) {
         String sql = """
             DELETE FROM core.project
-            WHERE projectid = ? AND (authorid = ? OR EXISTS (
-                SELECT 1 FROM core.sharedproject
-                WHERE projectid = ? AND userid = ?
-            ))
+            WHERE projectid = ? AND authorid = ?
         """;
-        int userId = getCurrentUserId();
-        jdbcTemplate.update(sql, projectId, userId, projectId, userId);
+        try {
+            int userId = getCurrentUserId();
+            jdbcTemplate.update(sql, projectId, userId, projectId, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    /**
+     * Mark project for deletion
+     * @param projectId
+     * @return
+     */
+    public void markForDeletion(int projectId) {
+        String sql = """
+            UPDATE core.project
+            SET isdeleted = true
+            WHERE projectid = ? AND authorid = ?
+        """;
+        try {
+            int userId = getCurrentUserId();
+            jdbcTemplate.update(sql, projectId, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     /**
@@ -142,7 +164,7 @@ public class ProjectRepository {
             SELECT sp.userid
             FROM core.sharedproject sp
             JOIN core.project p ON sp.projectid = p.projectid
-            WHERE sp.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
+            WHERE p.isdeleted=false and sp.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
         return jdbcTemplate.queryForList(sql, Integer.class, projectId, userId, userId);

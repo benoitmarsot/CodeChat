@@ -17,9 +17,9 @@ public class DiscussionController {
     private DiscussionRepository discussionRepository;
 
     @PostMapping
-    public ResponseEntity<Void> createDiscussion(@RequestBody Discussion discussion) {
-        discussionRepository.addDiscussion(discussion);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Discussion> createDiscussion(@RequestBody Discussion discussion) {
+        Discussion answer=discussionRepository.addDiscussion(discussion);
+        return ResponseEntity.ok(answer);
     }
 
     @GetMapping("/{did}")

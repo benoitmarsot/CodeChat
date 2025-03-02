@@ -51,7 +51,7 @@ public class UserRepository  {
     }
     
     public User findByEmail(String email) {
-        String sql = "SELECT * FROM core.user WHERE email = ?";
+        String sql = "SELECT * FROM core.user WHERE email = lower(?)";
         List<User> users = jdbcTemplate.query(sql, userRowMapper, email);
         return users.isEmpty() ? null : users.get(0);
     }
@@ -62,7 +62,7 @@ public class UserRepository  {
     }
 
     public void deleteByEmail(String email) {
-        String sql = "DELETE FROM core.user WHERE email = ?";
+        String sql = "DELETE FROM core.user WHERE email = lower(?)";
         jdbcTemplate.update(sql, email);
     }
 
@@ -78,7 +78,7 @@ public class UserRepository  {
     }
 
     public boolean existsByEmail(String email) {
-        String sql = "SELECT COUNT(1) FROM core.user WHERE email = ?";
+        String sql = "SELECT COUNT(1) FROM core.user WHERE email = lower(?)";
         // Use queryForObject with SqlParameterValue or simply pass the parameter
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, email);
         return count != null && count > 0;
