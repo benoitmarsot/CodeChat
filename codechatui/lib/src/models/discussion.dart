@@ -46,3 +46,31 @@ class Discussion {
     };
   }
 }
+class DiscussionNameSuggestion {
+  final String name;
+  final String description;
+
+  DiscussionNameSuggestion({required this.name, required this.description});
+
+  factory DiscussionNameSuggestion.fromJson(Map<String, dynamic> json) {
+    return DiscussionNameSuggestion(
+      name: json['name'],
+      description: json['description'],
+    );
+  }
+}
+class DiscussionUpdateRequest {
+  final int did;
+  final String name;
+  final String description;
+
+  DiscussionUpdateRequest({required this.did, required this.name, required this.description});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'did': did,
+      'name': name,
+      'description': description,
+    };
+  }
+}

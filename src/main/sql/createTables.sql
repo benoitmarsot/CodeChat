@@ -47,7 +47,7 @@ create table if not exists core.assistant (
 
 create table if not exists core.thread (
     threadid serial,
-    oai_threadid varchar(30) not null,
+    oai_threadid varchar(31) not null,
     vsid int null,
     did int not null,
     type varchar(20) not null -- code, markup, config, full

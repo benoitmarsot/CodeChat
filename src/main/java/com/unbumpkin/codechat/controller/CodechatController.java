@@ -29,6 +29,7 @@ import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.unbumpkin.codechat.domain.Message;
 import com.unbumpkin.codechat.domain.Project;
 import com.unbumpkin.codechat.domain.openai.Assistant;
 import com.unbumpkin.codechat.domain.openai.OaiFile;
@@ -40,7 +41,7 @@ import com.unbumpkin.codechat.repository.MessageRepository;
 import com.unbumpkin.codechat.repository.ProjectRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
-import com.unbumpkin.codechat.repository.openai.ThreadRepository;
+import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
@@ -69,7 +70,7 @@ public class CodechatController {
     @Autowired 
     private MessageRepository messageRepository;
     @Autowired
-    private ThreadRepository threadRepository;
+    private OaiThreadRepository threadRepository;
     @Autowired DiscussionRepository discussionRepository;
 
     private int getCurrentUserId() {
@@ -108,6 +109,7 @@ public class CodechatController {
         return new ResponseEntity<String>("All data deleted", HttpStatus.OK);
     }
 
+    
     @PostMapping("create-project")
     public ResponseEntity<Project> createProject(
         @RequestBody CreateProjectRequest request

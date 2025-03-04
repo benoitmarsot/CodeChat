@@ -1,39 +1,50 @@
 package com.unbumpkin.codechat.repository.openai;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
-import com.unbumpkin.codechat.domain.openai.Thread;
+import com.unbumpkin.codechat.domain.openai.OaiThread;
 import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.request.AddOaiThreadRequest;
 
 @Repository
-public class ThreadRepository {
+public class OaiThreadRepository {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private final RowMapper<Thread> rowMapper = (rs, rowNum) -> new Thread(
+    private final RowMapper<OaiThread> rowMapper = (rs, rowNum) -> new OaiThread(
         rs.getInt("threadid"),
         rs.getString("oai_threadid"),
         rs.getObject("vsid", Integer.class),
-        rs.getInt("discussionId"),
+        rs.getInt("did"),
         rs.getString("type")
     );
 
     /**
      * Add a thread to the database.
-     * @param thread The thread to add.
+     * @param request The thread to add.
      */
-    public void addThread(Thread thread) {
-        String sql = """
-            INSERT INTO core.thread (threadid, oai_threadid, vsid, did, type)
-            VALUES (?, ?, ?, ?, ?)
-        """;
-        jdbcTemplate.update(sql, thread.threadid(), thread.oaiThreadId(), thread.vsid(), thread.discussionId(), thread.type());
+    public void addThread(AddOaiThreadRequest request) {
+        try {
+            String sql = """
+                INSERT INTO core.thread ( oai_threadid, vsid, did, type)
+                VALUES (?, ?, ?, ?)
+                """;
+            System.out.println("request.oaiThreadId(): " + request.oaiThreadId());
+            jdbcTemplate.update(sql, request.oaiThreadId(),  request.vsid(), request.did(), request.type());
+        } catch (Exception e) {
+            System.out.println("exception in addThread: " + e.getMessage());
+            throw e;
+        }
     }
 
     /**
@@ -41,12 +52,12 @@ public class ThreadRepository {
      * @param threadid The thread ID.
      * @return The thread.
      */
-    public Thread getThreadById(int threadid) {
+    public OaiThread getThreadById(int threadid) {
         String sql = """
             SELECT t.*
             FROM core.thread t
             WHERE t.threadid = ?
-        """;
+            """;
         return jdbcTemplate.queryForObject(sql, rowMapper, threadid);
     }
 
@@ -55,26 +66,31 @@ public class ThreadRepository {
      * @param discussionId The discussion ID.
      * @return A list of threads.
      */
-    public List<Thread> getAllThreadsByDiscussionId(int discussionId) {
+    public Map<Types,OaiThread> getAllThreadsByDiscussionId(int discussionId) {
         String sql = """
             SELECT t.*
             FROM core.thread t
             WHERE t.did = ?
-        """;
-        return jdbcTemplate.query(sql, rowMapper, discussionId);
+            """;
+        List<OaiThread> threadList= jdbcTemplate.query(sql, rowMapper, discussionId);
+        Map<Types,OaiThread> threadMap = new HashMap<>();
+        for (OaiThread thread : threadList) {
+            threadMap.put(Types.valueOf(thread.type()), thread);
+        }
+        return threadMap;
     }
 
     /**
      * Update a thread.
      * @param thread The thread to update.
      */
-    public void updateThread(Thread thread) {
+    public void updateThread(OaiThread thread) {
         String sql = """
             UPDATE core.thread
             SET oai_threadid = ?, vsid = ?, did = ?, type = ?
             WHERE threadid = ?
         """;
-        jdbcTemplate.update(sql, thread.oaiThreadId(), thread.vsid(), thread.discussionId(), thread.type(), thread.threadid());
+        jdbcTemplate.update(sql, thread.oaiThreadId(), thread.vsid(), thread.did(), thread.type(), thread.threadid());
     }
 
     /**

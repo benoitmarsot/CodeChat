@@ -16,6 +16,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.service.request.DiscussionUpdateRequest;
 import com.unbumpkin.codechat.domain.Discussion;
 
 @Repository
@@ -109,7 +110,7 @@ public class DiscussionRepository {
             JOIN core.project p ON d.projectid = p.projectid
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE d.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
-            order by d.did
+            order by d.created desc
         """;
         int userId = getCurrentUserId();
         List<Discussion> discussions ;
@@ -125,17 +126,21 @@ public class DiscussionRepository {
     /**
      * Update a discussion.
      * @param discussion The discussion to update.
+     * @return The updated discussion.
      */
-    public void updateDiscussion(Discussion discussion) {
+    public Discussion updateDiscussion(DiscussionUpdateRequest updateRequest) {
         String sql = """
             UPDATE core.discussion d
             SET name = ?, description = ?
             FROM core.project p
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND d.projectid = p.projectid AND (p.authorid = ? OR sp.userid = ?)
+            RETURNING d.did, d.projectid, d.name, d.description, d.isfavorite, d.created
         """;
         int userId = getCurrentUserId();
-        jdbcTemplate.update(sql, discussion.name(), discussion.description(), discussion.did(), userId, userId);
+        return jdbcTemplate.queryForObject(
+            sql, rowMapper, updateRequest.name(), updateRequest.description(), updateRequest.did(), userId, userId
+        );
     }
 
     /**
@@ -170,4 +175,5 @@ public class DiscussionRepository {
         String deleteDiscussionsSql = "DELETE FROM core.discussion";
         jdbcTemplate.update(deleteDiscussionsSql);
     }
+    
 }

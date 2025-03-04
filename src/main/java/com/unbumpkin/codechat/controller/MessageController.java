@@ -2,11 +2,16 @@ package com.unbumpkin.codechat.controller;
 
 import com.unbumpkin.codechat.domain.Message;
 import com.unbumpkin.codechat.repository.MessageRepository;
+import com.unbumpkin.codechat.service.request.MessageCreateRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 @RestController
 @RequestMapping("/api/v1/messages")
@@ -15,13 +20,13 @@ public class MessageController {
     @Autowired
     private MessageRepository messageRepository;
 
+    
     @PostMapping
-    public ResponseEntity<String> addMessage(
-        @RequestBody Message message, 
-        @RequestBody int discussionId
+    public ResponseEntity<Message> addMessage(
+        @RequestBody MessageCreateRequest request
     ) {
-        messageRepository.addMessage(discussionId, message);
-        return ResponseEntity.ok("Message added successfully");
+        Message returnedMessage=messageRepository.addMessage(request);
+        return ResponseEntity.ok(returnedMessage);
     }
 
     @GetMapping("/{msgId}")

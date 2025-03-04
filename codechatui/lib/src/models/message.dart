@@ -8,6 +8,7 @@ class Message {
   final String role; // 'user', 'assistant', etc.
   final int authorid;
   final String text; // this corresponds to 'message' in Java
+  bool isLoading = false;
   final DateTime timestamp; // kept for compatibility
 
   Message({
@@ -16,6 +17,7 @@ class Message {
     required this.text,
     this.role = 'user',
     this.authorid = 0,
+    this.isLoading = false,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
@@ -161,5 +163,20 @@ class AIAnswerItem {
         // Default to TEXT for unrecognized languages
         return Syntax.JAVA;
     }
+  }
+}
+class MessageCreateRequest {
+  final int did;
+  final String role;
+  final String message;
+
+  MessageCreateRequest({required this.did, required this.role, required this.message});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'did': did,
+      'role': role,
+      'message': message,
+    };
   }
 }

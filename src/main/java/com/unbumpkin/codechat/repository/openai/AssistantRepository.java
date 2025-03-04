@@ -77,6 +77,19 @@ public class AssistantRepository {
         """;
         return jdbcTemplate.queryForObject(sql, rowMapper, aid);
     }
+    /*
+     * Get the assistant by project ID.
+     * @param projectId The project ID.
+     * @return The assistant.
+     */
+    public Assistant getAssistantByProjectId(int projectId) {
+        String sql = """
+            SELECT a.*
+            FROM core.assistant a
+            WHERE a.projectid = ?
+        """;
+        return jdbcTemplate.queryForObject(sql, rowMapper, projectId);
+    }
 
     /**
      * Retrieve all assistants.

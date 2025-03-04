@@ -12,17 +12,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
-public class Run extends BaseOpenAIClient { 
+public class OaiRunService extends BaseOpenAIClient { 
     private static final String API_URL = "https://api.openai.com/v1/threads/%s/runs";
     private static final String API_URL_WITH_RUN = "https://api.openai.com/v1/threads/%s/runs/%s";
 
     private final String assistantId;;
     private final String threadId;
-    public Run(String assistantId, String threadId) {
+    public OaiRunService(String assistantId, String threadId) {
         this.assistantId = assistantId;
         this.threadId = threadId;
     }
-    public Run(String assistantId,Message.Roles role, List<Message> messages) throws IOException {
+    public OaiRunService(String assistantId,OaiMessageService.Roles role, List<OaiMessageService> messages) throws IOException {
         this.assistantId = assistantId;
         this.createThreadAndRun(role, messages);
         this.threadId = "";
@@ -44,7 +44,7 @@ public class Run extends BaseOpenAIClient {
         return this.executeRequest(request).get("id").asText();
     }
 
-    public JsonNode createThreadAndRun(Message.Roles role, List<Message> messages) throws IOException {
+    public JsonNode createThreadAndRun(OaiMessageService.Roles role, List<OaiMessageService> messages) throws IOException {
         String url = "https://api.openai.com/v1/threads/runs";
         String msgJson = new ObjectMapper().writeValueAsString(messages);
         String json = String.format("{\"assistant_id\": \"%s\", \"thread\": {\"messages\": %s}}, \"parallel_tool_calls\": false", assistantId, role.name(), msgJson);

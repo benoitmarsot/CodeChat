@@ -87,7 +87,7 @@ class _PricingPageState extends State<PricingPage> {
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: title!='Free'? ElevatedButton(
                 onPressed: () {},
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isPrimary
@@ -104,7 +104,7 @@ class _PricingPageState extends State<PricingPage> {
                   elevation: isPrimary ? 4 : 0,
                 ),
                 child: Text(buttonText),
-              ),
+              ): const SizedBox.shrink()
             ),
           ],
         ),

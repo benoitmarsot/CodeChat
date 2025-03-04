@@ -1,10 +1,10 @@
 package com.unbumpkin.codechat.domain.openai;
 
-public record Thread(
+public record OaiThread(
     int threadid,
     String oaiThreadId,
     Integer vsid,
-    int discussionId,
+    int did,
     String type
 ) {
 }

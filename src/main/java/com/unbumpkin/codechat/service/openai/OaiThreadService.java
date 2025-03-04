@@ -15,16 +15,16 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 
 @Service
-public class OaiThread extends BaseOpenAIClient {
+public class OaiThreadService extends BaseOpenAIClient {
     private static final String API_URL = "https://api.openai.com/v1/threads";
-    public OaiThread() {
+    public OaiThreadService() {
         super();
     }
     public String createThread() throws IOException {
         return this.createThread(new ArrayList<>(), new HashMap<>() );
     }
     public String createThread(
-        List<Message> messages, Map<String, String> metadata
+        List<OaiMessageService> messages, Map<String, String> metadata
     ) throws IOException {
         String json = new ObjectMapper().writeValueAsString(new CreateThreadRequest(
             messages,metadata
@@ -79,7 +79,7 @@ public class OaiThread extends BaseOpenAIClient {
         executeRequest(request);
     }
     
-    private record CreateThreadRequest(List<Message> messages, Map<String, String> metadata) {
+    private record CreateThreadRequest(List<OaiMessageService> messages, Map<String, String> metadata) {
     }
 }
 /*

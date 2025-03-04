@@ -1,0 +1,67 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ */
+
+package com.unbumpkin.codechat.service.openai;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Scanner;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
+
+/**
+ *
+ * @author benoitmarsot
+ */
+public class ChatService extends BaseOpenAIClient {
+    private static final String API_URL = "https://api.openai.com/v1/chat/completions";
+    private final Models model;
+    private final ChatMessage instruction;
+    private final List<ChatMessage> chatMessages;
+    private float temperature;
+    public ChatService(Models model, String systemInstruction, float temperature) {
+        this.model = model;
+        this.instruction=new ChatMessage("system", systemInstruction);
+        this.chatMessages=new ArrayList<>();
+        this.chatMessages.add(this.instruction);
+        this.temperature=temperature;
+    }
+
+    public String answer() throws IOException {
+        String json = new ObjectMapper().writeValueAsString(
+            new ChatRequest(this.model.toString(), chatMessages, this.temperature)
+        );
+        RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
+
+        Request request = new Request.Builder()
+                .url(API_URL)
+                .post(body)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .addHeader("Content-Type", "application/json")
+                .build();
+
+        JsonNode response=this.executeRequest(request);
+        return response.get("choices").get(0).get("message").get("content").asText();
+    }
+    public void addMessage(ChatMessage message) {
+        this.chatMessages.add(message);
+    }
+    public void addMessage(String role, String content) {
+        this.chatMessages.add(new ChatMessage(role, content));
+    }
+
+    private record ChatRequest(String model, List<ChatMessage> messages, double temperature) {
+    }
+    private record ChatMessage(String role, String content) {
+    }
+
+}

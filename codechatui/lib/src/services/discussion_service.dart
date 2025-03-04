@@ -15,7 +15,7 @@ class DiscussionService {
       };
 
   
-  // Create a new discussion
+  // Create a new open ai thread
   Future<Discussion> createDiscussion(int projectId, String? title) async {
     final response = await http.post(
       Uri.parse(baseUrl),
@@ -27,12 +27,56 @@ class DiscussionService {
     );
     
     if (response.statusCode == 200) {
-      Discussion discussion = jsonDecode(response.body)['id'];
+      Discussion discussion = Discussion.fromJson(jsonDecode(response.body));
       return discussion;
     } else {
       throw Exception('Failed to create Discussion: ${response.body}');
     }
   }
+
+  // Add a new message to a discussion
+  // Add to the OpenAi thread
+  Future<Message> askQuestion(MessageCreateRequest request) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/ask-question'),
+      headers: _headers,
+      body: json.encode(request.toJson()),
+    );
+    
+    if (response.statusCode == 200) {
+      return Message.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to ask question: ${response.body}');
+    }
+  }
+  // Create an openAI run 
+  // Add the answer to the OpenAi thread
+  Future<Message> answerQuestion(int did) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/$did/answer-question'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return Message.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to answer question: ${response.body}');
+    }
+  }
+  // Update an existing discussion
+  Future<Discussion> updateDiscussion(DiscussionUpdateRequest discussion) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/${discussion.did}'),
+      headers: _headers,
+      body: json.encode(discussion.toJson()),
+    );
+    
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update discussion: ${response.body}');
+    }
+    return Discussion.fromJson(jsonDecode(response.body));
+  }
+
   // Get all discussions for a project
   Future<List<Discussion>> getDiscussionsByProject(int projectId) async {
     final response = await http.get(
@@ -50,7 +94,10 @@ class DiscussionService {
   
   // Get a specific discussion with its messages
   Future<Discussion> getDiscussion(int discussionId) async {
-    final response = await http.get(Uri.parse('$baseUrl/$discussionId'));
+    final response = await http.get(
+      Uri.parse('$baseUrl/$discussionId'),
+      headers: _headers,
+  );
     
     if (response.statusCode == 200) {
       return Discussion.fromJson(jsonDecode(response.body));
@@ -59,15 +106,22 @@ class DiscussionService {
     }
   }
   
-  // Get messages for a discussion
-  Future<List<Message>> getDiscussionMessages(int discussionId) async {
-    final response = await http.get(Uri.parse('$baseUrl/$discussionId/messages'));
+  //Use AI to get a name and description sugestion for a discussion 
+  Future<List<DiscussionNameSuggestion>> getNamesSuggestion(int did) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/$did/suggest'),
+      headers: _headers,
+    );
     
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => Message.fromJson(json)).toList();
+      final String answer = response.body;
+      final List<dynamic> data = jsonDecode(answer);
+      return data.map((json) => DiscussionNameSuggestion.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load messages');
+      throw Exception('Failed to load suggestions');
     }
+    
+
   }
+
 }

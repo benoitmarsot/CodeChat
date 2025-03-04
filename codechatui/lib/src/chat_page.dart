@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:codechatui/src/services/auth_provider.dart';
+import 'package:codechatui/src/services/message_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';  // Add this import for keyboard keys
 import 'package:codechatui/src/models/project.dart';
@@ -22,6 +25,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   late AuthProvider authProvider;
   late TabController _tabController;
   late DiscussionService _discussionService;
+  late MessageService _messageService;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _messageFocusNode = FocusNode();  // Add this for keyboard handling
@@ -43,6 +47,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
      authProvider = Provider.of<AuthProvider>(context, listen: false);
     _tabController = TabController(length: 2, vsync: this);
     _discussionService = DiscussionService(authProvider: authProvider);
+    _messageService = MessageService(authProvider: authProvider);
     
     // Method 1: Using addPostFrameCallback (recommended)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -100,7 +105,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     });
     
     try {
-      final messages = await _discussionService.getDiscussionMessages(discussionId);
+      final messages = await _messageService.getMessagesByDiscussionId(discussionId);
       setState(() {
         _messages.addAll(messages);
         _selectedDiscussionId = discussionId;
@@ -126,33 +131,125 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
+    
+    // Save message text and clear input
+    final messageText = _messageController.text;
+    _messageController.clear();
+    
+    // Create new discussion if none selected
     if(_selectedDiscussionId == 0) {
-      Discussion newDiscussion = await _discussionService.createDiscussion(
+      try {
+        final newDiscussion = await _discussionService.createDiscussion(
           widget.project.projectId, 'Discussion ${_discussions.length + 1}'
-      );
-      _selectedDiscussionId = newDiscussion.did;
-      await _loadDiscussions();
+        );
+        _selectedDiscussionId = newDiscussion.did;
+        _discussions.insert(0, newDiscussion);
+      } catch (e) {
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to create discussion: $e'))
+          );
+        }
+        return;
+      }
     }
     
-    setState(() {
-      _messages.add(Message(
-        discussionId:_selectedDiscussionId,
-        role: "user",
-        text: _messageController.text,
-
-
-      ));
+    // Send user message
+    final msgRequest = MessageCreateRequest(
+      did: _selectedDiscussionId,
+      role: "user",
+      message: messageText,
+    );
+    
+    try {
+      // Add user message to UI
+      final userMsg = await _discussionService.askQuestion(msgRequest);
+      setState(() {
+        _messages.add(userMsg);
+      });
+      _scrollToBottom();
       
-      // Simulate AI response (in a real app, you would call your API here)
-      _messages.add(Message(
+      // Add a temporary "thinking" message
+      Message thinkingMsg = Message(
         discussionId: _selectedDiscussionId,
         role: "assistant",
-        text: '{"question": "${_messageController.text}", "answers": [{"explanation": "This is a sample response", "language": "java", "code": "print(\\"Hello World\\");", "references": ["Flutter docs"]}]}',
-      ));
-    });
-    
-    _messageController.clear();
-    _scrollToBottom();
+        text: "Thinking...",
+        isLoading: true,
+      );
+      
+      setState(() {
+        _messages.add(thinkingMsg);
+      });
+      _scrollToBottom();
+      
+      // Show dynamic thinking animation
+      int index = _messages.length - 1;
+      int dots = 0;
+      
+      Timer? progressTimer = Timer.periodic(Duration(milliseconds: 500), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        
+        dots = (dots + 1) % 4;
+        String thinking = "Thinking" + ".".padLeft(dots, '.');
+        
+        setState(() {
+          _messages[index] = Message(
+            discussionId: _selectedDiscussionId,
+            role: "assistant", 
+            text: thinking,
+            isLoading: true,
+          );
+        });
+      });
+      
+      // Get actual AI response
+      try {
+        final message = await _discussionService.answerQuestion(_selectedDiscussionId);
+        
+        // Cancel the progress timer
+        progressTimer.cancel();
+        
+        if (mounted) {
+          setState(() {
+            // Remove the temporary message
+            _messages.removeWhere((message) => message.isLoading == true);
+            // Add the real response
+            _messages.add(message);
+          });
+          _scrollToBottom();
+        }
+      } catch (aiError) {
+        // Cancel the progress timer
+        progressTimer.cancel();
+        
+        if (mounted) {
+          setState(() {
+            // Remove the temporary message
+            _messages.removeWhere((message) => message.isLoading == true);
+            
+            // Add error message
+            _messages.add(Message(
+              discussionId: _selectedDiscussionId,
+              role: "assistant",
+              text: "Sorry, I encountered an error: $aiError",
+            ));
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to get AI response: $aiError'))
+          );
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send message: $e'))
+        );
+      }
+    }
   }
   
   void _scrollToBottom() {
@@ -251,7 +348,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        // History tab with actual discussions
+                        // History tab with discussions
                         _isLoading 
                           ? const Center(child: CircularProgressIndicator())
                           : Column(
@@ -277,7 +374,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                 Expanded(
                                   child: _discussions.isEmpty
                                     ? const Center(child: Text('No discussions found'))
-                                    : getDiscussionsList(),
+                                    : _getDiscussionsList(),
                                 ),
                               ],
                             ),
@@ -342,7 +439,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 setState(() {
                   _leftPanelWidth += details.delta.dx;
                   // Enforce minimum and maximum width constraints
-                  _leftPanelWidth = _leftPanelWidth.clamp(150.0, MediaQuery.of(context).size.width * 0.5);
+                  _leftPanelWidth = _leftPanelWidth.clamp(220.0, MediaQuery.of(context).size.width * 0.5);
                 });
               },
               child: MouseRegion(
@@ -379,7 +476,17 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                         ? Center(child: Text(
                             'Start a new conversation${_discussions.isNotEmpty ? ' or select one from history' : ''}'
                           ))
-                        : getDiscussionsList(),
+                        : ListView.builder(
+                          controller: _scrollController,
+                          itemCount: _messages.length,
+                          padding: const EdgeInsets.all(16),
+                          itemBuilder: (context, index) {
+                            final message = _messages[index];
+                            return message.role == "user"
+                              ? UserMessageBubble(message: message)
+                              : AIResponseWidget(message: message);
+                          },
+                        ),
                 ),
                 // Input area
                 Container(
@@ -429,7 +536,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
   
-  ListView getDiscussionsList() {
+  ListView _getDiscussionsList() {
     return ListView.builder(
       itemCount: _discussions.length,
       itemBuilder: (context, index) {
@@ -437,55 +544,81 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         return Tooltip(
           message: 'Created: ${_formatDate(discussion.created)}\n'
                   '${discussion.description.isNotEmpty ? discussion.description : discussion.name}',
-          preferBelow: false,
+          preferBelow: true,
           verticalOffset: 20,
           child: ListTile(
-            title: Text(discussion.name),
-            subtitle: discussion.description.isNotEmpty 
-                ? Text(discussion.description, 
-                    maxLines: 1, overflow: TextOverflow.ellipsis)
-                : null,
-            selected: _selectedDiscussionId == discussion.did,
-            onTap: () => _selectDiscussion(discussion.did),
-            trailing: PopupMenuButton<String>(
-              tooltip: 'Discussion options',
-              onSelected: (value) => _handleDiscussionAction(value, discussion),
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'suggest_name',
-                  child: ListTile(
-                    leading: Icon(Icons.auto_awesome),
-                    title: Text('Suggest name'),
-                    dense: true,
+            minLeadingWidth: 8,
+            horizontalTitleGap: 4,
+            contentPadding: const EdgeInsets.only(left: 4, right: 0), // Remove right padding completely
+            dense: true, // Make the ListTile more compact overall
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 0),
+              child: InkWell(
+                onTap: () => _toggleFavorite(discussion),
+                child: Icon(
+                  discussion.isFavorite ? Icons.star : Icons.star_border,
+                  color: discussion.isFavorite ? Colors.amber : Colors.grey,
+                  size: 14,
+                ),
+              ),
+            ),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    discussion.name,
+                    style: const TextStyle(fontSize: 13),
                   ),
                 ),
-                const PopupMenuItem<String>(
-                  value: 'rename',
-                  child: ListTile(
-                    leading: Icon(Icons.edit),
-                    title: Text('Rename'),
-                    dense: true,
+                SizedBox(
+                  width: 16,
+                  height: 24,
+                  child: PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.more_vert,
+                      size: 16,
+                    ),
+                    iconSize: 16,
+                    tooltip: 'Discussion options',
+                    onSelected: (value) => _handleDiscussionAction(value, discussion),
+                    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                      const PopupMenuItem<String>(
+                        value: 'suggest_name',
+                        child: ListTile(
+                          leading: Icon(Icons.auto_awesome),
+                          title: Text('Auto-catalog'),
+                          dense: true,
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'rename',
+                        child: ListTile(
+                          leading: Icon(Icons.edit),
+                          title: Text('Rename & describe'),
+                          dense: true,
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: ListTile(
+                          leading: Icon(Icons.delete, color: Colors.red),
+                          title: Text('Delete', style: TextStyle(color: Colors.red)),
+                          dense: true,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const PopupMenuItem<String>(
-                  value: 'description',
-                  child: ListTile(
-                    leading: Icon(Icons.description),
-                    title: Text('Add/edit description'),
-                    dense: true,
-                  ),
-                ),
-                const PopupMenuDivider(),
-                const PopupMenuItem<String>(
-                  value: 'delete',
-                  child: ListTile(
-                    leading: Icon(Icons.delete, color: Colors.red),
-                    title: Text('Delete', style: TextStyle(color: Colors.red)),
-                    dense: true,
-                  ),
-                ),
+                const SizedBox(width: 8),
+
               ],
             ),
+            // Remove the trailing property since we've embedded it in the title row
+            trailing: null,
+            selected: _selectedDiscussionId == discussion.did,
+            onTap: () => _selectDiscussion(discussion.did),
           ),
         );
       },
@@ -499,8 +632,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         _suggestDiscussionName(discussion);
       case 'rename':
         _renameDiscussion(discussion);
-      case 'description':
-        _editDiscussionDescription(discussion);
       case 'delete':
         _deleteDiscussion(discussion);
     }
@@ -527,41 +658,96 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
     
     try {
-      // In a real app, you would call your backend AI service here
-      await Future.delayed(const Duration(seconds: 2)); // Simulating API call
+      List<DiscussionNameSuggestion> response = await _discussionService.getNamesSuggestion(discussion.did);
       
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
       
       // Show suggestion dialog with mock response
       if (mounted) {
-        final suggestedName = "Chat about ${widget.project.name} architecture";
-        
+        int selectedIndex = -1; // Track selected suggestion
+
         showDialog(
           context: context,
           builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text("Suggested Name"),
-              content: Text("AI suggests: \"$suggestedName\""),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // Apply the suggestion
-                    // In a real app, you would update the discussion name via API
-                    setState(() {
-                      // Here you would make an API call to update the name
-                    });
-                  },
-                  child: const Text("Apply"),
-                ),
-              ],
+            return StatefulBuilder( // Use StatefulBuilder to manage dialog state
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: const Text("Suggested Names"),
+                  content: SizedBox(
+                    width: MediaQuery.of(context).size.width / 3,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Select one of the AI-suggested names:"),
+                        const SizedBox(height: 12),
+                        Flexible(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: response.length,
+                            itemBuilder: (context, index) {
+                              final suggestion = response[index];
+                              return ListTile(
+                                title: RichText(
+                                  text: TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: suggestion.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      suggestion.description,
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                                selected: selectedIndex == index,
+                                selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
+                                onTap: () {
+                                  setState(() {
+                                    selectedIndex = index;
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Text("Cancel"),
+                    ),
+                    TextButton(
+                      onPressed: selectedIndex >= 0 ? () async {
+                        final selectedName = response[selectedIndex].name;
+                        final selectedDescription = response[selectedIndex].description;
+                        Navigator.pop(context);
+                        await _updateDiscussion(discussion.did, selectedName, selectedDescription);
+                        
+                      } : null, // Disable if nothing selected
+                      child: const Text("Apply Selected Name"),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -582,16 +768,29 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   // Method to rename a discussion
   Future<void> _renameDiscussion(Discussion discussion) async {
     final TextEditingController nameController = TextEditingController(text: discussion.name);
+    final TextEditingController descriptionController = TextEditingController(text: discussion.description);
     
     await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text("Rename Discussion"),
-          content: TextField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: "New name"),
-            autofocus: true,
+          content:  Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: "New name"),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(labelText: "Description"),
+                style: const TextStyle(fontSize: 13), // Smaller text size
+                maxLines: 3, // Allow up to 3 lines
+                minLines: 1, // Minimum 1 line
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -601,12 +800,19 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               child: const Text("Cancel"),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                final String newName = nameController.text.trim();
+                final String newDescription = descriptionController.text.trim();
+                
+                if (newName.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Name cannot be empty"))
+                  );
+                  return;
+                }
+                
                 Navigator.pop(context);
-                // In a real app, you would update via API
-                setState(() {
-                  // Here you would make an API call to update the name
-                });
+                await _updateDiscussion(discussion.did, newName, newDescription);
               },
               child: const Text("Save"),
             ),
@@ -616,46 +822,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
     
     nameController.dispose();
-  }
-
-  // Method to edit discussion description
-  Future<void> _editDiscussionDescription(Discussion discussion) async {
-    final TextEditingController descController = TextEditingController(text: discussion.description);
-    
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Edit Description"),
-          content: TextField(
-            controller: descController,
-            decoration: const InputDecoration(labelText: "Description"),
-            maxLines: 3,
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // In a real app, you would update via API
-                setState(() {
-                  // Here you would make an API call to update the description
-                });
-              },
-              child: const Text("Save"),
-            ),
-          ],
-        );
-      },
-    );
-    
-    descController.dispose();
+    descriptionController.dispose();
   }
 
   // Method to delete a discussion
@@ -692,8 +859,72 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           _selectedDiscussionId = 0;
           _messages.clear();
         }
+        // TODO: Implement delete discussion API call
+        // Remove the discussion from the list
         // Here you would make an API call to delete the discussion
       });
     }
   }
+  Future<void> _updateDiscussion(int did, String selectedName, String selectedDescription) async {
+    // Update the discussion with the selected name and description
+    final updateRequest = DiscussionUpdateRequest(
+      did: did,
+      name: selectedName,
+      description: selectedDescription,
+    );
+    
+    try {
+      final discussion = await _discussionService.updateDiscussion(updateRequest);
+      
+      if (mounted) {
+        setState(() {
+          // Update local state - find and update the discussion
+          final index = _discussions.indexWhere((d) => d.did == did);
+          if (index >= 0) {
+            _discussions[index] = discussion;
+          }
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Discussion updated successfully"))
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to update discussion: $error"))
+        );
+      }
+    }
+
+  }
+
+  // Add this new method to toggle the favorite state
+  Future<void> _toggleFavorite(Discussion discussion) async {
+    final updateRequest = DiscussionUpdateRequest(
+      did: discussion.did,
+      name: discussion.name,
+      description: discussion.description,
+      //isFavorite: !discussion.isFavorite,
+    );
+    
+    try {
+      final updatedDiscussion = await _discussionService.updateDiscussion(updateRequest);
+      
+      setState(() {
+        // Update discussion in the local list
+        final index = _discussions.indexWhere((d) => d.did == discussion.did);
+        if (index >= 0) {
+          _discussions[index] = updatedDiscussion;
+        }
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to update favorite status: $error"))
+        );
+      }
+    }
+  }
 }
+

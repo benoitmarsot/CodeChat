@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.unbumpkin.codechat.security.CustomAuthentication;
-
+import com.unbumpkin.codechat.service.request.MessageCreateRequest;
 import com.unbumpkin.codechat.domain.Message;
 
 @Repository
@@ -23,7 +23,8 @@ public class MessageRepository {
         rs.getInt("did"),
         rs.getString("role"),
         rs.getInt("authorid"),
-        rs.getString("message")
+        rs.getString("message"),
+        rs.getTimestamp("created")
     );
 
     private int getCurrentUserId() {
@@ -33,6 +34,7 @@ public class MessageRepository {
         }
         throw new IllegalStateException("No authenticated user found");
     }
+
     private CustomAuthentication getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof CustomAuthentication) {
@@ -45,19 +47,25 @@ public class MessageRepository {
      * Add a message to the database.
      * @param message The message to add.
      */
-    public void addMessage(int did, Message message) {
+    public Message addMessage( MessageCreateRequest createRequest) {
         String sql = """
-            INSERT INTO core.message (msgid, did, role, authorid, message)
-            SELECT ?, ?, ?, ?, ?
+            INSERT INTO core.message (did, role, authorid, message)
+            SELECT ?, ?, ?, ?
             WHERE EXISTS (
                 SELECT 1
-                FROM core.sharedproject sp
-                JOIN core.discussion d ON sp.projectid = d.projectid
-                WHERE d.did = ? AND sp.userid = ?
+                FROM core.project p
+                JOIN core.discussion d ON p.projectid = d.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+                WHERE d.did = ? AND (sp.userid = ? OR p.authorid = ?)
             )
+            RETURNING msgid, did, role, authorid, message, created
         """;
         int userId = getCurrentUserId();
-        jdbcTemplate.update(sql, message.msgid(), message.discussionId(), message.role(), message.authorid(), message.message(), message.discussionId(), userId);
+        //( int did, String role, int authorid, String message) {
+        return jdbcTemplate.queryForObject(
+            sql, rowMapper, createRequest.did(), createRequest.role(),  userId, createRequest.message(), 
+            createRequest.did(), userId, userId
+        );
     }
 
     /**
@@ -70,10 +78,11 @@ public class MessageRepository {
             SELECT m.*
             FROM core.message m
             JOIN core.discussion d ON m.did = d.did
-            JOIN core.sharedproject sp ON d.projectid = sp.projectid
-            WHERE m.msgid = ? AND sp.userid = ?
+            JOIN core.project p ON d.projectid = p.projectid
+            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            WHERE m.msgid = ? AND (sp.userid = ? OR p.authorid = ?)
         """;
-        return jdbcTemplate.queryForObject(sql, rowMapper, msgid, getCurrentUserId());
+        return jdbcTemplate.queryForObject(sql, rowMapper, msgid, getCurrentUserId(), getCurrentUserId());
     }
 
     /**
@@ -85,11 +94,13 @@ public class MessageRepository {
         String sql = """
             SELECT m.*
             FROM core.message m
-            JOIN core.discussion d ON m.did = d.did
-            JOIN core.sharedproject sp ON d.projectid = sp.projectid
-            WHERE m.did = ? AND sp.userid = ?
+                JOIN core.discussion d ON m.did = d.did
+                JOIN core.project p ON d.projectid = p.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            WHERE m.did = ? AND (sp.userid = ? OR p.authorid = ?)
+            order by m.created desc
         """;
-        return jdbcTemplate.query(sql, rowMapper, did, getCurrentUserId());
+        return jdbcTemplate.query(sql, rowMapper, did, getCurrentUserId(), getCurrentUserId());
     }
 
     /**
@@ -102,13 +113,14 @@ public class MessageRepository {
             SET role = ?, authorid = ?, message = ?
             WHERE m.msgid = ? AND EXISTS (
                 SELECT 1
-                FROM core.sharedproject sp
-                JOIN core.discussion d ON sp.projectid = d.projectid
-                WHERE d.did = ? AND sp.userid = ?
+                FROM core.project p
+                JOIN core.discussion d ON p.projectid = d.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+                WHERE d.did = ? AND (sp.userid = ? OR p.authorid = ?)
             )
         """;
         int userId = getCurrentUserId();
-        jdbcTemplate.update(sql, message.role(), message.authorid(), message.message(), message.msgid(), message.discussionId(), userId);
+        jdbcTemplate.update(sql, message.role(), message.authorid(), message.message(), message.msgid(), message.discussionId(), userId, userId);
     }
 
     /**
@@ -120,13 +132,15 @@ public class MessageRepository {
             DELETE FROM core.message
             WHERE msgid = ? AND EXISTS (
                 SELECT 1
-                FROM core.sharedproject sp
-                JOIN core.discussion d ON sp.projectid = d.projectid
-                WHERE d.did = core.message.did AND sp.userid = ?
+                FROM core.project p
+                JOIN core.discussion d ON p.projectid = d.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+                WHERE d.did = core.message.did AND (sp.userid = ? OR p.authorid = ?)
             )
         """;
-        jdbcTemplate.update(sql, msgid, getCurrentUserId());
+        jdbcTemplate.update(sql, msgid, getCurrentUserId(), getCurrentUserId());
     }
+
     /**
      * Delete all messages.
      */

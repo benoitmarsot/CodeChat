@@ -1,4 +1,4 @@
-package com.unbumpkin.codechat.service.openai.request;
+package com.unbumpkin.codechat.service.request;
 
 public record UploadFileRequest(
     String filepath, 

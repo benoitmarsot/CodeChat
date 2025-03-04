@@ -137,13 +137,22 @@ class AIResponseWidget extends StatelessWidget {
                     border: Border.all(color: Colors.grey[300]!),
                   ),
                   width: double.infinity,
-                  child: SyntaxView(
-                    code: answer.code!,
-                    syntax: answer.getSyntaxLanguage(),
-                    syntaxTheme: SyntaxTheme.vscodeDark(),
-                    withZoom: true,
-                    withLinesCount: true,
-                    fontSize: 12,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[700]!),
+                    ),
+                    width: double.infinity,
+                    alignment: Alignment.topLeft, // Force left alignment
+                    child: SyntaxView(
+                      code: answer.code!,
+                      syntax: answer.getSyntaxLanguage(),
+                      syntaxTheme: SyntaxTheme.vscodeDark(),
+                      withZoom: true,
+                      withLinesCount: true,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),

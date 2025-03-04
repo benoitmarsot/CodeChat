@@ -11,12 +11,12 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 
 
-public class Message extends BaseOpenAIClient { 
+public class OaiMessageService extends BaseOpenAIClient { 
 
     private static final String API_URL = "https://api.openai.com/v1/threads/%s/messages";
 
     private final String threadId;
-    public Message(String threadId) {
+    public OaiMessageService(String threadId) {
         this.threadId = threadId;
     }
 
