@@ -17,7 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.unbumpkin.codechat.domain.openai.VectorStore;
+import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
 

@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.unbumpkin.codechat.security.CustomAuthentication;
-import com.unbumpkin.codechat.service.request.MessageCreateRequest;
-import com.unbumpkin.codechat.domain.Message;
+import com.unbumpkin.codechat.dto.request.MessageCreateRequest;
+import com.unbumpkin.codechat.model.Message;
 
 @Repository
 public class MessageRepository {
@@ -98,7 +98,7 @@ public class MessageRepository {
                 JOIN core.project p ON d.projectid = p.projectid
                 LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE m.did = ? AND (sp.userid = ? OR p.authorid = ?)
-            order by m.created desc
+            order by m.msgid asc
         """;
         return jdbcTemplate.query(sql, rowMapper, did, getCurrentUserId(), getCurrentUserId());
     }

@@ -15,12 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.unbumpkin.codechat.config.TestSecurityConfig;
-import com.unbumpkin.codechat.domain.openai.OaiFile;
-import com.unbumpkin.codechat.domain.openai.VectorStore;
-import com.unbumpkin.codechat.domain.openai.VectorStore.Static;
+import com.unbumpkin.codechat.model.openai.OaiFile;
+import com.unbumpkin.codechat.model.openai.VectorStore;
+import com.unbumpkin.codechat.model.openai.VectorStore.ChunkingStrategy;
+import com.unbumpkin.codechat.model.openai.VectorStore.ExpiresAfter;
+import com.unbumpkin.codechat.model.openai.VectorStore.Static;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
-import com.unbumpkin.codechat.domain.openai.VectorStore.ChunkingStrategy;
-import com.unbumpkin.codechat.domain.openai.VectorStore.ExpiresAfter;
 
 @SpringBootTest
 @Transactional

@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.unbumpkin.codechat.domain.User;
+import com.unbumpkin.codechat.model.User;
 import com.unbumpkin.codechat.repository.UserRepository;
 import com.unbumpkin.codechat.security.JwtUtil;
 

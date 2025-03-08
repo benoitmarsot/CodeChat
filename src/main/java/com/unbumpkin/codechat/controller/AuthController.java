@@ -1,11 +1,11 @@
 package com.unbumpkin.codechat.controller;
 
-import com.unbumpkin.codechat.domain.LoginResponse;
+import com.unbumpkin.codechat.dto.auth.AuthRequest;
+import com.unbumpkin.codechat.dto.auth.RegisterRequest;
+import com.unbumpkin.codechat.dto.response.LoginResponse;
 import com.unbumpkin.codechat.exception.DuplicateEmailException;
 import com.unbumpkin.codechat.repository.UserRepository;
 import com.unbumpkin.codechat.service.AuthService;
-import com.unbumpkin.codechat.service.auth.AuthRequest;
-import com.unbumpkin.codechat.service.auth.RegisterRequest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

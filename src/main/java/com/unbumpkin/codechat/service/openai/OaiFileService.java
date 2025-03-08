@@ -14,8 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.unbumpkin.codechat.domain.openai.OaiFile;
-import com.unbumpkin.codechat.domain.openai.OaiFile.Purposes;
+import com.unbumpkin.codechat.model.openai.OaiFile;
+import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
+import com.unbumpkin.codechat.util.FileUtils;
 
 import okhttp3.MultipartBody;
 import okhttp3.Request;

@@ -4,10 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.unbumpkin.codechat.domain.Project;
-import com.unbumpkin.codechat.domain.openai.Assistant;
-import com.unbumpkin.codechat.domain.openai.OaiFile;
-import com.unbumpkin.codechat.domain.openai.VectorStore;
+import com.unbumpkin.codechat.model.Project;
+import com.unbumpkin.codechat.model.openai.Assistant;
+import com.unbumpkin.codechat.model.openai.OaiFile;
+import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.repository.ProjectRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;

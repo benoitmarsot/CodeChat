@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.unbumpkin.codechat.domain.User;
+import com.unbumpkin.codechat.model.User;
 import com.unbumpkin.codechat.util.ValidationUtil;
 
 @SpringBootTest

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.unbumpkin.codechat.domain.User;
+import com.unbumpkin.codechat.model.User;
 import com.unbumpkin.codechat.repository.UserRepository;
 
 @Repository

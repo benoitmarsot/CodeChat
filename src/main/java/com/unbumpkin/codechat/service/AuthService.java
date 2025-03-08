@@ -1,10 +1,10 @@
 package com.unbumpkin.codechat.service;
 
-import com.unbumpkin.codechat.domain.LoginResponse;
-import com.unbumpkin.codechat.domain.User;
+import com.unbumpkin.codechat.dto.auth.RegisterRequest;
+import com.unbumpkin.codechat.dto.response.LoginResponse;
+import com.unbumpkin.codechat.model.User;
 import com.unbumpkin.codechat.repository.UserRepository;
 import com.unbumpkin.codechat.security.JwtUtil;
-import com.unbumpkin.codechat.service.auth.RegisterRequest;
 import com.unbumpkin.codechat.util.ValidationUtil;
 
 import org.springframework.http.ResponseEntity;

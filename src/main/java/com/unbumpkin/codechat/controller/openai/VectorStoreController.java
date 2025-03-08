@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.unbumpkin.codechat.domain.openai.VectorStore;
-import com.unbumpkin.codechat.domain.openai.VectorStore.VectorStoreResponse;
+import com.unbumpkin.codechat.model.openai.VectorStore;
+import com.unbumpkin.codechat.model.openai.VectorStore.VectorStoreResponse;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;

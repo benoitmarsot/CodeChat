@@ -1,8 +1,8 @@
 package com.unbumpkin.codechat.controller;
 
-import com.unbumpkin.codechat.domain.Message;
+import com.unbumpkin.codechat.dto.request.MessageCreateRequest;
+import com.unbumpkin.codechat.model.Message;
 import com.unbumpkin.codechat.repository.MessageRepository;
-import com.unbumpkin.codechat.service.request.MessageCreateRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

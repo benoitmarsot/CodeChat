@@ -16,8 +16,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.unbumpkin.codechat.security.CustomAuthentication;
-import com.unbumpkin.codechat.service.request.DiscussionUpdateRequest;
-import com.unbumpkin.codechat.domain.Discussion;
+import com.unbumpkin.codechat.dto.request.DiscussionUpdateRequest;
+import com.unbumpkin.codechat.model.Discussion;
 
 @Repository
 public class DiscussionRepository {

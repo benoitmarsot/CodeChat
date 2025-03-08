@@ -22,8 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.unbumpkin.codechat.domain.openai.OaiFile;
-import com.unbumpkin.codechat.domain.openai.OaiFile.Purposes;
+import com.unbumpkin.codechat.model.openai.OaiFile;
+import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
 /**

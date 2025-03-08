@@ -10,7 +10,8 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
-import com.unbumpkin.codechat.domain.openai.Assistant;
+
+import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
 @Repository

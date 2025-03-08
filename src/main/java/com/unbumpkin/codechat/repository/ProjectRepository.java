@@ -11,8 +11,9 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.security.CustomAuthentication;
-import com.unbumpkin.codechat.domain.Project;
 
 @Repository
 public class ProjectRepository {

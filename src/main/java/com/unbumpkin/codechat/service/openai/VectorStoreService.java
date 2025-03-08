@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.unbumpkin.codechat.domain.openai.VectorStore;
+import com.unbumpkin.codechat.model.openai.VectorStore;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;

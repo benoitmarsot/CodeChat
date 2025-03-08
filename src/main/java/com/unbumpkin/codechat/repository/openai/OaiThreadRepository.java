@@ -10,10 +10,11 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
-import com.unbumpkin.codechat.domain.openai.OaiThread;
+
+import com.unbumpkin.codechat.dto.request.AddOaiThreadRequest;
+import com.unbumpkin.codechat.model.openai.OaiThread;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
-import com.unbumpkin.codechat.service.request.AddOaiThreadRequest;
 
 @Repository
 public class OaiThreadRepository {

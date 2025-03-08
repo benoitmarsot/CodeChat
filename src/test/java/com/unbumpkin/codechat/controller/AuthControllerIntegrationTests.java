@@ -28,10 +28,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.Rollback;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.unbumpkin.codechat.domain.User;
+import com.unbumpkin.codechat.dto.auth.AuthRequest;
+import com.unbumpkin.codechat.dto.auth.RegisterRequest;
+import com.unbumpkin.codechat.model.User;
 import com.unbumpkin.codechat.repository.UserRepository;
-import com.unbumpkin.codechat.service.auth.AuthRequest;
-import com.unbumpkin.codechat.service.auth.RegisterRequest;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 // Todo: Doesn't seems to work with the controller, for now using cleanup method

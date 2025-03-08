@@ -17,8 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.unbumpkin.codechat.config.TestSecurityConfig;
-import com.unbumpkin.codechat.domain.Project;
-import com.unbumpkin.codechat.domain.openai.OaiFile;
+import com.unbumpkin.codechat.model.Project;
+import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.repository.ProjectRepository;
 
 @SpringBootTest

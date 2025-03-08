@@ -23,13 +23,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.unbumpkin.codechat.domain.openai.OaiFile;
-import com.unbumpkin.codechat.domain.openai.OaiFile.Purposes;
+import com.unbumpkin.codechat.dto.request.UploadDirRequest;
+import com.unbumpkin.codechat.dto.request.UploadFileRequest;
 import com.unbumpkin.codechat.exception.ResourceNotFoundException;
+import com.unbumpkin.codechat.model.openai.OaiFile;
+import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
-import com.unbumpkin.codechat.service.request.UploadDirRequest;
-import com.unbumpkin.codechat.service.request.UploadFileRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

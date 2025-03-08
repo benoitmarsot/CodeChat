@@ -3,7 +3,7 @@ package com.unbumpkin.codechat.security;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.unbumpkin.codechat.domain.User;
+import com.unbumpkin.codechat.model.User;
 
 import jakarta.annotation.PostConstruct;
 
