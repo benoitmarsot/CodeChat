@@ -45,7 +45,7 @@ public class AssistantRepository {
      */
     public int addAssistant(Assistant assistant) {
         String sql = """
-            INSERT INTO core.assistant (oai_aid, name, description, projectid, codevsid, markupvsid, configvsid, fullvsid)
+            INSERT INTO assistant (oai_aid, name, description, projectid, codevsid, markupvsid, configvsid, fullvsid)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -73,7 +73,7 @@ public class AssistantRepository {
     public Assistant getAssistantById(int aid) {
         String sql = """
             SELECT a.*
-            FROM core.assistant a
+            FROM assistant a
             WHERE a.aid = ?
         """;
         return jdbcTemplate.queryForObject(sql, rowMapper, aid);
@@ -86,7 +86,7 @@ public class AssistantRepository {
     public Assistant getAssistantByProjectId(int projectId) {
         String sql = """
             SELECT a.*
-            FROM core.assistant a
+            FROM assistant a
             WHERE a.projectid = ?
         """;
         return jdbcTemplate.queryForObject(sql, rowMapper, projectId);
@@ -99,7 +99,7 @@ public class AssistantRepository {
     public List<Assistant> getAllAssistants() {
         String sql = """
             SELECT a.*
-            FROM core.assistant a
+            FROM assistant a
         """;
         return jdbcTemplate.query(sql, rowMapper);
     }
@@ -110,7 +110,7 @@ public class AssistantRepository {
      */
     public void updateAssistant(Assistant assistant) {
         String sql = """
-            UPDATE core.assistant
+            UPDATE assistant
             SET oai_aid = ?, name = ?, description = ?, codevsid = ?, markupvsid = ?, configvsid = ?, fullvsid = ?
             WHERE aid = ?
         """;
@@ -123,7 +123,7 @@ public class AssistantRepository {
      */
     public void deleteAssistant(int aid) {
         String sql = """
-            DELETE FROM core.assistant
+            DELETE FROM assistant
             WHERE aid = ?
         """;
         jdbcTemplate.update(sql, aid);
@@ -135,7 +135,7 @@ public class AssistantRepository {
             throw new IllegalStateException("Only admins can delete all messages");
         }
         // Delete all records in the assistant table
-        String deleteAssistantsSql = "DELETE FROM core.assistant";
+        String deleteAssistantsSql = "DELETE FROM assistant";
         jdbcTemplate.update(deleteAssistantsSql);
     }
 }

@@ -13,14 +13,14 @@ import org.springframework.security.core.userdetails.UserDetails;
 @Configuration
 public class TestSecurityConfig {
 
-    @Autowired
-    UserRepository userRepository;
-    @Bean
-    public CustomAuthentication setUpSecurityContext() {
-        int testUserId = userRepository.findFirstUserId();
-        UserDetails userDetails = User.withUsername("testuser").password("").roles("USER").build();
-        CustomAuthentication authentication = new CustomAuthentication(userDetails, null, userDetails.getAuthorities(), testUserId);
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        return authentication;
-    }
+    // @Autowired
+    // UserRepository userRepository;
+    // @Bean
+    // public CustomAuthentication setUpSecurityContext() {
+    //     int testUserId = userRepository.findFirstUserId();
+    //     UserDetails userDetails = User.withUsername("testuser").password("").roles("USER").build();
+    //     CustomAuthentication authentication = new CustomAuthentication(userDetails, null, userDetails.getAuthorities(), testUserId);
+    //     SecurityContextHolder.getContext().setAuthentication(authentication);
+    //     return authentication;
+    // }
 }

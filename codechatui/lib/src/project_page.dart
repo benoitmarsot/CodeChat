@@ -113,6 +113,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       
       // Refresh projects and switch to projects tab
       await _fetchProjects();
+      // Dismiss loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
       _selectProject(project);
       //_tabController.animateTo(0);  // Switch to first tab
       
@@ -121,12 +126,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         _errorMessage = 'Failed to upload directory: $e';
       });
       print('Failed to upload directory: $e');
-    } finally {
-      // Dismiss loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    }
+    } 
   }
 
   void _handleDrop(Object data) {

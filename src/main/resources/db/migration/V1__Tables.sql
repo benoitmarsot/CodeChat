@@ -1,4 +1,6 @@
-create table if not exists core.user (
+SET search_path TO ${schema};
+
+create table if not exists users (
     userid serial,
     name varchar(50) not null,
     email varchar(100) not null,
@@ -6,7 +8,7 @@ create table if not exists core.user (
     role varchar(20) default 'user'
 );
 
-create table if not exists core.oaifile (
+create table if not exists oaifile (
     fid serial,
     projectid int not null,
     oai_f_id varchar(30) not null,
@@ -17,7 +19,7 @@ create table if not exists core.oaifile (
     linecount int not null
 );
 
-create table if not exists core.vectorstore (
+create table if not exists vectorstore (
     vsid serial,
     oai_vs_id text not null,
     vs_name text not null,
@@ -27,12 +29,12 @@ create table if not exists core.vectorstore (
     type varchar(20) not null --: code, markup, config, full
 );
 
-create table if not exists core.vectorstore_oaifile (
+create table if not exists vectorstore_oaifile (
     vsid int not null,
     fid int not null
 );
 
-create table if not exists core.assistant (
+create table if not exists assistant (
     aid serial,
     oai_aid varchar(30) not null,
     name varchar(256) not null,
@@ -45,7 +47,7 @@ create table if not exists core.assistant (
     fullvsid int not null 
 );
 
-create table if not exists core.thread (
+create table if not exists thread (
     threadid serial,
     oai_threadid varchar(31) not null,
     vsid int null,
@@ -57,7 +59,7 @@ create table if not exists core.thread (
 -- - the internal msgid will be used to identify the message
 -- - the openai msgid is different for each thread and is not keeped in the database
 -- the msgid of the db is kept in the openai metadata of the message
-create table if not exists core.message (
+create table if not exists message (
     msgid serial,
     did int not null, -- discussion id
     role varchar(20) not null, -- system, user or assistant
@@ -66,7 +68,7 @@ create table if not exists core.message (
     created timestamp DEFAULT now()
 );
 
-create table if not exists core.project (
+create table if not exists project (
     projectid serial,
     name varchar(256) not null,
     description varchar(512) null,
@@ -74,7 +76,7 @@ create table if not exists core.project (
     isdeleted boolean default false
 );
 
-create table if not exists core.discussion (
+create table if not exists discussion (
     did serial,
     projectid int not null,
     name varchar(256) null,
@@ -83,7 +85,7 @@ create table if not exists core.discussion (
     created timestamp DEFAULT now()
 );
 
-create table if not exists core.sharedproject (
+create table if not exists sharedproject (
     projectid int not null,
     userid int not null
 );

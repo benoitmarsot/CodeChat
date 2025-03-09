@@ -35,7 +35,7 @@ public class UserRepository  {
             throw new RuntimeException("Error converting user to JSON", e);
         }
     
-        String sql = "call core.createuser(?::json)";
+        String sql = "call createuser(?::json)";
         List<Integer> userIds = jdbcTemplate.query(
             sql,
             userIdRowMapper,
@@ -45,52 +45,52 @@ public class UserRepository  {
     }
     
     public User findById(int id) {
-        String sql = "SELECT * FROM core.user WHERE userid = ?";
+        String sql = "SELECT * FROM users WHERE userid = ?";
         List<User> users = jdbcTemplate.query(sql, userRowMapper, id);
         return users.isEmpty() ? null : users.get(0);
     }
     
     public User findByEmail(String email) {
-        String sql = "SELECT * FROM core.user WHERE email = lower(?)";
+        String sql = "SELECT * FROM users WHERE email = lower(?)";
         List<User> users = jdbcTemplate.query(sql, userRowMapper, email);
         return users.isEmpty() ? null : users.get(0);
     }
 
     public void deleteById(int id) {
-        String sql = "DELETE FROM core.user WHERE userid = ?";
+        String sql = "DELETE FROM users WHERE userid = ?";
         jdbcTemplate.update(sql, id);
     }
 
     public void deleteByEmail(String email) {
-        String sql = "DELETE FROM core.user WHERE email = lower(?)";
+        String sql = "DELETE FROM users WHERE email = lower(?)";
         jdbcTemplate.update(sql, email);
     }
 
     public void deleteAll() {
-        String sql = "DELETE FROM core.user";
+        String sql = "DELETE FROM users";
         jdbcTemplate.update(sql);
     }
 
     public boolean existsById(int id) {
-        String sql = "SELECT COUNT(1) FROM core.user WHERE userid = ?";
+        String sql = "SELECT COUNT(1) FROM users WHERE userid = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, id);
         return count != null && count > 0;
     }
 
     public boolean existsByEmail(String email) {
-        String sql = "SELECT COUNT(1) FROM core.user WHERE email = lower(?)";
+        String sql = "SELECT COUNT(1) FROM users WHERE email = lower(?)";
         // Use queryForObject with SqlParameterValue or simply pass the parameter
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, email);
         return count != null && count > 0;
     }
 
     public Iterable<User> findAll() {
-        String sql = "SELECT * FROM core.user";
+        String sql = "SELECT * FROM users";
         return jdbcTemplate.query(sql, userRowMapper);
     }
 
     public int count() {
-        String sql = "SELECT COUNT(1) FROM core.user";
+        String sql = "SELECT COUNT(1) FROM users";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
         return count != null ? count : 0;
     }
@@ -101,7 +101,7 @@ public class UserRepository  {
      * @return the first user id in the database or 0 if no user is found
      */
     public int findFirstUserId() {
-        String sql = "SELECT userid as out_userid FROM core.user LIMIT 1";
+        String sql = "SELECT userid as out_userid FROM users LIMIT 1";
         Integer id= jdbcTemplate.queryForObject(sql, userIdRowMapper);
         return id != null ? id : 0;
     }

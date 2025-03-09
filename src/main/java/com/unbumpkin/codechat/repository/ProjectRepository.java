@@ -47,7 +47,7 @@ public class ProjectRepository {
      * @return The generated project ID.
      */
     public int addProject(String name, String description) {
-        String sql = "INSERT INTO core.project (name, description, authorid) VALUES (?, ?, ?) RETURNING projectid";
+        String sql = "INSERT INTO project (name, description, authorid) VALUES (?, ?, ?) RETURNING projectid";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
@@ -68,9 +68,9 @@ public class ProjectRepository {
     public Project getProjectById(int projectId) {
         String sql = """
             SELECT p.*
-            FROM core.project p
-            INNER JOIN core.Assistant a ON a.projectid = p.projectid
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM project p
+            INNER JOIN Assistant a ON a.projectid = p.projectid
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE p.isdeleted=false and p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
@@ -84,9 +84,9 @@ public class ProjectRepository {
     public List<Project> getAllProjects() {
         String sql = """
             SELECT p.projectid, p.name, p.description, p.authorid, a.aid
-            FROM core.project p
-                INNER JOIN core.Assistant a ON a.projectid = p.projectid
-                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM project p
+                INNER JOIN Assistant a ON a.projectid = p.projectid
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE p.isdeleted=false and (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
@@ -105,10 +105,10 @@ public class ProjectRepository {
      */
     public void updateProject(Project project) {
         String sql = """
-            UPDATE core.project
+            UPDATE project
             SET name = ?, description = ?
             WHERE p.isdeleted=false and projectid = ? AND (authorid = ? OR EXISTS (
-                SELECT 1 FROM core.sharedproject
+                SELECT 1 FROM sharedproject
                 WHERE projectid = ? AND userid = ?
             ))
         """;
@@ -123,7 +123,7 @@ public class ProjectRepository {
      */
     public void deleteProject(int projectId) {
         String sql = """
-            DELETE FROM core.project
+            DELETE FROM project
             WHERE projectid = ? AND authorid = ?
         """;
         try {
@@ -142,7 +142,7 @@ public class ProjectRepository {
      */
     public void markForDeletion(int projectId) {
         String sql = """
-            UPDATE core.project
+            UPDATE project
             SET isdeleted = true
             WHERE projectid = ? AND authorid = ?
         """;
@@ -163,8 +163,8 @@ public class ProjectRepository {
     public List<Integer> getUsersWithAccess(int projectId) {
         String sql = """
             SELECT sp.userid
-            FROM core.sharedproject sp
-            JOIN core.project p ON sp.projectid = p.projectid
+            FROM sharedproject sp
+            JOIN project p ON sp.projectid = p.projectid
             WHERE p.isdeleted=false and sp.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
@@ -178,10 +178,10 @@ public class ProjectRepository {
      */
     public void grantUserAccessToProject(int projectId, int targetUserId) {
         String sql = """
-            INSERT INTO core.sharedproject (projectid, userid)
+            INSERT INTO sharedproject (projectid, userid)
             SELECT ?, ?
-            FROM core.project p
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM project p
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int currentUserId = getCurrentUserId();
@@ -195,10 +195,10 @@ public class ProjectRepository {
      */
     public void revokeUserAccessFromProject(int projectId, int targetUserId) {
         String sql = """
-            DELETE FROM core.sharedproject
+            DELETE FROM sharedproject
             WHERE projectid = ? AND userid = ? AND EXISTS (
-                SELECT 1 FROM core.project p
-                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+                SELECT 1 FROM project p
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
                 WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             )
         """;
@@ -220,15 +220,15 @@ public class ProjectRepository {
         }
 
         // Delete all records in the sharedproject table
-        String deleteSharedProjectsSql = "DELETE FROM core.sharedproject";
+        String deleteSharedProjectsSql = "DELETE FROM sharedproject";
         jdbcTemplate.update(deleteSharedProjectsSql);
 
         // Delete all records in the discussion table
-        String deleteDiscussionsSql = "DELETE FROM core.discussion";
+        String deleteDiscussionsSql = "DELETE FROM discussion";
         jdbcTemplate.update(deleteDiscussionsSql);
 
         // Delete all records in the project table
-        String deleteProjectsSql = "DELETE FROM core.project";
+        String deleteProjectsSql = "DELETE FROM project";
         jdbcTemplate.update(deleteProjectsSql);
     }
 }

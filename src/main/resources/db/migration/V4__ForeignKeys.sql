@@ -1,3 +1,5 @@
+SET search_path TO ${schema};
+
 DO $$
 BEGIN
     raise notice 'Create Foreign keys:';
@@ -11,9 +13,9 @@ BEGIN
             and constraint_name = 'oaifile_fk_project'
     ) then
         raise notice 'Creating oaifile_fk_project...';
-        alter table core.oaifile
+        alter table oaifile
             add constraint oaifile_fk_project
-            foreign key (projectid) references core.project(projectid)
+            foreign key (projectid) references project(projectid)
             on delete cascade;
     end if;
 
@@ -26,9 +28,9 @@ BEGIN
             AND constraint_name = 'vectorstore_oaifile_fk_vectorstore'
     ) THEN
         RAISE NOTICE 'Creating vectorstore_oaifile_fk_vectorstore...';
-        ALTER TABLE core.vectorstore_oaifile 
+        ALTER TABLE vectorstore_oaifile 
             ADD CONSTRAINT vectorstore_oaifile_fk_vectorstore 
-            FOREIGN KEY (vsid) REFERENCES core.vectorstore(vsid)
+            FOREIGN KEY (vsid) REFERENCES vectorstore(vsid)
             on delete cascade;
     END IF;
 
@@ -41,9 +43,9 @@ BEGIN
             and constraint_name = 'vectorstore_oaifile_fk_oaifile'
     ) then
         raise notice 'Creating vectorstore_oaifile_fk_oaifile...';
-        alter table core.vectorstore_oaifile 
+        alter table vectorstore_oaifile 
             add constraint vectorstore_oaifile_fk_oaifile 
-            foreign key (fid) references core.oaifile(fid)
+            foreign key (fid) references oaifile(fid)
             on delete cascade;
     end if;
 
@@ -56,9 +58,9 @@ BEGIN
             and constraint_name = 'assistant_fk_project'
     ) then
         raise notice 'Creating assistant_fk_project...';
-        alter table core.assistant 
+        alter table assistant 
             add constraint assistant_fk_project
-            foreign key (projectid) references core.project(projectid)
+            foreign key (projectid) references project(projectid)
             on delete cascade;
     end if;
 
@@ -71,9 +73,9 @@ BEGIN
             and constraint_name = 'assistant_fk_codevsid'
     ) then
         raise notice 'Creating assistant_fk_codevsid...';
-        alter table core.assistant
+        alter table assistant
             add constraint assistant_fk_codevsid
-            foreign key (codevsid) references core.vectorstore(vsid)
+            foreign key (codevsid) references vectorstore(vsid)
             on delete cascade;
     end if;
 
@@ -85,9 +87,9 @@ BEGIN
             and constraint_name = 'assistant_fk_markupvsid'
     ) then
         raise notice 'Creating assistant_fk_markupvsid...';
-        alter table core.assistant
+        alter table assistant
             add constraint assistant_fk_markupvsid
-            foreign key (markupvsid) references core.vectorstore(vsid)
+            foreign key (markupvsid) references vectorstore(vsid)
             on delete cascade;
     end if;
 
@@ -99,9 +101,9 @@ BEGIN
             and constraint_name = 'assistant_fk_configvsid'
     ) then
         raise notice 'Creating assistant_fk_configvsid...';
-        alter table core.assistant
+        alter table assistant
             add constraint assistant_fk_configvsid
-            foreign key (configvsid) references core.vectorstore(vsid)
+            foreign key (configvsid) references vectorstore(vsid)
             on delete cascade;
     end if;
 
@@ -113,9 +115,9 @@ BEGIN
             and constraint_name = 'assistant_fk_fullvsid'
     ) then
         raise notice 'Creating assistant_fk_fullvsid...';
-        alter table core.assistant
+        alter table assistant
             add constraint assistant_fk_fullvsid
-            foreign key (fullvsid) references core.vectorstore(vsid)
+            foreign key (fullvsid) references vectorstore(vsid)
             on delete cascade;
     end if;
 
@@ -128,9 +130,9 @@ BEGIN
             and constraint_name = 'thread_fk_vectorstore'
     ) then
         raise notice 'Creating thread_fk_vectorstore...';
-        alter table core.thread 
+        alter table thread 
             add constraint thread_fk_vectorstore
-            foreign key (vsid) references core.vectorstore(vsid)
+            foreign key (vsid) references vectorstore(vsid)
             on delete cascade;
     end if;
 
@@ -143,9 +145,9 @@ BEGIN
             and constraint_name = 'thread_fk_discussion'
     ) then
         raise notice 'Creating thread_fk_discussion...';
-        alter table core.thread 
+        alter table thread 
             add constraint thread_fk_discussion
-            foreign key (did) references core.discussion(did)
+            foreign key (did) references discussion(did)
             on delete cascade;
     end if;
 
@@ -158,38 +160,38 @@ BEGIN
             and constraint_name = 'message_fk_discussion'
     ) then
         raise notice 'Creating message_fk_discussion...';
-        alter table core.message
+        alter table message
             add constraint message_fk_discussion
-            foreign key (did) references core.discussion(did)
+            foreign key (did) references discussion(did)
             on delete cascade;
     end if;
 
-    -- Foreign key for message(authorid) -> user(userid)
+    -- Foreign key for message(authorid) -> users(userid)
     if not exists (
         select constraint_name
         from information_schema.table_constraints
         where table_name = 'message'
             and constraint_schema = 'core'
-            and constraint_name = 'message_fk_user'
+            and constraint_name = 'message_fk_users'
     ) then
-        raise notice 'Creating message_fk_user...';
-        alter table core.message 
-            add constraint message_fk_user
-            foreign key (authorid) references core.user(userid);
+        raise notice 'Creating message_fk_users...';
+        alter table message 
+            add constraint message_fk_users
+            foreign key (authorid) references users(userid);
     end if;
 
-    -- Foreign key for project(authorid) -> user(userid)
+    -- Foreign key for project(authorid) -> users(userid)
     if not exists (
         select constraint_name
         from information_schema.table_constraints
         where table_name = 'project'
             and constraint_schema = 'core'
-            and constraint_name = 'project_fk_user'
+            and constraint_name = 'project_fk_users'
     ) then
-        raise notice 'Creating project_fk_user...';
-        alter table core.project
-            add constraint project_fk_user
-            foreign key (authorid) references core.user(userid);
+        raise notice 'Creating project_fk_users...';
+        alter table project
+            add constraint project_fk_users
+            foreign key (authorid) references users(userid);
     end if;
 
     -- Foreign key for discussion(projectid) -> project(projectid)
@@ -201,9 +203,9 @@ BEGIN
             and constraint_name = 'discussion_fk_project'
     ) then
         raise notice 'Creating discussion_fk_project...';
-        alter table core.discussion
+        alter table discussion
             add constraint discussion_fk_project
-            foreign key (projectid) references core.project(projectid)
+            foreign key (projectid) references project(projectid)
             on delete cascade;
     end if;
 
@@ -216,24 +218,24 @@ BEGIN
             and constraint_name = 'sharedproject_fk_project'
     ) then
         raise notice 'Creating sharedproject_fk_project...';
-        alter table core.sharedproject 
+        alter table sharedproject 
             add constraint sharedproject_fk_project
-            foreign key (projectid) references core.project(projectid)
+            foreign key (projectid) references project(projectid)
             on delete cascade;
     end if;
 
-    -- Foreign key for sharedproject(userid) -> user(userid)
+    -- Foreign key for sharedproject(userid) -> users(userid)
     if not exists (
         select constraint_name
         from information_schema.table_constraints
         where table_name = 'sharedproject'
             and constraint_schema = 'core'
-            and constraint_name = 'sharedproject_fk_user'
+            and constraint_name = 'sharedproject_fk_users'
     ) then
-        raise notice 'Creating sharedproject_fk_user...';
-        alter table core.sharedproject
-            add constraint sharedproject_fk_user
-            foreign key (userid) references core.user(userid)
+        raise notice 'Creating sharedproject_fk_users...';
+        alter table sharedproject
+            add constraint sharedproject_fk_users
+            foreign key (userid) references users(userid)
             on delete cascade;
     end if;
 END $$;

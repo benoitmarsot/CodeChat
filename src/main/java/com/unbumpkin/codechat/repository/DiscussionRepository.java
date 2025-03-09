@@ -49,10 +49,10 @@ public class DiscussionRepository {
      */
     public Discussion addDiscussion(Discussion discussion) {
         String sql = """
-            INSERT INTO core.discussion (projectid, name, description)
+            INSERT INTO discussion (projectid, name, description)
             SELECT ?, ?, ?
-            FROM core.project p
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM project p
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             RETURNING did, projectid, name, description, isfavorite, created
             """;
@@ -89,9 +89,9 @@ public class DiscussionRepository {
     public Discussion getDiscussionById(int did) {
         String sql = """
             SELECT d.*
-            FROM core.discussion d
-            JOIN core.project p ON d.projectid = p.projectid
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM discussion d
+            JOIN project p ON d.projectid = p.projectid
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
@@ -106,9 +106,9 @@ public class DiscussionRepository {
     public List<Discussion> getAllDiscussionsByProjectId(int projectId) {
         String sql = """
             SELECT d.*
-            FROM core.discussion d
-            JOIN core.project p ON d.projectid = p.projectid
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM discussion d
+            JOIN project p ON d.projectid = p.projectid
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE d.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             order by d.created desc
         """;
@@ -130,10 +130,10 @@ public class DiscussionRepository {
      */
     public Discussion updateDiscussion(DiscussionUpdateRequest updateRequest) {
         String sql = """
-            UPDATE core.discussion d
+            UPDATE discussion d
             SET name = ?, description = ?
-            FROM core.project p
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM project p
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND d.projectid = p.projectid AND (p.authorid = ? OR sp.userid = ?)
             RETURNING d.did, d.projectid, d.name, d.description, d.isfavorite, d.created
         """;
@@ -149,9 +149,9 @@ public class DiscussionRepository {
      */
     public void deleteDiscussion(int did) {
         String sql = """
-            DELETE FROM core.discussion d
-            USING core.project p
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            DELETE FROM discussion d
+            USING project p
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND d.projectid = p.projectid AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
@@ -172,7 +172,7 @@ public class DiscussionRepository {
         }
 
         // Delete all records in the discussion table
-        String deleteDiscussionsSql = "DELETE FROM core.discussion";
+        String deleteDiscussionsSql = "DELETE FROM discussion";
         jdbcTemplate.update(deleteDiscussionsSql);
     }
     

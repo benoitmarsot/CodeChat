@@ -49,13 +49,13 @@ public class MessageRepository {
      */
     public Message addMessage( MessageCreateRequest createRequest) {
         String sql = """
-            INSERT INTO core.message (did, role, authorid, message)
+            INSERT INTO message (did, role, authorid, message)
             SELECT ?, ?, ?, ?
             WHERE EXISTS (
                 SELECT 1
-                FROM core.project p
-                JOIN core.discussion d ON p.projectid = d.projectid
-                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+                FROM project p
+                JOIN discussion d ON p.projectid = d.projectid
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
                 WHERE d.did = ? AND (sp.userid = ? OR p.authorid = ?)
             )
             RETURNING msgid, did, role, authorid, message, created
@@ -76,10 +76,10 @@ public class MessageRepository {
     public Message getMessageById(int msgid) {
         String sql = """
             SELECT m.*
-            FROM core.message m
-            JOIN core.discussion d ON m.did = d.did
-            JOIN core.project p ON d.projectid = p.projectid
-            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM message m
+            JOIN discussion d ON m.did = d.did
+            JOIN project p ON d.projectid = p.projectid
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE m.msgid = ? AND (sp.userid = ? OR p.authorid = ?)
         """;
         return jdbcTemplate.queryForObject(sql, rowMapper, msgid, getCurrentUserId(), getCurrentUserId());
@@ -93,10 +93,10 @@ public class MessageRepository {
     public List<Message> getAllMessagesByDiscussionId(int did) {
         String sql = """
             SELECT m.*
-            FROM core.message m
-                JOIN core.discussion d ON m.did = d.did
-                JOIN core.project p ON d.projectid = p.projectid
-                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            FROM message m
+                JOIN discussion d ON m.did = d.did
+                JOIN project p ON d.projectid = p.projectid
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE m.did = ? AND (sp.userid = ? OR p.authorid = ?)
             order by m.msgid asc
         """;
@@ -109,13 +109,13 @@ public class MessageRepository {
      */
     public void updateMessage(Message message) {
         String sql = """
-            UPDATE core.message m
+            UPDATE message m
             SET role = ?, authorid = ?, message = ?
             WHERE m.msgid = ? AND EXISTS (
                 SELECT 1
-                FROM core.project p
-                JOIN core.discussion d ON p.projectid = d.projectid
-                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+                FROM project p
+                JOIN discussion d ON p.projectid = d.projectid
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
                 WHERE d.did = ? AND (sp.userid = ? OR p.authorid = ?)
             )
         """;
@@ -129,13 +129,13 @@ public class MessageRepository {
      */
     public void deleteMessage(int msgid) {
         String sql = """
-            DELETE FROM core.message
+            DELETE FROM message
             WHERE msgid = ? AND EXISTS (
                 SELECT 1
-                FROM core.project p
-                JOIN core.discussion d ON p.projectid = d.projectid
-                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
-                WHERE d.did = core.message.did AND (sp.userid = ? OR p.authorid = ?)
+                FROM project p
+                JOIN discussion d ON p.projectid = d.projectid
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+                WHERE d.did = message.did AND (sp.userid = ? OR p.authorid = ?)
             )
         """;
         jdbcTemplate.update(sql, msgid, getCurrentUserId(), getCurrentUserId());
@@ -149,7 +149,7 @@ public class MessageRepository {
         if (user == null || !user.isAdmin()) {
             throw new IllegalStateException("Only admins can delete all messages");
         }
-        String sql = "DELETE FROM core.message";
+        String sql = "DELETE FROM message";
         jdbcTemplate.update(sql);
     }
 }

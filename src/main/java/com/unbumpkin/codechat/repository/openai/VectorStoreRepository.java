@@ -70,7 +70,7 @@ public class VectorStoreRepository {
      * @throws SQLException 
      */
     public int storeVectorStore(VectorStore vStore) throws DataAccessException, JsonProcessingException {
-        String sql = "INSERT INTO core.vectorstore (oai_vs_id, vs_name, vs_desc, dayskeep, type) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO vectorstore (oai_vs_id, vs_name, vs_desc, dayskeep, type) VALUES (?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, new String[] { "vsid" });
@@ -95,7 +95,7 @@ public class VectorStoreRepository {
      * @return The VectorStore with the specified ID.
      */
     public RepoVectorStoreResponse getVectorStoreByOaiId(String oaiVsId) {
-        String sql = "SELECT * FROM core.vectorstore WHERE oai_vs_id = ?";
+        String sql = "SELECT * FROM vectorstore WHERE oai_vs_id = ?";
         return jdbcTemplate.queryForObject(sql, rowMapper, oaiVsId);
     }
 
@@ -104,7 +104,7 @@ public class VectorStoreRepository {
      * @return A list of all VectorStores.
      */
     public List<RepoVectorStoreResponse> getAllVectorStores() {
-        String sql = "SELECT * FROM core.vectorstore";
+        String sql = "SELECT * FROM vectorstore";
         return jdbcTemplate.query(sql, rowMapper);
     }
 
@@ -114,7 +114,7 @@ public class VectorStoreRepository {
      * @throws JsonProcessingException
      */
     public void updateVectorStore(VectorStore vStore) throws DataAccessException, JsonProcessingException {
-        String sql = "UPDATE core.vectorstore SET vs_name = ?, vs_desc = ?, dayskeep = ? WHERE oai_vs_id = ?";
+        String sql = "UPDATE vectorstore SET vs_name = ?, vs_desc = ?, dayskeep = ? WHERE oai_vs_id = ?";
         jdbcTemplate.update(sql, vStore.getVsname(), vStore.getVsdesc(), vStore.getDayskeep(), vStore.getOaiVsid());
     }
 
@@ -123,7 +123,7 @@ public class VectorStoreRepository {
      * @param vsid: The ID of the VectorStore to delete.
      */
     public void deleteVectorStore(String oaiVsId) {
-        String sql = "DELETE FROM core.vectorstore WHERE oai_vs_id = ?";
+        String sql = "DELETE FROM vectorstore WHERE oai_vs_id = ?";
         jdbcTemplate.update(sql, oaiVsId);
     }
 
@@ -131,7 +131,7 @@ public class VectorStoreRepository {
      * Deletes all VectorStores from the database.
      */
     public void deleteAllVectorStores() {
-        String sql = "DELETE FROM core.vectorstore";
+        String sql = "DELETE FROM vectorstore";
         jdbcTemplate.update(sql);
     }
 
@@ -141,10 +141,10 @@ public class VectorStoreRepository {
      * @param fileid: The associated File ID.
      */
     public void addFile(String vsOaiId, String fOaiId) {
-        String sql = "INSERT INTO core.vectorstore_oaifile (vsid, fid) " +
+        String sql = "INSERT INTO vectorstore_oaifile (vsid, fid) " +
                         "SELECT v.vsid, f.fid " +
-                        "FROM core.vectorstore v " +
-                            "JOIN core.oaifile f ON f.oai_f_id = ? " +
+                        "FROM vectorstore v " +
+                            "JOIN oaifile f ON f.oai_f_id = ? " +
                         "WHERE v.oai_vs_id = ?";
         jdbcTemplate.update(sql, fOaiId, vsOaiId);
     }
@@ -155,7 +155,7 @@ public class VectorStoreRepository {
      * @param fileids: A list of file IDs to associate.
      */
     public void addFiles(int vsid, List<Integer> fileids) {
-        String sql = "INSERT INTO core.vectorstore_oaifile (vsid, fid) VALUES (?, ?)";
+        String sql = "INSERT INTO vectorstore_oaifile (vsid, fid) VALUES (?, ?)";
         fileids.forEach(fileid -> jdbcTemplate.update(sql, vsid, fileid));
     }
     /**
@@ -164,10 +164,10 @@ public class VectorStoreRepository {
      * @param fileOaiIds: A list of OaiFile IDs to associate.
      */
     public void addFiles(String vsOaiId, Collection<String> fileOaids) {
-        String sql = "INSERT INTO core.vectorstore_oaifile (vsid, fid)" +
+        String sql = "INSERT INTO vectorstore_oaifile (vsid, fid)" +
                         "SELECT v.vsid, f.fid " +
-                        "FROM core.vectorstore v " +
-                            "JOIN core.oaifile f ON f.oai_f_id = ? " +
+                        "FROM vectorstore v " +
+                            "JOIN oaifile f ON f.oai_f_id = ? " +
                         "WHERE v.oai_vs_id = ?";
         fileOaids.forEach(fileid -> jdbcTemplate.update(sql,fileid, vsOaiId));
     }
@@ -178,7 +178,7 @@ public class VectorStoreRepository {
      * @param fileid: The OaiFile ID to disassociate.
      */
     public void removeFile(int vsid, int fileid) {
-        String sql = "DELETE FROM core.vectorstore_oaifile WHERE vsid = ? AND fid = ?";
+        String sql = "DELETE FROM vectorstore_oaifile WHERE vsid = ? AND fid = ?";
         jdbcTemplate.update(sql, vsid, fileid);
     }
     /**
@@ -187,9 +187,9 @@ public class VectorStoreRepository {
      * @param fileOaiId: The OaiFile OpenAI ID to disassociate
      */
     public void removeFile(String vsOaiId, String fileOaiId) {
-        String sql = "DELETE FROM core.vectorstore_oaifile " +
-                    "WHERE vsid = (SELECT vsid FROM core.vectorstore WHERE oai_vs_id = ?) " +
-                    "AND fid = (SELECT fid FROM core.oaifile WHERE oai_f_id = ?)";
+        String sql = "DELETE FROM vectorstore_oaifile " +
+                    "WHERE vsid = (SELECT vsid FROM vectorstore WHERE oai_vs_id = ?) " +
+                    "AND fid = (SELECT fid FROM oaifile WHERE oai_f_id = ?)";
         jdbcTemplate.update(sql, vsOaiId, fileOaiId);
     }
 
@@ -199,7 +199,7 @@ public class VectorStoreRepository {
      * @return true if the VectorStore exists, false otherwise.
      */
     public boolean vectorStoreExists(String oaiVsId) {
-        String sql = "SELECT COUNT(*) FROM core.vectorstore WHERE oai_vs_id = ?";
+        String sql = "SELECT COUNT(*) FROM vectorstore WHERE oai_vs_id = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, oaiVsId);
         return count != null && count > 0;
     }
@@ -210,8 +210,8 @@ public class VectorStoreRepository {
      * @return tru if the file is associated with the VectorStore, false otherwise.
      */
     public boolean vectorContainFile(int vsid, String oaiFileId) {
-        String sql = "SELECT COUNT(*) FROM core.vectorstore_oaifile vf "
-                        +"inner join core.oaifile f on f.fid = vf.fid "
+        String sql = "SELECT COUNT(*) FROM vectorstore_oaifile vf "
+                        +"inner join oaifile f on f.fid = vf.fid "
                     +"WHERE vf.vsid = ? AND f.oai_f_id = ?";
     
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, vsid, oaiFileId);
@@ -224,9 +224,9 @@ public class VectorStoreRepository {
      * @return tru if the file is associated with the VectorStore, false otherwise.
      */
     public boolean vectorContainFile(String vsOaiId, String oaiFileId) {
-        String sql = "SELECT COUNT(*) FROM core.vectorstore_oaifile vf "
-                    +"	inner join core.oaifile f on f.fid = vf.fid "
-                    +"	inner join core.vectorstore v on v.vsid = vf.vsid "
+        String sql = "SELECT COUNT(*) FROM vectorstore_oaifile vf "
+                    +"	inner join oaifile f on f.fid = vf.fid "
+                    +"	inner join vectorstore v on v.vsid = vf.vsid "
                     +"WHERE v.oai_vs_id = ? AND f.oai_f_id = ?";
 
     
@@ -235,8 +235,8 @@ public class VectorStoreRepository {
     }
 
     public List<String> vectorContainAny(int vsid, List<String> fileids) {
-        String sql = "SELECT f.oai_f_id FROM core.vectorstore_oaifile vf "
-                        +"inner join core.oaifile f on f.fid = vf.fid "
+        String sql = "SELECT f.oai_f_id FROM vectorstore_oaifile vf "
+                        +"inner join oaifile f on f.fid = vf.fid "
                     +"WHERE vf.vsid = ? AND f.oai_f_id = ANY(?)";
 
         List<String> result = jdbcTemplate.queryForList(
@@ -247,9 +247,9 @@ public class VectorStoreRepository {
         return result;
     }
     public List<String> vectorContainAny(String vsOaiId, List<String> oaiFileIds) {
-        String sql = "SELECT f.oai_f_id FROM core.vectorstore_oaifile vf "
-                        +"inner join core.oaifile f on f.fid = vf.fid "
-                        +"inner join core.vectorstore v on v.vsid = vf.vsid "
+        String sql = "SELECT f.oai_f_id FROM vectorstore_oaifile vf "
+                        +"inner join oaifile f on f.fid = vf.fid "
+                        +"inner join vectorstore v on v.vsid = vf.vsid "
                     +"WHERE v.oai_vs_id = ? AND f.oai_f_id = ANY(?)";
 
         List<String> result = jdbcTemplate.queryForList(
@@ -260,15 +260,15 @@ public class VectorStoreRepository {
         return result;
     }
     public List<String> findVectorStoreFiles(int vsid) {
-        String sql = "SELECT f.oai_f_id FROM core.vectorstore_oaifile vf "
-                        +"inner join core.oaifile f on f.fid = vf.fid "
+        String sql = "SELECT f.oai_f_id FROM vectorstore_oaifile vf "
+                        +"inner join oaifile f on f.fid = vf.fid "
                     +"WHERE vf.vsid = ?";
         return jdbcTemplate.queryForList(sql, String.class, vsid);
     }
     public List<String> findVectorStoreFiles(String vsOaiId) {
-        String sql = "SELECT f.oai_f_id FROM core.vectorstore_oaifile vf "
-                        + "INNER JOIN core.oaifile f ON f.fid = vf.fid "
-                        + "INNER JOIN core.vectorstore v ON v.vsid = vf.vsid "
+        String sql = "SELECT f.oai_f_id FROM vectorstore_oaifile vf "
+                        + "INNER JOIN oaifile f ON f.fid = vf.fid "
+                        + "INNER JOIN vectorstore v ON v.vsid = vf.vsid "
                     + "WHERE v.oai_vs_id = ?";
         return jdbcTemplate.queryForList(sql, String.class, vsOaiId);
     }
@@ -279,11 +279,11 @@ public class VectorStoreRepository {
         }
 
         // Delete all associations in the vectorstore_oaifile table
-        String deleteAssociationsSql = "DELETE FROM core.vectorstore_oaifile";
+        String deleteAssociationsSql = "DELETE FROM vectorstore_oaifile";
         jdbcTemplate.update(deleteAssociationsSql);
 
         // Delete all records in the vectorstore table
-        String deleteVectorStoresSql = "DELETE FROM core.vectorstore";
+        String deleteVectorStoresSql = "DELETE FROM vectorstore";
         jdbcTemplate.update(deleteVectorStoresSql);
     }
 }

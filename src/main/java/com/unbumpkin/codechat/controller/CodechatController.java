@@ -106,7 +106,7 @@ public class CodechatController {
         discussionRepository.deleteAll();
         // Delete all records in the project table
         projectRepository.deleteAll();
-        return new ResponseEntity<String>("All data deleted", HttpStatus.OK);
+        return ResponseEntity.ok("All data deleted");
     }
 
     
@@ -150,7 +150,7 @@ public class CodechatController {
         int assistantId=createAssistant(request.name(), projectId, vectorStorMap);
         System.out.println("Assistant created with id: "+assistantId);
         Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
-        return new ResponseEntity<Project>(project, HttpStatus.OK);
+        return ResponseEntity.ok(project);
     }
     private void createVectorStore(
         ProjectFileCategorizer pfc, int projectId, String vsName, Types type,
