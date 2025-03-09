@@ -50,25 +50,29 @@ class Message {
   AIResponse? get aiResponse {
     if (isUserMessage) return null;
     try {
+      //print("Parsing AI response: $text");
       return AIResponse.fromJson(jsonDecode(text));
     } catch (e) {
+      print('Error parsing AI response: $e');
       return null;
     }
   }
 }
 
 class AIResponse {
-  final String question;
   final List<AIAnswerItem> answers;
+  final String? conversationalGuidance; // Add this line
 
-  AIResponse({required this.question, required this.answers});
+
+  AIResponse({required this.conversationalGuidance, required this.answers});
 
   factory AIResponse.fromJson(Map<String, dynamic> json) {
     return AIResponse(
-      question: json['question'],
       answers: (json['answers'] as List)
           .map((item) => AIAnswerItem.fromJson(item))
           .toList(),
+      conversationalGuidance: json['conversationalGuidance'],
+
     );
   }
 }
@@ -78,12 +82,14 @@ class AIAnswerItem {
   final String? language;
   final String? code;
   final List<String> references;
+  final String? codeExplanation; // Add this line
 
   AIAnswerItem({
     required this.explanation, 
     this.language, 
     this.code, 
-    required this.references
+    required this.references,
+    this.codeExplanation
   });
 
   factory AIAnswerItem.fromJson(Map<String, dynamic> json) {
@@ -92,6 +98,7 @@ class AIAnswerItem {
       language: json['language'],
       code: json['code'],
       references: (json['references'] as List).map((e) => e.toString()).toList(),
+      codeExplanation: json['codeExplanation'], 
     );
   }
   

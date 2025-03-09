@@ -20,7 +20,8 @@ public abstract class BaseOpenAIClient {
         gpt_3_5_turbo("gpt-3.5-turbo"),
         gpt_4("gpt-4"),
         gpt_4_turbo("gpt-4-turbo"),
-        gpt_4o_realtime_preview("gpt-4o-realtime-preview");
+        gpt_4o_realtime_preview("gpt-4o-realtime-preview"),
+        o3_mini("o3-mini");
         private String model;
 
         Models(String model) {

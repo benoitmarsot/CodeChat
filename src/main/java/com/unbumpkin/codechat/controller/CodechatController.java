@@ -181,7 +181,7 @@ public class CodechatController {
     private int createAssistant(
         String name, int projectId, Map<String,Integer> vectorStorMap
     ) throws IOException {
-        AssistantBuilder assistantBuilder = new AssistantBuilder(Models.gpt_4_turbo);
+        AssistantBuilder assistantBuilder = new AssistantBuilder(Models.o3_mini);
 
         assistantBuilder.setName(name)
             .setDescription("Code search assistant for " + name)
@@ -191,22 +191,27 @@ public class CodechatController {
             to answer using a deep knowledge of the project at hands.
             You may also write code that fit with the style and the architectur of the project.
             
-            Always respond in the following structured JSON format:
+            Always respond in the following structured JSON format :
             {
-            "question": "<question of the user>",
-            "answers": [
-                {
-                "explanation": "<Detailed explanation>",
-                "language": "<Programming language (if applicable)>",
-                "code": "<Formatted code snippet (if applicable)>",
-                "references": ["<Relevant sources>"]
-                }
-                // Add more answer objects as needed
-            ]
+                "answers": [
+                    {
+                    "explanation": "<Detailed explanation>",
+                    "language": "<Programming language (if applicable)>",
+                    "code": "<Formatted code snippet (if applicable)>",
+                    "codeExplanation": "<Explanation of the code snippet (if applicable)>",
+                    "references": ["<Relevant sources>"]
+                    }
+                    // Add more answers as needed
+                ],
+                "conversationalGuidance": "<Additional guidance for the user: Intelligent Follow-ups, Actionable Suggestions, Engagement & Clarifications, etc.>"
 
+            }
+            Markdown is supported in the explanation, code explanation, and reference fields.
+            The references should use Markdown Link with Title Attribute, [Link Text](URL "Title attribute")
+            The reference should always use the open ai file id for the URL when refering to a file.
             Ensure the response is always valid JSON. If the query of the user is not code-related, omit the language and code fields.
             """).setReasoningEffort(ReasoningEffort.high)
-            .setTemperature(.02)
+            //.setTemperature(.02) //Not suported in o3-mini
             .addFileSearchTool().addFileSearchAssist()
             .setFileSearchMaxNumResults(20) //default
             //.setFileSearchRankingOption(.5) 

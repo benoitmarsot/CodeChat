@@ -21,6 +21,8 @@ dependencies:
   intl: ^0.20.2
   flutter_syntax_view: ^4.1.5
   flutter_highlight: ^0.7.0
+  flutter_markdown: ^0.6.18
+  url_launcher: ^6.2.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
