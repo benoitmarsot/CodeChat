@@ -149,13 +149,24 @@ public class DiscussionRepository {
      */
     public void deleteDiscussion(int did) {
         String sql = """
-            DELETE FROM discussion d
-            USING project p
-            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
-            WHERE d.did = ? AND d.projectid = p.projectid AND (p.authorid = ? OR sp.userid = ?)
+            WITH auth_check AS (
+                SELECT 1 FROM discussion d
+                JOIN project p ON d.projectid = p.projectid
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+                WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
+            )
+            DELETE FROM message WHERE did = ? AND EXISTS (SELECT 1 FROM auth_check);
+            
+            WITH auth_check AS (
+                SELECT 1 FROM discussion d
+                JOIN project p ON d.projectid = p.projectid
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+                WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
+            )
+            DELETE FROM discussion WHERE did = ? AND EXISTS (SELECT 1 FROM auth_check);
         """;
         int userId = getCurrentUserId();
-        jdbcTemplate.update(sql, did, userId, userId);
+        jdbcTemplate.update(sql, did, userId, userId, did, did, userId, userId, did);
     }
     private CustomAuthentication getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

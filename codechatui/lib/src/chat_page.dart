@@ -854,14 +854,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     
     if (confirm) {
       // In a real app, you would delete via API
+      await _discussionService.deleteDiscussion(discussion.did);
+      // Remove the discussion from the list
       setState(() {
-        if (discussion.did == _selectedDiscussionId) {
-          _selectedDiscussionId = 0;
-          _messages.clear();
-        }
-        // TODO: Implement delete discussion API call
-        // Remove the discussion from the list
-        // Here you would make an API call to delete the discussion
+        _discussions.removeWhere((d) => d.did == discussion.did);
       });
     }
   }

@@ -50,9 +50,11 @@ class Message {
   AIResponse? get aiResponse {
     if (isUserMessage) return null;
     try {
-      //print("Parsing AI response: $text");
-      return AIResponse.fromJson(jsonDecode(text));
+      // Check if the text is valid JSON
+      final decoded = jsonDecode(text);
+      return AIResponse.fromJson(decoded);
     } catch (e) {
+      // If parsing fails, return null
       print('Error parsing AI response: $e');
       return null;
     }
@@ -81,14 +83,14 @@ class AIAnswerItem {
   final String explanation;
   final String? language;
   final String? code;
-  final List<String> references;
-  final String? codeExplanation; // Add this line
+  final List<String>? references; // Make this field optional
+  final String? codeExplanation;
 
   AIAnswerItem({
     required this.explanation, 
     this.language, 
     this.code, 
-    required this.references,
+    this.references, // Update constructor
     this.codeExplanation
   });
 
@@ -97,7 +99,9 @@ class AIAnswerItem {
       explanation: json['explanation'],
       language: json['language'],
       code: json['code'],
-      references: (json['references'] as List).map((e) => e.toString()).toList(),
+      references: json['references'] != null 
+          ? (json['references'] as List).map((e) => e.toString()).toList() 
+          : null, // Handle null case
       codeExplanation: json['codeExplanation'], 
     );
   }

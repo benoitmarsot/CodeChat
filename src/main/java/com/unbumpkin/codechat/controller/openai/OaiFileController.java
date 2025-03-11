@@ -73,7 +73,7 @@ public class OaiFileController {
     @GetMapping()
     public ResponseEntity<Iterable<OaiFile>> getAllFiles() throws IOException {
         List<String> fileIds = oaiFileService.listFiles();
-        List<OaiFile> files = oaiFileRepository.retrieveFiles(fileIds);
+        List<OaiFile> files = oaiFileRepository.retrieveFiles(fileIds.toArray(String[]::new));
         return ResponseEntity.ok(files);
     }
 

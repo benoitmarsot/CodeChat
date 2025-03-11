@@ -4,6 +4,8 @@ import 'package:flutter_syntax_view/flutter_syntax_view.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';  // Add this import
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart'; 
+import 'package:open_file/open_file.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AIResponseWidget extends StatelessWidget {
   final Message message;
@@ -11,6 +13,51 @@ class AIResponseWidget extends StatelessWidget {
 
   AIResponseWidget({super.key, required this.message});
 
+  
+  void openLink(String? text, String? href, String? title, [BuildContext? context]) {
+    if (href == null) return;
+    
+    if (href.startsWith('file://')) {
+      final filePath = href.replaceFirst('file://', '');
+      print("Opening local file: $filePath");
+      
+      // Handle platform-specific file opening
+      if (kIsWeb) {
+        print("File opening not supported on web. Path: $filePath");
+        
+        // If context is available, show a snackbar
+        if (context != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('File links cannot be opened in web version: $filePath'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        try {
+          OpenFile.open(filePath);
+        } catch (e) {
+          print("Error opening file: $e");
+          if (context != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error opening file: $filePath'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      }
+    } else {
+      // Launch web URLs
+      try {
+        launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
+      } catch (e) {
+        print("Error opening URL: $e");
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
     // Parse the AI response from the message text
@@ -41,6 +88,8 @@ class AIResponseWidget extends StatelessWidget {
                 children: [
                   // Process each answer item
                   ...aiResponse.answers.map((answer) => _buildAnswerItem(context, answer)),
+                  const Divider(),
+                  // Conversational guidance
                   if (aiResponse.conversationalGuidance != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
@@ -56,9 +105,7 @@ class AIResponseWidget extends StatelessWidget {
                           ),
                         ),
                         onTapLink: (text, href, title) {
-                          if (href != null) {
-                            launchUrl(Uri.parse(href));
-                          }
+                          openLink(text, href, title, context);
                         },
                       ),
                     ),
@@ -105,7 +152,6 @@ class AIResponseWidget extends StatelessWidget {
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  // Replace Text with Markdown
                   child: MarkdownBody(
                     data: text,
                     selectable: true,
@@ -118,9 +164,7 @@ class AIResponseWidget extends StatelessWidget {
                       ),
                     ),
                     onTapLink: (text, href, title) {
-                      if (href != null) {
-                        launchUrl(Uri.parse(href));
-                      }
+                      openLink(text, href, title, context);
                     },
                   ),
                 ),
@@ -176,9 +220,7 @@ class AIResponseWidget extends StatelessWidget {
               ),
             ),
             onTapLink: (text, href, title) {
-              if (href != null) {
-                launchUrl(Uri.parse(href));
-              }
+              openLink(text, href, title, context);
             },
           ),
           
@@ -224,15 +266,13 @@ class AIResponseWidget extends StatelessWidget {
                     ),
                   ),
                   onTapLink: (text, href, title) {
-                    if (href != null) {
-                      launchUrl(Uri.parse(href));
-                    }
+                    openLink(text, href, title, context);
                   },
                 ),
               ],
             ),
           
-          if (answer.references.isNotEmpty)
+          if (answer.references != null && answer.references!.isNotEmpty)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -242,7 +282,7 @@ class AIResponseWidget extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
-                ...answer.references.map((ref) => Padding(
+                ...answer.references!.map((ref) => Padding(
                   padding: const EdgeInsets.only(bottom: 2.0),
                   child: MarkdownBody(
                     data: ref,
@@ -256,16 +296,14 @@ class AIResponseWidget extends StatelessWidget {
                       ),
                     ),
                     onTapLink: (text, href, title) {
-                      if (href != null) {
-                        launchUrl(Uri.parse(href));
-                      }
+                      openLink(text, href, title, context);
                     },
+                    onSelectionChanged: (text, selection, cause) => print('Selection: $text'),
                   ),
                 )),
               ],
             ),
         ],
-
       ),
     );
   }

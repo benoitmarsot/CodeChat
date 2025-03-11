@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.postgresql.copy.CopyManager;
@@ -146,11 +147,11 @@ public class OaiFileRepository {
      * @param fileIds The list of file IDs to be retrieved.
      * @return A list of OaiFiles.
      */
-    public List<OaiFile> retrieveFiles(List<String> fileIds) {
+    public List<OaiFile> retrieveFiles(String[] fileIds) {
         String sql = "SELECT * FROM oaifile WHERE oai_f_id = ANY(?)";
         return jdbcTemplate.query(
             sql,
-            ps -> ps.setArray(1, ps.getConnection().createArrayOf("text", fileIds.toArray())),
+            ps -> ps.setArray(1, ps.getConnection().createArrayOf("text", fileIds)),
             (rs, rowNum) -> OaiFileFrom(rs)
         );
     }
@@ -226,6 +227,7 @@ public class OaiFileRepository {
         }
         return sb.toString();
     }
+
 
     /**
      * Quotes the input string with double quotes and escapes any double quotes in the input.

@@ -124,4 +124,16 @@ class DiscussionService {
 
   }
 
+  // Delete a discussion
+  Future<void> deleteDiscussion(int did) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/$did'),
+      headers: _headers,
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete discussion: ${response.body}');
+    }
+  }
+
 }

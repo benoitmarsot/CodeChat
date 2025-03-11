@@ -14,16 +14,19 @@ import com.unbumpkin.codechat.dto.request.MessageCreateRequest;
 import com.unbumpkin.codechat.model.Discussion;
 import com.unbumpkin.codechat.model.Message;
 import com.unbumpkin.codechat.model.openai.Assistant;
+import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.OaiThread;
 import com.unbumpkin.codechat.repository.DiscussionRepository;
 import com.unbumpkin.codechat.repository.MessageRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
+import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
 import com.unbumpkin.codechat.service.openai.ChatService;
 import com.unbumpkin.codechat.service.openai.OaiMessageService;
 import com.unbumpkin.codechat.service.openai.OaiRunService;
 import com.unbumpkin.codechat.service.openai.OaiThreadService;
 import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.util.AnswerUtils;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Roles;
 
@@ -32,6 +35,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/discussions")
@@ -51,6 +55,8 @@ public class DiscussionController {
     ObjectMapper objectMapper;
     @Autowired 
     OaiThreadService oaiThreadService;
+    @Autowired
+    OaiFileRepository oaiFileRepository;
 
 
 
@@ -86,45 +92,47 @@ public class DiscussionController {
         }
     }
     @PostMapping("/{did}/answer-question")
-    public ResponseEntity<Message> answerQuestion(
-        @PathVariable int did
-    ) throws IOException {
-        Discussion discussion=discussionRepository.getDiscussionById(did);
-        Assistant assistant=assistantRepository.getAssistantByProjectId(discussion.projectId());
-        Map<Types,OaiThread> threadMap=threadRepository.getAllThreadsByDiscussionId(did);
-        OaiThread thread=threadMap.get(Types.code);
-        OaiRunService runService=new OaiRunService(assistant.oaiAid(), thread.oaiThreadId());
+    public ResponseEntity<Message> answerQuestion(@PathVariable int did) throws IOException {
+        Discussion discussion = discussionRepository.getDiscussionById(did);
+        Assistant assistant = assistantRepository.getAssistantByProjectId(discussion.projectId());
+        Map<Types, OaiThread> threadMap = threadRepository.getAllThreadsByDiscussionId(did);
+        OaiThread thread = threadMap.get(Types.code);
+        OaiRunService runService = new OaiRunService(assistant.oaiAid(), thread.oaiThreadId());
         OaiMessageService msgService = new OaiMessageService(thread.oaiThreadId());
-        String OaiRunId=runService.create();
-        System.out.println("Starting OpenAi run " + OaiRunId+"...");
+        String OaiRunId = runService.create();
+        System.out.println("Starting OpenAi run " + OaiRunId + "...");
         System.out.println("Waiting for answer...");
         runService.waitForAnswer(OaiRunId);
+    
         JsonNode jsonNode = msgService.retrieveMessage(msgService.listMessages().get(0));
-        JsonNode answerNode=jsonNode.findValue("value");
-        String answer=answerNode.asText();
-        System.out.println("Answer: "+answer);
-        Message message=messageRepository.addMessage(
-            new MessageCreateRequest(
-                did, Roles.assistant.toString(),answer
-            ));
-        // test with fake data
-        // Message message = new Message(3,55, "assistant", 36,
-        // """
-        // Answer: {
-        //    "question": "create a run controller",
-        //     "answers": [
-        //         {
-        //         "explanation": "To create a new controller named 'RunController', you would typically define it within your project's structure, following the conventions used for other controllers. Below is an example of how you might define this controller in Java, assuming you are using a framework like Spring Boot.",
-        //         "language": "Java",
-        //         "code": "package com.example.project.controller;\n\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.RestController;\n\n@RestController\npublic class RunController {\n\n    @GetMapping(\"/run\")\n    public String run() {\n        return \"Running operations...\";\n    }\n}",
-        //         "references": []
-        //         }
-        //     ]
-        //     }
-        // """,Timestamp.from(Instant.now()));
+        JsonNode answerNode = jsonNode.findValue("value");
+    
+        // Decide if the node is textual or structured
+        String answer = answerNode.isTextual() 
+            ? answerNode.asText()
+            : objectMapper.writeValueAsString(answerNode);
+    
+        // If you need to replace references:
+        // Set<String> refFiles = AnswerUtils.getReferencesFileIds(answer);
+        // List<OaiFile> refFileMap = oaiFileRepository.retrieveFiles(refFiles.toArray(String[]::new));
+        // answer = AnswerUtils.replaceferencesFileIds(answer, refFileMap);
+    
+        // Validate JSON only if it’s structured
+        try {
+            JsonNode validated = objectMapper.readTree(answer);
+            answer = objectMapper.writeValueAsString(validated);
+        } catch (Exception e) {
+            System.out.println("Answer is not valid JSON: " + e.getMessage());
+        }
+    
+        // Clean up special chars
+        answer = answer.replaceAll("[\\p{Cc}&&[^\r\n\t]]", "");
+    
+        Message message = messageRepository.addMessage(
+            new MessageCreateRequest(did, Roles.assistant.toString(), answer)
+        );
         return ResponseEntity.ok(message);
     }
-
 
     @GetMapping("/{did}")
     public ResponseEntity<Discussion> getDiscussion(@PathVariable int did) {
