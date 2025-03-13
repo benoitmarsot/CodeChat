@@ -6,6 +6,52 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart'; 
 import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
+
+class HoverCopyWidget extends StatefulWidget {
+  final String text;
+  final Widget child;
+  final bool isCodeSection; // new parameter
+  const HoverCopyWidget({super.key, required this.text, required this.child, this.isCodeSection = false});
+  
+  @override
+  _HoverCopyWidgetState createState() => _HoverCopyWidgetState();
+}
+
+class _HoverCopyWidgetState extends State<HoverCopyWidget> {
+  bool _hover = false;
+  
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: Stack(
+        children: [
+          widget.child,
+          if (_hover)
+            Positioned(
+              // changed code: for code sections, align 4px from the top left; otherwise use the original position
+              top: widget.isCodeSection ? 4 : -12,
+              right: widget.isCodeSection ? 4 : -12,
+              child: IconButton(
+                // changed code: if code section, use white icon color
+                icon: Icon(Icons.copy, size: 16, color: widget.isCodeSection ? Colors.white : Colors.black54),
+                tooltip: 'Copy text',
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: widget.text));
+                },
+                style: IconButton.styleFrom(
+                  splashFactory: NoSplash.splashFactory,
+                  highlightColor: widget.isCodeSection ? Colors.transparent : const Color.fromARGB(0, 181, 27, 199),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 class AIResponseWidget extends StatelessWidget {
   final Message message;
@@ -93,20 +139,26 @@ class AIResponseWidget extends StatelessWidget {
                   if (aiResponse.conversationalGuidance != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
-                      child: MarkdownBody(
-                        data: aiResponse.conversationalGuidance!,
-                        selectable: true,
-                        styleSheet: MarkdownStyleSheet(
-                          p: Theme.of(context).textTheme.bodyMedium,
-                          code: TextStyle(
-                            backgroundColor: Colors.grey[300],
-                            fontFamily: 'monospace',
-                            fontSize: 14,
+                      child: HoverCopyWidget(
+                        text: aiResponse.conversationalGuidance!,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: MarkdownBody(
+                            data: aiResponse.conversationalGuidance!,
+                            selectable: true,
+                            styleSheet: MarkdownStyleSheet(
+                              p: Theme.of(context).textTheme.bodyMedium,
+                              code: TextStyle(
+                                backgroundColor: Colors.grey[300],
+                                fontFamily: 'monospace',
+                                fontSize: 14,
+                              ),
+                            ),
+                            onTapLink: (text, href, title) {
+                              openLink(text, href, title, context);
+                            },
                           ),
                         ),
-                        onTapLink: (text, href, title) {
-                          openLink(text, href, title, context);
-                        },
                       ),
                     ),
                   // Timestamp
@@ -146,26 +198,30 @@ class AIResponseWidget extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: MarkdownBody(
-                    data: text,
-                    selectable: true,
-                    styleSheet: MarkdownStyleSheet(
-                      p: Theme.of(context).textTheme.bodyMedium,
-                      code: TextStyle(
-                        backgroundColor: Colors.grey[300],
-                        fontFamily: 'monospace',
-                        fontSize: 14,
-                      ),
+                HoverCopyWidget(
+                  text: text,
+                  child: Container(
+                    width: double.infinity, // ensures stack covers full bubble
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    onTapLink: (text, href, title) {
-                      openLink(text, href, title, context);
-                    },
+                    child: MarkdownBody(
+                      data: text,
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet(
+                        p: Theme.of(context).textTheme.bodyMedium,
+                        code: TextStyle(
+                          backgroundColor: Colors.grey[300],
+                          fontFamily: 'monospace',
+                          fontSize: 14,
+                        ),
+                      ),
+                      onTapLink: (text, href, title) {
+                        openLink(text, href, title, context);
+                      },
+                    ),
                   ),
                 ),
                 Padding(
@@ -194,34 +250,40 @@ class AIResponseWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Replace Text with Markdown for explanation
-          MarkdownBody(
-            data: answer.explanation,
-            selectable: true,
-            styleSheet: MarkdownStyleSheet(
-              p: Theme.of(context).textTheme.bodyMedium,
-              code: TextStyle(
-                backgroundColor: Colors.grey[300],
-                fontFamily: 'monospace',
-                fontSize: 14,
-              ),
-              h1: Theme.of(context).textTheme.headlineMedium,
-              h2: Theme.of(context).textTheme.titleLarge,
-              h3: Theme.of(context).textTheme.titleMedium,
-              blockquote: TextStyle(
-                color: Colors.grey[700],
-                fontStyle: FontStyle.italic,
-              ),
-              blockquoteDecoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(2),
-                border: Border(
-                  left: BorderSide(color: Colors.grey[400]!, width: 4),
+          HoverCopyWidget(
+            text: answer.explanation,
+            child: Container(
+              width: double.infinity,
+              child: MarkdownBody(
+                data: answer.explanation,
+                selectable: true,
+                styleSheet: MarkdownStyleSheet(
+                  p: Theme.of(context).textTheme.bodyMedium,
+                  code: TextStyle(
+                    backgroundColor: Colors.grey[300],
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                  ),
+                  h1: Theme.of(context).textTheme.headlineMedium,
+                  h2: Theme.of(context).textTheme.titleLarge,
+                  h3: Theme.of(context).textTheme.titleMedium,
+                  blockquote: TextStyle(
+                    color: Colors.grey[700],
+                    fontStyle: FontStyle.italic,
+                  ),
+                  blockquoteDecoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(2),
+                    border: Border(
+                      left: BorderSide(color: Colors.grey[400]!, width: 4),
+                    ),
+                  ),
                 ),
+                onTapLink: (text, href, title) {
+                  openLink(text, href, title, context);
+                },
               ),
             ),
-            onTapLink: (text, href, title) {
-              openLink(text, href, title, context);
-            },
           ),
           
           if (answer.code != null && answer.language != null)
@@ -229,45 +291,55 @@ class AIResponseWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  width: double.infinity,
+                HoverCopyWidget(
+                  isCodeSection: true, // changed code: mark as code section for white icon and left alignment
+                  text: answer.code!,
                   child: Container(
                     decoration: BoxDecoration(
-                      color:const Color(0xFF1E1E1E),  
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[700]!),
+                      border: Border.all(color: Colors.grey[300]!),
                     ),
                     width: double.infinity,
-                    alignment: Alignment.topLeft,
-                    child: SyntaxView(
-                      code: answer.code!,
-                      syntax: answer.getSyntaxLanguage(),
-                      syntaxTheme: SyntaxTheme.vscodeDark(),
-                      withZoom: true,
-                      withLinesCount: true,
-                      fontSize: 12,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[700]!),
+                      ),
+                      width: double.infinity,
+                      alignment: Alignment.topLeft,
+                      child: SyntaxView(
+                        code: answer.code!,
+                        syntax: answer.getSyntaxLanguage(),
+                        syntaxTheme: SyntaxTheme.vscodeDark(),
+                        withZoom: true,
+                        withLinesCount: true,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                MarkdownBody(
-                  data: answer.codeExplanation ?? '',
-                  selectable: true,
-                  styleSheet: MarkdownStyleSheet(
-                    p: Theme.of(context).textTheme.bodyMedium,
-                    code: TextStyle(
-                      backgroundColor: Colors.grey[300],
-                      fontFamily: 'monospace',
-                      fontSize: 14,
+                HoverCopyWidget(
+                  text: answer.codeExplanation ?? '',
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: MarkdownBody(
+                      data: answer.codeExplanation ?? '',
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet(
+                        p: Theme.of(context).textTheme.bodyMedium,
+                        code: TextStyle(
+                          backgroundColor: Colors.grey[300],
+                          fontFamily: 'monospace',
+                          fontSize: 14,
+                        ),
+                      ),
+                      onTapLink: (text, href, title) {
+                        openLink(text, href, title, context);
+                      },
                     ),
                   ),
-                  onTapLink: (text, href, title) {
-                    openLink(text, href, title, context);
-                  },
                 ),
               ],
             ),
@@ -284,21 +356,27 @@ class AIResponseWidget extends StatelessWidget {
                 const SizedBox(height: 4),
                 ...answer.references!.map((ref) => Padding(
                   padding: const EdgeInsets.only(bottom: 2.0),
-                  child: MarkdownBody(
-                    data: ref,
-                    selectable: true,
-                    styleSheet: MarkdownStyleSheet(
-                      p: Theme.of(context).textTheme.bodyMedium,
-                      code: TextStyle(
-                        backgroundColor: Colors.grey[300],
-                        fontFamily: 'monospace',
-                        fontSize: 14,
+                  child: HoverCopyWidget(
+                    text: ref,
+                    child: Container(
+                      width: double.infinity,
+                      child: MarkdownBody(
+                        data: ref,
+                        selectable: true,
+                        styleSheet: MarkdownStyleSheet(
+                          p: Theme.of(context).textTheme.bodyMedium,
+                          code: TextStyle(
+                            backgroundColor: Colors.grey[300],
+                            fontFamily: 'monospace',
+                            fontSize: 14,
+                          ),
+                        ),
+                        onTapLink: (text, href, title) {
+                          openLink(text, href, title, context);
+                        },
+                        onSelectionChanged: (text, selection, cause) => print('Selection: $text'),
                       ),
                     ),
-                    onTapLink: (text, href, title) {
-                      openLink(text, href, title, context);
-                    },
-                    onSelectionChanged: (text, selection, cause) => print('Selection: $text'),
                   ),
                 )),
               ],

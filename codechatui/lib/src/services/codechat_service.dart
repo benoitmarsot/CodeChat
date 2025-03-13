@@ -13,14 +13,15 @@ class CodechatService {
         'Authorization': 'Bearer ${authProvider.token}',
         'Content-Type': 'application/json',
       };
-  Future<Project> createProject(String name, String description, String sourcePath) async {
+  Future<Project> createProject(String name, String description, String repoURL, String branchName) async {
     final response = await http.post(
       Uri.parse('$baseUrl/create-project'),
       headers: _headers,
       body: json.encode({
         'name': name,
         'description': description,
-        'sourcePath': sourcePath,
+        'repoURL': repoURL,
+        'branch': branchName,  // Fixed: Changed 'brach' to 'branch'
       }),
     );
 

@@ -23,7 +23,9 @@ public class ProjectFileCategorizer {
      * */
 
     public static final Set<String> CodeExtensions = Set.of(
-        "py", "js", "java", "c", "cpp", "php", "rb", "go", "ts"
+        "py", "js", "java", "c", "cpp", "php", "rb", "go", "ts",
+        //For now we add the markup extensions to the code extensions
+        "html", "css", "json", "md", "txt", "csv"
         // "jsx", "cs", "swift", "rs", 
         // "kt", "r", "scala", "pl", "lua", "groovy", "ps1", "sh", "clj", "ex", "erl", 
         // "hs", "ml", "fs", "sql", "dart", "asm", "bat", "cob", "coffee", "d", "f", 

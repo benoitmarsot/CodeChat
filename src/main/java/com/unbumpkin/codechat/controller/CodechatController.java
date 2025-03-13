@@ -24,6 +24,7 @@ import com.unbumpkin.codechat.service.openai.AssistantService;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
+import com.unbumpkin.codechat.service.openai.GithubProjectFileCategorizer;
 import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer;
 import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
@@ -123,9 +124,15 @@ public class CodechatController {
             throw new Exception("project could not be created.");
         }
         System.out.println("project created with id: "+projectId);
-        System.out.println("Scanning source path: "+request.sourcePath());
-        ProjectFileCategorizer pfc=new ProjectFileCategorizer();
-        pfc.addDir(request.sourcePath());
+        ProjectFileCategorizer pfc;
+        if(request.repoURL()!=null){
+            pfc=new GithubProjectFileCategorizer();
+            ((GithubProjectFileCategorizer)pfc).addRepository(request.repoURL(), request.branch());
+        } else {
+            System.out.println("Scanning source path: "+request.sourcePath());
+            pfc=new ProjectFileCategorizer();
+            pfc.addDir(request.sourcePath());
+        }
         Map<String,Integer> vectorStorMap = new LinkedHashMap<>();
         List<String> allFileIds = new ArrayList<>();
         //Here the order is important because the assistant will use the vector stores in this order
@@ -207,6 +214,7 @@ public class CodechatController {
 
             }
             Markdown is supported in the explanation, code explanation, and reference fields.
+            Do not include special character or control character in the response.
             The references should use Markdown Link with Title Attribute, [Link Text](URL "Title attribute")
             The reference should always use the open ai file id for the URL when refering to a file.
             Ensure the response is always valid JSON. If the query of the user is not code-related, omit the language and code fields.

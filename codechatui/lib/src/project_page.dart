@@ -18,7 +18,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   int? _hoveredIndex;
   final TextEditingController _prjNameController = TextEditingController();
   final TextEditingController _prjDesctController = TextEditingController();
-  final TextEditingController _prjRootdirController = TextEditingController();
+  final TextEditingController _prjRepoURLController = TextEditingController();
+  final TextEditingController _branchNameController = TextEditingController(text: 'main');
   late TabController _tabController;
 
   int get _initialTabIndex => _projects.isNotEmpty ? 0 : 1;
@@ -66,9 +67,9 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       });
       return;
     }
-    if (_prjRootdirController.text.isEmpty) {
+    if (_prjRepoURLController.text.isEmpty) {
       setState(() {
-        _errorMessage = 'Root directory is required';
+        _errorMessage = 'Repo URL is required';
       });
       return;
     }
@@ -99,7 +100,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       final project = await codechatService.createProject(
         _prjNameController.text,
         _prjDesctController.text,
-        _prjRootdirController.text,
+        _prjRepoURLController.text,
+        _branchNameController.text,
       );
 
       setState(() {
@@ -109,7 +111,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       // Clear the form
       _prjNameController.clear();
       _prjDesctController.clear();
-      _prjRootdirController.clear();
+      _prjRepoURLController.clear();
       
       // Refresh projects and switch to projects tab
       await _fetchProjects();
@@ -132,7 +134,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   void _handleDrop(Object data) {
     // Implement a safe approach for web without relying on deprecated APIs.
     setState(() {
-      _prjRootdirController.text = "Folder path from data";
+      _prjRepoURLController.text = "Folder path from data";
     });
   }
   Future<void> _deleteProject(Project project, int index) async {
@@ -261,11 +263,29 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                         _handleDrop(details.data);
                       },
                       builder: (context, candidateData, rejectedData) {
-                        return TextField(
-                          controller: _prjRootdirController,
-                          decoration: const InputDecoration(
-                            labelText: 'Root directory (drag and drop a folder):',
-                          ),
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: TextField(
+                                controller: _prjRepoURLController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Git Repo URL (use the HTTPS link of your repo):',
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12.0),
+                            Expanded(
+                              flex: 1,
+                              child: TextField(
+                                controller: _branchNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Branch name:',
+                                ),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     ),
