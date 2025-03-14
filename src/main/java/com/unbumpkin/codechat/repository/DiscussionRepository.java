@@ -1,8 +1,8 @@
 package com.unbumpkin.codechat.repository;
 
+import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -12,12 +12,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import org.springframework.stereotype.Repository;
+
 import com.unbumpkin.codechat.dto.request.DiscussionUpdateRequest;
 import com.unbumpkin.codechat.model.Discussion;
+import com.unbumpkin.codechat.security.CustomAuthentication;
 
 @Repository
 public class DiscussionRepository {
@@ -105,12 +106,12 @@ public class DiscussionRepository {
      */
     public List<Discussion> getAllDiscussionsByProjectId(int projectId) {
         String sql = """
-            SELECT d.*
-            FROM discussion d
-            JOIN project p ON d.projectid = p.projectid
-            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
-            WHERE d.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
-            order by d.created desc
+                SELECT d.*
+                FROM discussion d
+                JOIN project p ON d.projectid = p.projectid
+                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+                WHERE d.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
+                order by d.created desc
         """;
         int userId = getCurrentUserId();
         List<Discussion> discussions ;
@@ -131,7 +132,7 @@ public class DiscussionRepository {
     public Discussion updateDiscussion(DiscussionUpdateRequest updateRequest) {
         String sql = """
             UPDATE discussion d
-            SET name = ?, description = ?
+            SET name = ?, description = ?, isfavorite = ?
             FROM project p
             LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND d.projectid = p.projectid AND (p.authorid = ? OR sp.userid = ?)
@@ -139,7 +140,7 @@ public class DiscussionRepository {
         """;
         int userId = getCurrentUserId();
         return jdbcTemplate.queryForObject(
-            sql, rowMapper, updateRequest.name(), updateRequest.description(), updateRequest.did(), userId, userId
+            sql, rowMapper, updateRequest.name(), updateRequest.description(), updateRequest.isFavorite(), updateRequest.did(), userId, userId
         );
     }
 

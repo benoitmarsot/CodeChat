@@ -354,7 +354,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           : Column(
                               children: [
                                 // New Discussion button
-                                if (_selectedDiscussionId != 0)
+                                //if (_selectedDiscussionId != 0)
                                   ListTile(
                                     leading: const Icon(Icons.add_comment),
                                     title: const Text('New Discussion'),
@@ -368,7 +368,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                       });
                                     },
                                   ),
-                                if (_selectedDiscussionId != 0)
+                                
                                   const Divider(),
                                 // Existing discussions list
                                 Expanded(
@@ -552,7 +552,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             contentPadding: const EdgeInsets.only(left: 4, right: 0), // Remove right padding completely
             dense: true, // Make the ListTile more compact overall
             leading: Padding(
-              padding: const EdgeInsets.only(left: 0),
+              padding: const EdgeInsets.only(left: 0, right:2),
               child: InkWell(
                 onTap: () => _toggleFavorite(discussion),
                 child: Icon(
@@ -740,7 +740,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                         final selectedName = response[selectedIndex].name;
                         final selectedDescription = response[selectedIndex].description;
                         Navigator.pop(context);
-                        await _updateDiscussion(discussion.did, selectedName, selectedDescription);
+                        await _updateDiscussion(discussion.did, selectedName, selectedDescription, false);
                         
                       } : null, // Disable if nothing selected
                       child: const Text("Apply Selected Name"),
@@ -812,7 +812,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 }
                 
                 Navigator.pop(context);
-                await _updateDiscussion(discussion.did, newName, newDescription);
+                await _updateDiscussion(discussion.did, newName, newDescription, false);
               },
               child: const Text("Save"),
             ),
@@ -861,12 +861,13 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       });
     }
   }
-  Future<void> _updateDiscussion(int did, String selectedName, String selectedDescription) async {
+  Future<void> _updateDiscussion(int did, String selectedName, String selectedDescription, bool isFavorite ) async {
     // Update the discussion with the selected name and description
     final updateRequest = DiscussionUpdateRequest(
       did: did,
       name: selectedName,
       description: selectedDescription,
+      isFavorite:isFavorite
     );
     
     try {
@@ -901,7 +902,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       did: discussion.did,
       name: discussion.name,
       description: discussion.description,
-      //isFavorite: !discussion.isFavorite,
+      isFavorite: !discussion.isFavorite, 
     );
     
     try {

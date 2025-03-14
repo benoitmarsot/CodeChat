@@ -25,7 +25,7 @@ class Discussion {
       projectId: json['projectId'],
       name: json['name'],
       created: DateTime.fromMillisecondsSinceEpoch(json['created']),
-      isFavorite: json['favorite'] ?? false,
+      isFavorite: json['isFavorite'] == true,  // This handles both boolean and null cases
       description: json['description'] ?? '',
       messages: json['messages'] != null
           ? (json['messages'] as List)
@@ -63,14 +63,16 @@ class DiscussionUpdateRequest {
   final int did;
   final String name;
   final String description;
+  final bool isFavorite;
 
-  DiscussionUpdateRequest({required this.did, required this.name, required this.description});
+  DiscussionUpdateRequest({required this.did, required this.name, required this.description, required this.isFavorite });
 
   Map<String, dynamic> toJson() {
     return {
       'did': did,
       'name': name,
       'description': description,
+      'isFavorite': isFavorite,
     };
   }
 }
