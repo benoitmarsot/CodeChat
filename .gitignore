@@ -59,3 +59,6 @@ replay_pid*
 
 # Database configuration files
 src/main/resources/db/createDb.sql
+
+# macOS Finder
+.DS_Store
