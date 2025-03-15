@@ -12,11 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.model.openai.VectorStore.VectorStoreResponse;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
-import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreFile;
 import com.unbumpkin.codechat.service.openai.VectorStoreFileBatch;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
@@ -152,8 +153,8 @@ public class VectorStoreController {
         if(vectorStoreRepository.vectorContainFile(vsOaiId,fOaiId)) {
             throw new IllegalArgumentException("VectorStore already contains this file");
         }
-        VectorStoreFile vectorStoreFile = new VectorStoreFile(vsOaiId);        
-        vectorStoreFile.createFile(fOaiId);
+        VectorStoreFile vectorStoreFile = new VectorStoreFile(vsOaiId);
+        vectorStoreFile.createFile(new CreateVSFileRequest(fOaiId, null));
         vectorStoreRepository.addFile(vsOaiId, fOaiId);
 
         return ResponseEntity.ok().build();

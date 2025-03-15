@@ -6,7 +6,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
 
 public class VectorStore {
 

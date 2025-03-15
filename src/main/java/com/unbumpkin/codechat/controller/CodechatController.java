@@ -22,15 +22,20 @@ import org.springframework.web.bind.annotation.RestController;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder;
 import com.unbumpkin.codechat.service.openai.AssistantService;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
+import com.unbumpkin.codechat.service.openai.VectorStoreFile;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.GithubProjectFileCategorizer;
-import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer;
-import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer;
+import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
+import com.unbumpkin.codechat.util.ExtMimeType;
+import com.unbumpkin.codechat.util.FileUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
+import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 import com.unbumpkin.codechat.model.Message;
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.model.openai.Assistant;
@@ -115,116 +120,202 @@ public class CodechatController {
     public ResponseEntity<Project> createProject(
         @RequestBody CreateProjectRequest request
     ) throws Exception {
-        //Test createAssistant
-        // createAssistant("myProject", 24, new LinkedHashMap<>() {{
-        //     put("vs_67bfff4b3f808191ab92a49f9c192eab", 42);
-        // }});
-        int projectId=projectRepository.addProject(request.name(), request.description());
-        if(projectId==0){
-            throw new Exception("project could not be created.");
+        GithubProjectFileCategorizer pfc=new GithubProjectFileCategorizer();
+        try{ 
+            //Test createAssistant
+            // createAssistant("myProject", 24, new LinkedHashMap<>() {{
+            //     put("vs_67bfff4b3f808191ab92a49f9c192eab", 42);
+            // }});
+            int projectId=projectRepository.addProject(request.name(), request.description());
+            if(projectId==0){
+                throw new Exception("project could not be created.");
+            }
+            System.out.println("project created with id: "+projectId);
+            String sourcePath = "";
+            if(request.repoURL()!=null){
+                pfc=new GithubProjectFileCategorizer();
+                sourcePath=pfc.addRepository(request.repoURL(), request.branch());
+            } else {
+                throw new Exception("sourcePath is required");
+                // System.out.println("Scanning source path: "+request.sourcePath());
+                // pfc=new ProjectFileCategorizer();
+                // pfc.addDir(request.sourcePath());
+            }
+            int basePathLength = sourcePath.length();
+            Map<String,Integer> vectorStorMap = new LinkedHashMap<>();
+            Map<String,CreateVSFileRequest> allFileIds = new HashMap<>();
+            //Here the order is important because the assistant will use the vector stores in this order
+            // Code, Markup, then Config
+            System.out.println("Uploading and create vector store for code files...");
+            createVectorStore(pfc, projectId, "vsCode", Types.code, allFileIds, vectorStorMap, basePathLength);
+            System.out.println("Uploading and create vector store for markup files...");
+            createVectorStore(pfc, projectId, "vsMarkup", Types.markup, allFileIds, vectorStorMap, basePathLength);
+            System.out.println("Uploading and create vector store for config files...");
+            createVectorStore(pfc, projectId, "vsConfig", Types.config, allFileIds, vectorStorMap, basePathLength);
+            System.out.println("Create vector store for all files...");
+            String vsAllOaiId=vsService.createVectorStore(
+                new VectorStore("vsAll","contain all the files in the project.", 
+                    null,null,null,null)
+            );
+            int vsAllId=vsRepository.storeVectorStore(
+                new VectorStore(0, vsAllOaiId, "vsAll", 
+                    "contain all the files in the project.", null, Types.all)
+            );
+            VectorStoreFile vsfService = new VectorStoreFile(vsAllOaiId);
+
+            for (String oaiFileId : allFileIds.keySet()) {
+
+                vsfService.createFile(allFileIds.get(oaiFileId));
+                System.out.println("File id "+oaiFileId+" added to global vector store "+vsAllOaiId);
+
+            }
+            vectorStorMap.put(vsAllOaiId, vsAllId);
+            System.out.println("Create assistant...");
+            int assistantId=createAssistant(request.name(), projectId, vectorStorMap,vsAllOaiId);
+            System.out.println("Assistant created with id: "+assistantId);
+            Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
+            return ResponseEntity.ok(project);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        } finally {
+            pfc.deleteRepository();
         }
-        System.out.println("project created with id: "+projectId);
-        ProjectFileCategorizer pfc;
-        if(request.repoURL()!=null){
-            pfc=new GithubProjectFileCategorizer();
-            ((GithubProjectFileCategorizer)pfc).addRepository(request.repoURL(), request.branch());
-        } else {
-            System.out.println("Scanning source path: "+request.sourcePath());
-            pfc=new ProjectFileCategorizer();
-            pfc.addDir(request.sourcePath());
-        }
-        Map<String,Integer> vectorStorMap = new LinkedHashMap<>();
-        List<String> allFileIds = new ArrayList<>();
-        //Here the order is important because the assistant will use the vector stores in this order
-        // Code, Markup, then Config
-        System.out.println("Uploading and create vector store for code files...");
-        createVectorStore(pfc, projectId, "vsCode", Types.code, allFileIds, vectorStorMap);
-        // System.out.println("Uploading and create vector store for markup files...");
-        // createVectorStore(pfc, projectId, "vsMarkup", Types.markup, allFileIds, vectorStorMap);
-        // System.out.println("Uploading and create vector store for config files...");
-        // createVectorStore(pfc, projectId, "vsConfig", Types.config, allFileIds, vectorStorMap);
-        // System.out.println("Create vector store for all files...");
-        // String vsAllOaiId=vsService.createVectorStore(
-        //     new VectorStore("vsAll","contain all the files in the project.", 
-        //         allFileIds,null,null,null)
-        // );
-        // int vsAllId=vsRepository.storeVectorStore(
-        //     new VectorStore(0, vsAllOaiId, "vsAll", 
-        //         "contain all the files in the project.", null, Types.all)
-        // );
-        // vectorStorMap.put(vsAllOaiId, vsAllId);
-        System.out.println("Create assistant...");
-        int assistantId=createAssistant(request.name(), projectId, vectorStorMap);
-        System.out.println("Assistant created with id: "+assistantId);
-        Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
-        return ResponseEntity.ok(project);
     }
     private void createVectorStore(
-        ProjectFileCategorizer pfc, int projectId, String vsName, Types type,
-        List<String> allFileIds, Map<String,Integer> vectorStorMap
+        CCProjectFileCategorizer pfc, int projectId, String vsName, Types type,
+        Map<String,CreateVSFileRequest> allFileIds, Map<String,Integer> vectorStorMap,
+        int basePathLength
     ) throws IOException {
         List<OaiFile> lFiles = new ArrayList<>();
         List<String> lFileIds = new ArrayList<>();
+        String vsOaiId = vsService.createVectorStore(
+            new VectorStore(vsName,"contain the "+type.name()+" files in the project.", 
+            null,null,null,null)
+        );
+        System.out.println("Vector store "+type.name()+" created with id: "+vsOaiId);
+        VectorStoreFile vsfService = new VectorStoreFile(vsOaiId);
         for (File file : pfc.getFileSetMap(type)) {
-            OaiFile oaiFile = oaiFileService.uploadFile(file.getAbsolutePath(), Purposes.assistants, projectId);
+            FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), Purposes.assistants, projectId);
             lFiles.add(
                 oaiFile
             );
+            System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
             lFileIds.add(oaiFile.fileId());
-            allFileIds.add(oaiFile.fileId());
+            String oldExt = FileUtils.getFileExtension(desc.oldFile());
+            CreateVSFileRequest request = new CreateVSFileRequest(
+                oaiFile.fileId(), new HashMap<>() {{
+                    put("name", desc.oldFile().getName());
+                    put("path", desc.oldFile().getAbsolutePath().substring(basePathLength));
+                    put("extension", oldExt);
+                    put("mime-type", ExtMimeType.getMimeType(oldExt));
+                    put("nbLines", String.valueOf(FileUtils.countLines(desc.oldFile())));
+                    put("type", type.name());
+                }}
+            );
+            allFileIds.put(oaiFile.fileId(), request);
+            vsfService.createFile(request);
+            System.out.println("File id "+oaiFile.fileId()+" added to vector store "+vsOaiId);
         }
         oaiFileRepository.storeOaiFiles(lFiles, projectId);
-        String vsOaiId = vsService.createVectorStore(
-            new VectorStore(vsName,"contain the "+type.name()+" files in the project.", 
-                lFileIds,null,null,null)
-        );
+
         //(int vsId, String oaiVsId, String vsname, String vsdesc, Instant created, Integer dayskeep, Types type)
         VectorStore vs = new VectorStore(0, vsOaiId, vsName, 
-            "contain the "+type.name()+" files in the project.", null, type);
+            "Contains the "+type.name()+" files in the project.", null, type);
         int vsId=vsRepository.storeVectorStore(vs);
         vsRepository.addFiles(vsOaiId, lFileIds);
         vectorStorMap.put(vsOaiId, vsId);
     }
     private int createAssistant(
-        String name, int projectId, Map<String,Integer> vectorStorMap
+        String name, int projectId, Map<String,Integer> vectorStorMap, String vsAllOaiId
     ) throws IOException {
         AssistantBuilder assistantBuilder = new AssistantBuilder(Models.o3_mini);
 
         assistantBuilder.setName(name)
             .setDescription("Code search assistant for " + name)
             .setInstructions("""
-            You are experienced an software enginer. 
-            When asked a question, analyse using the your code, config, markup vector stores
-            to answer using a deep knowledge of the project at hands.
-            You may also write code that fit with the style and the architectur of the project.
-            
-            Always respond in the following structured JSON format :
-            {
-                "answers": [
-                    {
-                    "explanation": "<Detailed explanation>",
-                    "language": "<Programming language (if applicable)>",
-                    "code": "<Formatted code snippet (if applicable)>",
-                    "codeExplanation": "<Explanation of the code snippet (if applicable)>",
-                    "references": ["<Relevant sources>"]
-                    }
-                    // Add more answers as needed
-                ],
-                "conversationalGuidance": "<Additional guidance for the user: Intelligent Follow-ups, Actionable Suggestions, Engagement & Clarifications, etc.>"
+                You are a code search assistant designed to help users analyze and understand their projects. Your primary role is to provide detailed explanations, code snippets, and actionable suggestions based on the project's files and metadata.
 
-            }
-            Markdown is supported in the explanation, code explanation, and reference fields.
-            Do not include special character or control character in the response.
-            The references should use Markdown Link with Title Attribute, [Link Text](URL "Title attribute")
-            The reference should always use the open ai file id for the URL when refering to a file.
-            Ensure the response is always valid JSON. If the query of the user is not code-related, omit the language and code fields.
-            """).setReasoningEffort(ReasoningEffort.high)
+                Always respond in the following structured JSON format:
+                {
+                    "answers": [
+                        {
+                            "explanation": "<Detailed explanation>",
+                            "language": "<Programming language (if applicable)>",
+                            "code": "<Formatted code snippet (if applicable)>",
+                            "codeExplanation": "<Explanation of the code snippet (if applicable)>",
+                            "references": ["<Relevant sources>"]
+                        }
+                        // Add more answers as needed
+                    ],
+                    "conversationalGuidance": "<Additional guidance for the user: Intelligent Follow-ups, Actionable Suggestions, Engagement & Clarifications, etc.>"
+                }
+
+                Use plain text in the response.
+                Markdown is supported in the explanation, code explanation, and reference fields.
+
+                ### File Metadata Usage
+                When analyzing files, use the following attributes from the file metadata to provide insights and context:
+                - **`name`**: Use the file name to identify the file and provide context in your response.
+                - **`path`**: Use the file's relative path to locate it within the project and reference it in your response.
+                - **`extension`**: Use the file extension to determine the programming language or file type (e.g., `.java` for Java, `.py` for Python).
+                - **`mime-type`**: Use the MIME type to understand the file's format or content type (e.g., `text/plain`, `application/json`).
+                - **`nbLines`**: Use the number of lines in the file to assess its size or complexity. For example:
+                - Small files (e.g., <50 lines) may be utility scripts or configuration files.
+                - Large files (e.g., >500 lines) may indicate complex logic or large datasets.
+                - **`type`**: Use the file type (e.g., `code`, `markup`, `config`) to tailor your analysis and suggestions. For example:
+                - For `code` files, focus on programming logic, structure, and potential improvements.
+                - For `markup` files, focus on formatting, structure, and content organization.
+                - For `config` files, focus on configuration correctness and best practices.
+
+                ### Analyzing Files
+                - Use the `extension` and `mime-type` attributes to determine the programming language or file type. For example:
+                - `.java` → Java
+                - `.py` → Python
+                - `.html` → HTML
+                - Use the `nbLines` attribute to assess the file's complexity and provide insights. For example:
+                - "This file contains 120 lines of Java code, which suggests it implements a moderately complex class."
+                - Use the `type` attribute to guide your analysis. For example:
+                - For `code` files, analyze the logic, structure, and potential improvements.
+                - For `markup` files, analyze the formatting and content organization.
+                - For `config` files, analyze the correctness and adherence to best practices.
+
+                ### Referencing Files
+                - Always reference file metadata such as `name`, `path`, and `extension` when discussing specific files.
+                - Use the `nbLines` attribute to provide insights into the file's size or complexity when relevant.
+                - Use the `mime-type` attribute to describe the file's format or content type.
+                - When retrieving code, always reference the file's `path` and `name` to provide context.
+
+                #### Markdown Links for References
+                - Use Markdown links with a title attribute to reference files. For example:
+                `[MyClass.java](src/main/java/com/example/MyClass.java "Java source file")`.
+
+                ### Handling Non-Code Queries
+                - If the query is not related to code, omit the `language` and `code` fields in the response. Focus on providing a clear explanation and actionable suggestions.
+
+                ### Example Response
+                ```json
+                {
+                    "answers": [
+                        {
+                            "explanation": "The file `MyClass.java` contains the implementation of the main application logic. It is located at `src/main/java/com/example/MyClass.java` and contains 120 lines of Java code. The file's MIME type is `text/x-java-source`.",
+                            "language": "Java",
+                            "code": "public class MyClass { ... }",
+                            "codeExplanation": "This code defines the main class of the application.",
+                            "references": ["[MyClass.java](src/main/java/com/example/MyClass.java \"Java source file\")"]
+                        }
+                    ],
+                    "conversationalGuidance": "Would you like to see more details about this file or related files?"
+                }
+                ```
+                """).setReasoningEffort(ReasoningEffort.high)
             //.setTemperature(.02) //Not suported in o3-mini
             .addFileSearchTool().addFileSearchAssist()
             .setFileSearchMaxNumResults(20) //default
             //.setFileSearchRankingOption(.5) 
-            .setToolResourcesFileSearch(vectorStorMap.keySet()) //: can only put one vs so putting vsCode 
-            //todo: implement get the number of lines from the file_id
+            .setToolResourcesFileSearch(Set.of(vsAllOaiId)) //: can only put one vs so putting vsAll 
+            //Function are not needed since we use attributes metadata
             // .addFunction()
             //     .setFunctionName("countLines")
             //     .setFunctionDescription("This function will return the number of lines in a file")
@@ -248,7 +339,7 @@ public class CodechatController {
         Integer[] vsIds = vectorStorMap.values().toArray(new Integer[0]);
         Assistant assistant = new Assistant(0, assistantOaiId, name, "Code search assistant for " + name,
             //For now submit code 4 times
-            projectId, vsIds[0], vsIds[0], vsIds[0], vsIds[0]
+            projectId, vsIds[0], vsIds[1], vsIds[2], vsIds[3]
         );
         return assistantRepository.addAssistant(assistant);
     }

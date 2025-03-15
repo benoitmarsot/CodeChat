@@ -19,7 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.security.CustomAuthentication;
-import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
 
 @Repository
 public class VectorStoreRepository {

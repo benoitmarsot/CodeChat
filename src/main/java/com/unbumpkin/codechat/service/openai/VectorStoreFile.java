@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -19,10 +22,12 @@ public class VectorStoreFile extends BaseOpenAIClient {
         this.vectorStoreId = vectorStoreId;
     }
 
-    public String createFile( String fileId) throws IOException {
+    public String createFile( CreateVSFileRequest createVSFileRequest) throws IOException {
         String url = String.format(API_URL, vectorStoreId);
-
-        String json = String.format("{\"file_id\": \"%s\"}", fileId);
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(Include.NON_NULL);
+        
+        String json = mapper.writeValueAsString(createVSFileRequest);
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()

@@ -25,7 +25,7 @@ import com.unbumpkin.codechat.service.openai.ChatService;
 import com.unbumpkin.codechat.service.openai.OaiMessageService;
 import com.unbumpkin.codechat.service.openai.OaiRunService;
 import com.unbumpkin.codechat.service.openai.OaiThreadService;
-import com.unbumpkin.codechat.service.openai.ProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
 import com.unbumpkin.codechat.util.AnswerUtils;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Roles;
@@ -111,7 +111,8 @@ public class DiscussionController {
         String answer = answerNode.isTextual() 
             ? answerNode.asText()
             : objectMapper.writeValueAsString(answerNode);
-    
+        
+        System.out.println("AI Answer: " + answer);
         // If you need to replace references:
         // Set<String> refFiles = AnswerUtils.getReferencesFileIds(answer);
         // List<OaiFile> refFileMap = oaiFileRepository.retrieveFiles(refFiles.toArray(String[]::new));

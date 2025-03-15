@@ -9,10 +9,12 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 
 // This class extends the ProjectFileCategorizer 
 // and adds functionality to clone a GitHub repository and categorize its files.
-public class GithubProjectFileCategorizer extends ProjectFileCategorizer {
+public class GithubProjectFileCategorizer extends CCProjectFileCategorizer {
 
+    private File tempDir;
     public GithubProjectFileCategorizer() {
         super();
+        this.tempDir = null;
     }
 
     /**
@@ -23,9 +25,9 @@ public class GithubProjectFileCategorizer extends ProjectFileCategorizer {
      * @throws GitAPIException if an error occurs during cloning
      * @throws IOException if an I/O error occurs
      */
-    public void addRepository(String repoUrl, String branch) throws GitAPIException, IOException {
+    public String addRepository(String repoUrl, String branch) throws GitAPIException, IOException {
         // Create a temporary directory to clone the repository
-        File tempDir = Files.createTempDirectory("github-repo-").toFile();
+        tempDir = Files.createTempDirectory("github-repo-").toFile();
         
         // Clone the repository using JGit
         Git.cloneRepository()
@@ -36,6 +38,7 @@ public class GithubProjectFileCategorizer extends ProjectFileCategorizer {
 
         // Use the inherited method to scan and categorize files in the cloned repository
         super.addDir(tempDir.getAbsolutePath());
+        return tempDir.getAbsolutePath();
     }
 
     /**
@@ -50,6 +53,27 @@ public class GithubProjectFileCategorizer extends ProjectFileCategorizer {
         // Modify the default branch if necessary
         String defaultBranch = "master"; // or "main"
         addRepository(repoUrl, defaultBranch);
+    }
+
+    public void deleteRepository() {
+        if (tempDir != null && tempDir.exists()) {
+            deleteDirectoryRecursively(tempDir);
+            tempDir = null; // Reset tempDir to avoid reuse
+        }
+    }
+    
+    private void deleteDirectoryRecursively(File directory) {
+        File[] allContents = directory.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                if (file.isDirectory()) {
+                    deleteDirectoryRecursively(file); // Recursively delete subdirectories
+                } else {
+                    file.delete(); // Delete files
+                }
+            }
+        }
+        directory.delete(); // Delete the empty directory
     }
 }
 

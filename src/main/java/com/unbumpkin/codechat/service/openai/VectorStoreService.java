@@ -35,7 +35,9 @@ public class VectorStoreService extends BaseOpenAIClient {
     public String createVectorStore(
         VectorStore vectorStore
     ) throws IOException {
-        if(vectorStore.getFileIds().size()>100) {
+        if( vectorStore.getFileIds()!=null
+            && vectorStore.getFileIds().size()>100
+        ) {
             System.out.println("Creating vector store with more than 100 files...");
             List<String> allFileIds=vectorStore.getFileIds();
             System.out.println("Total files: "+allFileIds.size());
