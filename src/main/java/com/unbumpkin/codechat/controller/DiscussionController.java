@@ -161,10 +161,10 @@ public class DiscussionController {
             You are a great software engineer and you are working on a project. 
             You need to suggest 5 meaningfull names and descriptions for a discussion. 
             Your answer should be formatted as a json array: [{"name": "name1", "description": "description1"}, {"name": "name2", "description": "description2"}, {"name": "name3", "description": "description3"}],
-            your names should be less than 25 characters long.
+            name should be less than 25 characters long, and represent a title for the discussion, it can use up to 5 words separated by space.
             your descriptions should be less than 225 characters long.
             """,
-            0.2f
+            1f
         );
         List<Message> messages=messageRepository.getAllMessagesByDiscussionId(did);
         String json=objectMapper.writeValueAsString(messages);
