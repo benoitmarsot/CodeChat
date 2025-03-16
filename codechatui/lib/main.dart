@@ -50,17 +50,23 @@ class _MyAppState extends State<MyApp> {
       child: MaterialApp(
         title: 'Codechat',
         theme: ThemeData(
+        useMaterial3:true,
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue, // Set primary color here
           brightness: Brightness.light,
-          primarySwatch: Colors.blue,
+        ),
           scaffoldBackgroundColor: Colors.white,
         ),
         darkTheme: ThemeData(
-          brightness: Brightness.dark,
-          primarySwatch: Colors.blue,
+          useMaterial3:true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue, // Set primary color here
+            brightness: Brightness.dark,
+          ),
           scaffoldBackgroundColor: Colors.black,
         ),
         themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light, // Conditional theme
-      
         home: const LoginPage(),
         initialRoute: '', 
         routes: {

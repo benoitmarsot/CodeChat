@@ -36,15 +36,12 @@ class _HoverCopyWidgetState extends State<HoverCopyWidget> {
               right: widget.isCodeSection ? 4 : -12,
               child: IconButton(
                 // changed code: if code section, use white icon color
-                icon: Icon(Icons.copy, size: 16, color: widget.isCodeSection ? Colors.white : Colors.black54),
+                icon: Icon(Icons.copy, size: 16, color: Theme.of(context).colorScheme.outline),
                 tooltip: 'Copy text',
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: widget.text));
                 },
-                style: IconButton.styleFrom(
-                  splashFactory: NoSplash.splashFactory,
-                  highlightColor: widget.isCodeSection ? Colors.transparent : const Color.fromARGB(0, 181, 27, 199),
-                ),
+              
               ),
             ),
         ],
@@ -230,7 +227,7 @@ class AIResponseWidget extends StatelessWidget {
                     dateFormat.format(message.timestamp),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     ),
                   ),
                 ),

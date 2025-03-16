@@ -51,7 +51,7 @@ class _UserMessageBubbleState extends State<UserMessageBubble> {
                       top: 14,
                       right: -11,
                       child: IconButton(
-                        icon: const Icon(Icons.copy, size: 18, color: Colors.white),
+                        icon:  Icon(Icons.copy, size: 18, color: Theme.of(context).colorScheme.outline),
                         tooltip: 'Copy text',
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: widget.message.text));
