@@ -28,11 +28,21 @@ void main() async {  // Make main async
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+  
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool isDarkMode = true; // Track the theme mode
 
   @override
   Widget build(BuildContext context) {
+    void onThemeToggle() {
+      setState(() => isDarkMode = !isDarkMode); // Toggle logic
+    }
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => MainPageState()),
@@ -40,22 +50,38 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Codechat',
         theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+          brightness: Brightness.light,
+          primarySwatch: Colors.blue,
+          scaffoldBackgroundColor: Colors.white,
         ),
+        darkTheme: ThemeData(
+          brightness: Brightness.dark,
+          primarySwatch: Colors.blue,
+          scaffoldBackgroundColor: Colors.black,
+        ),
+        themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light, // Conditional theme
+      
         home: const LoginPage(),
         initialRoute: '', 
         routes: {
           '': (context) => const LoginPage(),
-          'home': (context) => MainPage(),
+          'home': (context) => MainPage(
+              isDarkMode: isDarkMode,
+              onThemeToggle: onThemeToggle
+
+          ),
           'chat': (context) {
+           
             final args = ModalRoute.of(context)?.settings.arguments;
+            
             // Safe handling of potentially null arguments
             if (args is Project) {
-              return ChatPage(project: args);
+              return ChatPage(project: args, onThemeToggle:onThemeToggle);
             }
             // Otherwise go back to home
-            return MainPage();
+            return MainPage(
+              isDarkMode: isDarkMode,
+              onThemeToggle: onThemeToggle);
           },
         },
       ),

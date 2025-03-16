@@ -36,20 +36,14 @@ class _UserMessageBubbleState extends State<UserMessageBubble> {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          textSelectionTheme: const TextSelectionThemeData(
-                            selectionColor: Color.fromARGB(255, 104, 213, 230), // more obvious highlight
-                          ),
-                        ),
+                      
                         child: SelectableText(
                           widget.message.text,
-                          style: const TextStyle(color: Colors.white),
                         ),
-                      ),
+                  
                     ),
                   ),
                   if (_isHovering)

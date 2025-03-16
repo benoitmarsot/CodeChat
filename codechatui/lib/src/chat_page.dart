@@ -14,8 +14,9 @@ import 'package:provider/provider.dart';
 
 class ChatPage extends StatefulWidget {
   final Project project;
-
-  const ChatPage({super.key, required this.project});
+  final VoidCallback onThemeToggle; 
+  
+  const ChatPage({super.key, required this.project, required this.onThemeToggle});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -134,7 +135,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     
     // Save message text and clear input
     final messageText = _messageController.text;
-    _messageController.clear();
+   
     
     // Create new discussion if none selected
     if(_selectedDiscussionId == 0) {
@@ -151,6 +152,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           );
         }
         return;
+      }
+      finally {
+         _messageController.clear();
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
     
@@ -193,7 +200,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         }
         
         dots = (dots + 1) % 4;
-        String thinking = "Thinking" + ".".padLeft(dots, '.');
+        String thinking = "Thinking ${".".padLeft(dots, '.')}";
         
         setState(() {
           _messages[index] = Message(
@@ -299,6 +306,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.project.name),
@@ -313,6 +322,22 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               Navigator.of(context).pop(); // Navigate back to home page
             },
             tooltip: 'Back to Home',
+          ),
+  
+          IconButton(
+            icon: const Icon(Icons.add_comment),
+            onPressed: () {
+              setState(() {
+                _selectedDiscussionId = 0;
+                _messages.clear();
+              });
+            },
+            tooltip: 'New Discussion',
+          ),
+           IconButton(
+            icon: const Icon(Icons.light_mode),
+            onPressed: widget.onThemeToggle,
+            tooltip: 'Toggle theme',
           ),
         ],
       ),
@@ -342,7 +367,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                         ),
                       ),
                     ],
-                    labelColor: Theme.of(context).primaryColor,
+                    
                   ),
                   Expanded(
                     child: TabBarView(
@@ -355,21 +380,21 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               children: [
                                 // New Discussion button
                                 //if (_selectedDiscussionId != 0)
-                                  ListTile(
-                                    leading: const Icon(Icons.add_comment),
-                                    title: const Text('New Discussion'),
-                                    tileColor: _selectedDiscussionId == 0 
-                                        ? Theme.of(context).colorScheme.primaryContainer
-                                        : null,
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedDiscussionId = 0;
-                                        _messages.clear();
-                                      });
-                                    },
-                                  ),
+                                  // ListTile(
+                                  //   leading: const Icon(Icons.add_comment),
+                                  //   title: const Text('New Discussion'),
+                                  //   tileColor: _selectedDiscussionId == 0 
+                                  //       ? colorScheme.primaryContainer
+                                  //       : null,
+                                  //   onTap: () {
+                                  //     setState(() {
+                                  //       _selectedDiscussionId = 0;
+                                  //       _messages.clear();
+                                  //     });
+                                  //   },
+                                  // ),
                                 
-                                  const Divider(),
+                                  // const Divider(),
                                 // Existing discussions list
                                 Expanded(
                                   child: _discussions.isEmpty
@@ -390,7 +415,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                     leading: const Icon(Icons.add_comment),
                                     title: const Text('New Discussion'),
                                     tileColor: _selectedDiscussionId == 0 
-                                        ? Theme.of(context).colorScheme.primaryContainer
+                                        ? colorScheme.primaryContainer
                                         : null,
                                     onTap: () {
                                       setState(() {
@@ -399,8 +424,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                       });
                                     },
                                   ),
-                                if (_selectedDiscussionId != 0)
-                                  const Divider(),
+                             
                                 // Existing favorites list
                                 Expanded(
                                   child: ListView.builder(
@@ -447,16 +471,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 child: Container(
                   width: 8,
                   height: double.infinity,
-                  color: Colors.grey[300],
-                  child: const Center(
+                  color: colorScheme.secondaryContainer,
+                  child: Center(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                      children:  [
                         Icon(Icons.drag_indicator, size: 16),
-                        SizedBox(height: 8),
-                        Icon(Icons.drag_indicator, size: 16),
-                        SizedBox(height: 8),
-                        Icon(Icons.drag_indicator, size: 16),
+                        SizedBox(height: 4),
                       ],
                     ),
                   ),
@@ -491,12 +513,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 // Input area
                 Container(
                   padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    border: Border(
-                      top: BorderSide(color: Colors.grey[300]!),
-                    ),
-                  ),
+             
                   child: Row(
                     children: [
                       Expanded(
@@ -504,9 +521,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           controller: _messageController,
                           focusNode: _messageFocusNode..onKeyEvent = _handleKeyEvent,
                           keyboardType: TextInputType.multiline,
-                          decoration: const InputDecoration(
-                            hintText: 'Type your message...',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            hintText: 'Type your question...',
+                              border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0), // Rounded corners
+                              borderSide: BorderSide.none,               // No border
+                            ),
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHighest,
                             // helperText: 'Press Enter to send, Shift+Enter for new line',
                           ),
                           minLines: 1,
@@ -896,7 +918,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   }
 
-  // Add this new method to toggle the favorite state
+  // toggle the favorite state
   Future<void> _toggleFavorite(Discussion discussion) async {
     final updateRequest = DiscussionUpdateRequest(
       did: discussion.did,

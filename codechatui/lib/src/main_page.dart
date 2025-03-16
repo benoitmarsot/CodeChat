@@ -11,11 +11,20 @@ class MainPageState extends ChangeNotifier {
 }
 
 class MainPage extends StatefulWidget {
+  final bool isDarkMode;
+  final VoidCallback onThemeToggle;
+
+  const MainPage({
+    super.key,
+    required this.isDarkMode,
+    required this.onThemeToggle,
+  });
   @override
   State<MainPage> createState() => _MainPage();
 }
 
 class _MainPage extends State<MainPage> {
+  
   var selectedIndex = 0;
   Future<void> _handleLogout() async {
     final secureStorage = SecureStorageService();

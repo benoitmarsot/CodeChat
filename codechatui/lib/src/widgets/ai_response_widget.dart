@@ -124,9 +124,8 @@ class AIResponseWidget extends StatelessWidget {
             flex: 3,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(8),
               ),
               margin: const EdgeInsets.only(right: 60),
               child: Column(
@@ -134,11 +133,12 @@ class AIResponseWidget extends StatelessWidget {
                 children: [
                   // Process each answer item
                   ...aiResponse.answers.map((answer) => _buildAnswerItem(context, answer)),
-                  const Divider(),
+                  
                   // Conversational guidance
                   if (aiResponse.conversationalGuidance != null)
+                  const Divider(),
                     Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
+                      padding: const EdgeInsets.all(8.0),
                       child: HoverCopyWidget(
                         text: aiResponse.conversationalGuidance!,
                         child: SizedBox(
@@ -149,7 +149,7 @@ class AIResponseWidget extends StatelessWidget {
                             styleSheet: MarkdownStyleSheet(
                               p: Theme.of(context).textTheme.bodyMedium,
                               code: TextStyle(
-                                backgroundColor: Colors.grey[300],
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 fontFamily: 'monospace',
                                 fontSize: 14,
                               ),
@@ -168,7 +168,7 @@ class AIResponseWidget extends StatelessWidget {
                       dateFormat.format(message.timestamp),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color:  Theme.of(context).colorScheme.surfaceContainer,
                       ),
                     ),
                   ),
@@ -184,7 +184,7 @@ class AIResponseWidget extends StatelessWidget {
 
   Widget _buildSimpleMessage(BuildContext context, String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
@@ -204,7 +204,7 @@ class AIResponseWidget extends StatelessWidget {
                     width: double.infinity, // ensures stack covers full bubble
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
+                      color: Theme.of(context).colorScheme.surfaceContainerLowest,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: MarkdownBody(
@@ -213,7 +213,7 @@ class AIResponseWidget extends StatelessWidget {
                       styleSheet: MarkdownStyleSheet(
                         p: Theme.of(context).textTheme.bodyMedium,
                         code: TextStyle(
-                          backgroundColor: Colors.grey[300],
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
                           fontFamily: 'monospace',
                           fontSize: 14,
                         ),
@@ -230,7 +230,7 @@ class AIResponseWidget extends StatelessWidget {
                     dateFormat.format(message.timestamp),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
                     ),
                   ),
                 ),
@@ -260,7 +260,7 @@ class AIResponseWidget extends StatelessWidget {
                 styleSheet: MarkdownStyleSheet(
                   p: Theme.of(context).textTheme.bodyMedium,
                   code: TextStyle(
-                    backgroundColor: Colors.grey[300],
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                     fontFamily: 'monospace',
                     fontSize: 14,
                   ),
@@ -268,11 +268,11 @@ class AIResponseWidget extends StatelessWidget {
                   h2: Theme.of(context).textTheme.titleLarge,
                   h3: Theme.of(context).textTheme.titleMedium,
                   blockquote: TextStyle(
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
                     fontStyle: FontStyle.italic,
                   ),
                   blockquoteDecoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: Theme.of(context).colorScheme.surfaceContainerLowest,
                     borderRadius: BorderRadius.circular(2),
                     border: Border(
                       left: BorderSide(color: Colors.grey[400]!, width: 4),
@@ -330,7 +330,7 @@ class AIResponseWidget extends StatelessWidget {
                       styleSheet: MarkdownStyleSheet(
                         p: Theme.of(context).textTheme.bodyMedium,
                         code: TextStyle(
-                          backgroundColor: Colors.grey[300],
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                           fontFamily: 'monospace',
                           fontSize: 14,
                         ),
