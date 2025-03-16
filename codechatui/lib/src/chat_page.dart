@@ -135,7 +135,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     
     // Save message text and clear input
     final messageText = _messageController.text;
-   
+    _messageController.clear();
     
     // Create new discussion if none selected
     if(_selectedDiscussionId == 0) {
@@ -154,7 +154,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         return;
       }
       finally {
-         _messageController.clear();
+        
         setState(() {
           _isLoading = false;
         });
