@@ -722,7 +722,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                       child: const Text("Cancel"),
                     ),
                     TextButton(
-                      primary: true,
                       onPressed: selectedIndex >= 0 ? () async {
                         final selectedName = response[selectedIndex].name;
                         final selectedDescription = response[selectedIndex].description;

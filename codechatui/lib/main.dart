@@ -68,7 +68,12 @@ class _MyAppState extends State<MyApp> {
         ),
         themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light, // Conditional theme
         home: const LoginPage(),
+        
         initialRoute: '', 
+        onGenerateRoute: (settings) {
+          // Handle unknown routes or routes without context
+          return MaterialPageRoute(builder: (context) => const LoginPage());
+        },
         routes: {
           '': (context) => const LoginPage(),
           'home': (context) => MainPage(

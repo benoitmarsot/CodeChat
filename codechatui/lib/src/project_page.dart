@@ -13,6 +13,7 @@ class ProjectPage extends StatefulWidget {
 
 class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStateMixin {
   String? _errorMessage;
+
   String _createdMessage = '';
   List<Project> _projects = [];
   int? _hoveredIndex;
@@ -26,7 +27,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   
   late TabController _tabController;
 
-  int get _initialTabIndex => _projects.isNotEmpty ? 0 : 1;
+  int _initialTabIndex = 0;
 
   @override
   void initState() {
@@ -47,9 +48,15 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
 
     try {
       final projects = await projectService.getAllProjects();
+      
       setState(() {
         _projects = projects;
+
+        _tabController.animateTo(  _projects.isEmpty ?  1 : 0); // Default to create tab if no projects exist
       });
+      if(projects.length == 1) {
+        _selectProject(projects[0]);
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to load projects: $e';
@@ -166,6 +173,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       setState(() {
         _projects.removeAt(index);
       });
+       await _fetchProjects();
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to delete project: $e';
@@ -181,15 +189,14 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     );
   }
   void _selectProject(Project project) {
+
     _redirectToChat(project);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = theme.textTheme.displayLarge!.copyWith(
-      color: theme.colorScheme.primary,
-    );
+   
     return DefaultTabController(
       initialIndex: _initialTabIndex,
       length: 3,
@@ -199,9 +206,17 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
           bottom: TabBar(
             controller: _tabController,  // Add controller here
             tabs: const <Widget>[
-              Tab(icon: Icon(Icons.folder_open)),
-              Tab(icon: Icon(Icons.drive_folder_upload_outlined)),
-              Tab(icon: Icon(Icons.group_add)),
+              Tooltip(
+                message: 'Project List',
+                child: Tab(icon: Icon(Icons.folder_open)),
+              ),
+               Tooltip(
+                message: 'Create Project',
+                child:Tab(icon: Icon(Icons.drive_folder_upload_outlined))
+               ),Tooltip(
+                message: 'Share',
+                child:Tab(icon: Icon(Icons.group_add))
+               )
             ],
           ),
         ),
