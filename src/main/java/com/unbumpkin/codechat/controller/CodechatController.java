@@ -297,7 +297,6 @@ public class CodechatController {
                 - If the query is not related to code, omit the `language` and `code` fields in the response. Focus on providing a clear explanation and actionable suggestions.
 
                 ### Example Response
-                ```json
                 {
                     "answers": [
                         {
@@ -310,7 +309,6 @@ public class CodechatController {
                     ],
                     "conversationalGuidance": "Would you like to see more details about this file or related files?"
                 }
-                ```
                 """).setReasoningEffort(ReasoningEffort.high)
             //.setTemperature(.02) //Not suported in o3-mini
             .addFileSearchTool().addFileSearchAssist()
