@@ -378,24 +378,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           ? const Center(child: CircularProgressIndicator())
                           : Column(
                               children: [
-                                // New Discussion button
-                                //if (_selectedDiscussionId != 0)
-                                  // ListTile(
-                                  //   leading: const Icon(Icons.add_comment),
-                                  //   title: const Text('New Discussion'),
-                                  //   tileColor: _selectedDiscussionId == 0 
-                                  //       ? colorScheme.primaryContainer
-                                  //       : null,
-                                  //   onTap: () {
-                                  //     setState(() {
-                                  //       _selectedDiscussionId = 0;
-                                  //       _messages.clear();
-                                  //     });
-                                  //   },
-                                  // ),
                                 
-                                  // const Divider(),
-                                // Existing discussions list
                                 Expanded(
                                   child: _discussions.isEmpty
                                     ? const Center(child: Text('No discussions found'))
@@ -409,22 +392,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           ? const Center(child: CircularProgressIndicator())
                           : Column(
                               children: [
-                                // New Discussion button
-                                if (_selectedDiscussionId != 0)
-                                  ListTile(
-                                    leading: const Icon(Icons.add_comment),
-                                    title: const Text('New Discussion'),
-                                    tileColor: _selectedDiscussionId == 0 
-                                        ? colorScheme.primaryContainer
-                                        : null,
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedDiscussionId = 0;
-                                        _messages.clear();
-                                      });
-                                    },
-                                  ),
-                             
                                 // Existing favorites list
                                 Expanded(
                                   child: ListView.builder(
@@ -661,6 +628,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   // Method to suggest a name using AI
   Future<void> _suggestDiscussionName(Discussion discussion) async {
+  final titleColor=Theme.of(context).colorScheme.onSurface;
+    final selectedColor =Theme.of(context).colorScheme.primaryContainer;
     // Show loading dialog
     showDialog(
       context: context,
@@ -691,7 +660,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
         showDialog(
           context: context,
+          
           builder: (BuildContext context) {
+            
             return StatefulBuilder( // Use StatefulBuilder to manage dialog state
               builder: (context, setState) {
                 return AlertDialog(
@@ -704,25 +675,18 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                       children: [
                         const Text("Select one of the AI-suggested names:"),
                         const SizedBox(height: 12),
+                        
                         Flexible(
                           child: ListView.builder(
                             shrinkWrap: true,
                             itemCount: response.length,
                             itemBuilder: (context, index) {
                               final suggestion = response[index];
+
                               return ListTile(
-                                title: RichText(
-                                  text: TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: suggestion.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                title: Text(
+                                  suggestion.name,
+                                  style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
                                 ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -737,7 +701,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                   ],
                                 ),
                                 selected: selectedIndex == index,
-                                selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
+                                selectedTileColor: selectedColor,
                                 onTap: () {
                                   setState(() {
                                     selectedIndex = index;
@@ -758,6 +722,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                       child: const Text("Cancel"),
                     ),
                     TextButton(
+                      primary: true,
                       onPressed: selectedIndex >= 0 ? () async {
                         final selectedName = response[selectedIndex].name;
                         final selectedDescription = response[selectedIndex].description;

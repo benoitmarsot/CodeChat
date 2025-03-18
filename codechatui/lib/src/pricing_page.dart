@@ -20,13 +20,14 @@ class _PricingPageState extends State<PricingPage> {
     required bool isPrimary,
     required String buttonText,
   }) {
+     final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: isPrimary ? 8 : 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: isPrimary
             ? BorderSide(
-                color: Theme.of(context).colorScheme.primary,
+                color: colorScheme.primary,
                 width: 2,
               )
             : BorderSide.none,
@@ -74,7 +75,7 @@ class _PricingPageState extends State<PricingPage> {
                     Icon(
                       Icons.check_circle,
                       color: isPrimary
-                          ? Theme.of(context).colorScheme.primary
+                          ? colorScheme.primary
                           : Colors.green,
                       size: 20,
                     ),
@@ -91,7 +92,7 @@ class _PricingPageState extends State<PricingPage> {
                 onPressed: () {},
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isPrimary
-                      ? Theme.of(context).colorScheme.primary
+                      ? colorScheme.primary
                       : Colors.white,
                   foregroundColor: isPrimary ? Colors.white : Colors.black87,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -114,6 +115,7 @@ class _PricingPageState extends State<PricingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pricing Plans'),
@@ -127,8 +129,8 @@ class _PricingPageState extends State<PricingPage> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.tertiary,
+                    colorScheme.primary,
+                    colorScheme.tertiary,
                   ],
                 ),
               ),
@@ -173,7 +175,7 @@ class _PricingPageState extends State<PricingPage> {
                         'Basic support',
                         'Community access',
                       ],
-                      Colors.grey[100]!,
+                      colorScheme.surfaceContainerHighest,
                       'Start Free',
                       shouldStack,
                     ),
@@ -190,7 +192,7 @@ class _PricingPageState extends State<PricingPage> {
                         'Priority support',
                         'Advanced analytics'
                       ],
-                      Colors.blue[50]!,
+                      colorScheme.tertiaryContainer,
                       'Choose Team',
                       shouldStack,
                     ),
@@ -207,7 +209,7 @@ class _PricingPageState extends State<PricingPage> {
                         'Large project size',
                         'Extended code history'
                       ],
-                      Colors.blue[50]!,
+                  colorScheme.primaryContainer,
                       'Get Pro',
                       shouldStack,
                     ),
@@ -224,7 +226,7 @@ class _PricingPageState extends State<PricingPage> {
                         'SLA guarantees',
                         'Training & integration'
                       ],
-                      Colors.blueGrey[50]!,
+                 colorScheme.surfaceContainerHighest,
                       'Contact Sales',
                       shouldStack,
                     ),
@@ -275,6 +277,7 @@ class _PricingPageState extends State<PricingPage> {
     bool stacked,
   ) {
     final isHovered = _hoveredCard == cardId;
+    final colorScheme = Theme.of(context).colorScheme;
 
     // Calculate position for stacked cards
     Widget card = MouseRegion(
@@ -294,7 +297,7 @@ class _PricingPageState extends State<PricingPage> {
             period: period,
             features: features,
             bgColor: isHovered
-                ? Theme.of(context).colorScheme.primaryContainer
+                ? colorScheme.primaryContainer
                 : bgColor,
             isPrimary: isHovered,
             buttonText: buttonText,
