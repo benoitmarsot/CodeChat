@@ -13,16 +13,29 @@ class CodechatService {
         'Authorization': 'Bearer ${authProvider.token}',
         'Content-Type': 'application/json',
       };
-  Future<Project> createProject(String name, String description, String repoURL, String branchName) async {
+
+  Future<Project> createProject(String name, String description, String repoURL, 
+      String branchName, [String? username, String? password]) async {
+    
+    final Map<String, dynamic> requestBody = {
+      'name': name,
+      'description': description,
+      'repoURL': repoURL,
+      'branch': branchName,
+    };
+    
+    // Add authentication parameters only if provided
+    if (username != null && username.isNotEmpty) {
+      requestBody['username'] = username;
+      if (password != null && password.isNotEmpty) {
+        requestBody['password'] = password;
+      }
+    }
+    
     final response = await http.post(
       Uri.parse('$baseUrl/create-project'),
       headers: _headers,
-      body: json.encode({
-        'name': name,
-        'description': description,
-        'repoURL': repoURL,
-        'branch': branchName,  // Fixed: Changed 'brach' to 'branch'
-      }),
+      body: json.encode(requestBody),
     );
 
     if (response.statusCode == 200) {

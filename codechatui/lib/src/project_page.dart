@@ -20,6 +20,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   final TextEditingController _prjDesctController = TextEditingController();
   final TextEditingController _prjRepoURLController = TextEditingController();
   final TextEditingController _branchNameController = TextEditingController(text: 'main');
+  final TextEditingController _userNameController = TextEditingController();
+  final TextEditingController _userPswController = TextEditingController();
+  final TextEditingController _patController = TextEditingController();
+  
   late TabController _tabController;
 
   int get _initialTabIndex => _projects.isNotEmpty ? 0 : 1;
@@ -97,11 +101,26 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       },
     );
     try {
+      // Handle authentication parameters
+      String? username;
+      String? password;
+      
+      if (_userNameController.text.isEmpty && _patController.text.isNotEmpty) {
+        // If username is empty but PAT is provided, use PAT as username
+        username = _patController.text;
+      } else if (_userNameController.text.isNotEmpty) {
+        // If username is provided, use username and password
+        username = _userNameController.text;
+        password = _userPswController.text;
+      }
+      
       final project = await codechatService.createProject(
         _prjNameController.text,
         _prjDesctController.text,
         _prjRepoURLController.text,
         _branchNameController.text,
+        username,
+        password,
       );
 
       setState(() {
@@ -288,6 +307,36 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                           ],
                         );
                       },
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: _userNameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Git user name (for private repo):',
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12.0),
+                        Expanded(
+                          flex: 1,
+                          child: TextField(
+                            controller: _userPswController, 
+                            decoration: const InputDecoration(
+                              labelText: 'Password:',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    TextField(
+                      controller: _patController,
+                      decoration: const InputDecoration(
+                        labelText: 'Or PAT (for private repo):',
+                      ),
                     ),
                     if (_errorMessage != null)
                       Padding(

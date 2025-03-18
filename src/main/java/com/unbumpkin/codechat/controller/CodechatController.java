@@ -133,7 +133,7 @@ public class CodechatController {
             System.out.println("project created with id: "+projectId);
             String sourcePath = "";
             if(request.repoURL()!=null){
-                pfc=new GithubProjectFileCategorizer();
+                pfc=new GithubProjectFileCategorizer(request.username(), request.password());
                 sourcePath=pfc.addRepository(request.repoURL(), request.branch());
             } else {
                 throw new Exception("sourcePath is required");
@@ -209,6 +209,7 @@ public class CodechatController {
                     put("name", desc.oldFile().getName());
                     put("path", desc.oldFile().getAbsolutePath().substring(basePathLength));
                     put("extension", oldExt);
+                    // Should I put the "."? If so put it in the assistant instructions
                     put("mime-type", ExtMimeType.getMimeType(oldExt));
                     put("nbLines", String.valueOf(FileUtils.countLines(desc.oldFile())));
                     put("type", type.name());
@@ -237,7 +238,7 @@ public class CodechatController {
             .setInstructions("""
                 You are a code search assistant designed to help users analyze and understand their projects. Your primary role is to provide detailed explanations, code snippets, and actionable suggestions based on the project's files and metadata.
 
-                Always respond in the following structured JSON format:
+                Always respond in the following structured JSON format, and do not prefix with ```<language>:
                 {
                     "answers": [
                         {
@@ -252,6 +253,7 @@ public class CodechatController {
                     "conversationalGuidance": "<Additional guidance for the user: Intelligent Follow-ups, Actionable Suggestions, Engagement & Clarifications, etc.>"
                 }
 
+
                 Use plain text in the response.
                 Markdown is supported in the explanation, code explanation, and reference fields.
 
@@ -259,7 +261,7 @@ public class CodechatController {
                 When analyzing files, use the following attributes from the file metadata to provide insights and context:
                 - **`name`**: Use the file name to identify the file and provide context in your response.
                 - **`path`**: Use the file's relative path to locate it within the project and reference it in your response.
-                - **`extension`**: Use the file extension to determine the programming language or file type (e.g., `.java` for Java, `.py` for Python).
+                - **`extension`**: Use the file extension to determine the programming language or file type (e.g., `java` for Java, `py` for Python).
                 - **`mime-type`**: Use the MIME type to understand the file's format or content type (e.g., `text/plain`, `application/json`).
                 - **`nbLines`**: Use the number of lines in the file to assess its size or complexity. For example:
                 - Small files (e.g., <50 lines) may be utility scripts or configuration files.
@@ -271,9 +273,9 @@ public class CodechatController {
 
                 ### Analyzing Files
                 - Use the `extension` and `mime-type` attributes to determine the programming language or file type. For example:
-                - `.java` → Java
-                - `.py` → Python
-                - `.html` → HTML
+                - `java` → Java
+                - `py` → Python
+                - `html` → HTML
                 - Use the `nbLines` attribute to assess the file's complexity and provide insights. For example:
                 - "This file contains 120 lines of Java code, which suggests it implements a moderately complex class."
                 - Use the `type` attribute to guide your analysis. For example:
@@ -282,7 +284,7 @@ public class CodechatController {
                 - For `config` files, analyze the correctness and adherence to best practices.
 
                 ### Referencing Files
-                - Always reference file metadata such as `name`, `path`, and `extension` when discussing specific files.
+                - Donot use the internal name, always use file metadata such as `name` and `path` when referencing specific files.
                 - Use the `nbLines` attribute to provide insights into the file's size or complexity when relevant.
                 - Use the `mime-type` attribute to describe the file's format or content type.
                 - When retrieving code, always reference the file's `path` and `name` to provide context.
