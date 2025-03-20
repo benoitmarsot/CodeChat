@@ -55,13 +55,41 @@ public abstract class BaseOpenAIClient {
 
     }
     protected JsonNode executeRequest(Request request) throws IOException {
-        try (Response response = client.newCall(request).execute()) {
-            String responseBody = response.body().string();
-            if (!response.isSuccessful()) {
-                throw new IOException(responseBody);
+        int maxRetries = 3;
+        int retryCount = 0;
+        IOException lastException = null;
+    
+        while (retryCount < maxRetries) {
+            try {
+                try (Response response = client.newCall(request).execute()) {
+                    String responseBody = response.body().string();
+                    if (!response.isSuccessful()) {
+                        throw new IOException(responseBody);
+                    }
+                    return objectMapper.readTree(responseBody);
+                }
+            } catch (IOException e) {
+                lastException = e;
+                retryCount++;
+                
+                if (retryCount >= maxRetries) {
+                    break;
+                }
+                
+                // Exponential backoff: wait longer between consecutive retries
+                try {
+                    Thread.sleep(1000 * retryCount);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Request interrupted during retry", ie);
+                }
+                
+                System.out.println("Retrying request, attempt " + (retryCount + 1) + " of " + maxRetries);
             }
-            return objectMapper.readTree(responseBody);
         }
+        
+        // If we've exhausted all retries, throw the last exception
+        throw new IOException("Request failed after " + maxRetries + " attempts: " + lastException.getMessage(), lastException);
     }
     
 }
