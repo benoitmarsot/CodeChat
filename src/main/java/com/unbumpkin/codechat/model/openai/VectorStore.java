@@ -12,6 +12,7 @@ public class VectorStore {
 
     private int vsid;
     private String oaiVsId;
+    private int projectId;
     private String vsname;
     private List<String> fileIds;
     private String vsdesc;
@@ -84,9 +85,10 @@ public class VectorStore {
     }
 
     // Repository constructor
-    public VectorStore(int vsId, String oaiVsId, String vsname, String vsdesc, Integer dayskeep, Types type) {
+    public VectorStore(int vsId, String oaiVsId, int projectId, String vsname, String vsdesc, Integer dayskeep, Types type) {
         this.vsid = vsId;
         this.oaiVsId = oaiVsId;
+        this.projectId = projectId;
         this.vsname = vsname;
         this.vsdesc = vsdesc;
         this.dayskeep = dayskeep;
@@ -127,6 +129,9 @@ public class VectorStore {
 
     public void setOaiVsId(String oaiVsId) {
         this.oaiVsId = oaiVsId;
+    }
+    public int getProjectId() {
+        return projectId;
     }
 
     public String getVsname() {

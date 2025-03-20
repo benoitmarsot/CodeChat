@@ -22,6 +22,7 @@ create table if not exists oaifile (
 create table if not exists vectorstore (
     vsid serial,
     oai_vs_id text not null,
+    projectid int not null,
     vs_name text not null,
     vs_desc text null,
     created timestamp not null default now(),

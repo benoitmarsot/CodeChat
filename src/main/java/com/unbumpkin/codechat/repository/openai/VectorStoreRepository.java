@@ -33,6 +33,7 @@ public class VectorStoreRepository {
     public record RepoVectorStoreResponse( 
         int id,
         String vsid,
+        int projectId,
         String name,
         String description,
         Instant created,
@@ -53,6 +54,7 @@ public class VectorStoreRepository {
         RepoVectorStoreResponse vectorStore = new RepoVectorStoreResponse(
             rs.getInt("vsid"),
             rs.getString("oai_vs_id"),
+            rs.getInt("projectid"),
             rs.getString("vs_name"),
             rs.getString("vs_desc"),
             rs.getTimestamp("created").toInstant(),
@@ -70,19 +72,20 @@ public class VectorStoreRepository {
      * @throws SQLException 
      */
     public int storeVectorStore(VectorStore vStore) throws DataAccessException, JsonProcessingException {
-        String sql = "INSERT INTO vectorstore (oai_vs_id, vs_name, vs_desc, dayskeep, type) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO vectorstore (oai_vs_id, projectid, vs_name, vs_desc, dayskeep, type) VALUES (?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, new String[] { "vsid" });
             ps.setString(1, vStore.getOaiVsid());
-            ps.setString(2, vStore.getVsname());
-            ps.setString(3, vStore.getVsdesc());
+            ps.setInt(2, vStore.getProjectId());
+            ps.setString(3, vStore.getVsname());
+            ps.setString(4, vStore.getVsdesc());
             if(vStore.getDayskeep() == null) {
-                ps.setNull(4, java.sql.Types.INTEGER);
+                ps.setNull(5, java.sql.Types.INTEGER);
             } else {
-                ps.setInt(4, vStore.getDayskeep());
+                ps.setInt(5, vStore.getDayskeep());
             }
-            ps.setString(5, vStore.getType().name());
+            ps.setString(6, vStore.getType().name());
             return ps;
         }, keyHolder);
         Number key = keyHolder.getKey();
@@ -106,6 +109,15 @@ public class VectorStoreRepository {
     public List<RepoVectorStoreResponse> getAllVectorStores() {
         String sql = "SELECT * FROM vectorstore";
         return jdbcTemplate.query(sql, rowMapper);
+    }
+    /**
+     * Retrieves all VectorStores for a specific project.
+     * @param projectId: The ID of the project to retrieve VectorStores for.
+     * @return A list of all VectorStores for the project.
+     */
+    public List<RepoVectorStoreResponse> getVectorStoresByProjectId(int projectId) {
+        String sql = "SELECT * FROM vectorstore WHERE projectid = ?";
+        return jdbcTemplate.query(sql, rowMapper, projectId);
     }
 
     /**

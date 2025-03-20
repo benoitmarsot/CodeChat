@@ -27,3 +27,5 @@ CREATE INDEX IF NOT EXISTS idx_project_authorid ON project(authorid);
 CREATE INDEX IF NOT EXISTS idx_discussion_projectid ON discussion(projectid);
 CREATE INDEX IF NOT EXISTS idx_sharedproject_userid ON sharedproject(userid);
 CREATE INDEX IF NOT EXISTS idx_sharedproject_projectid ON sharedproject(projectid);
+CREATE INDEX IF NOT EXISTS idx_vectorestore_projectid ON vectorstore(projectid);
+

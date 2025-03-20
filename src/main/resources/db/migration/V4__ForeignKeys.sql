@@ -19,6 +19,22 @@ BEGIN
             on delete cascade;
     end if;
 
+    -- Foreign key for vectorstore(projectid) -> project(projectid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'vectorstore'
+            and constraint_schema = 'core'
+            and constraint_name = 'vectorstore_fk_project'
+    ) then
+        raise notice 'Creating vectorstore_fk_project...';
+        alter table vectorstore 
+            add constraint vectorstore_fk_project
+            foreign key (projectid) references project(projectid)
+            on delete cascade;
+    end if;
+
+
     -- Foreign key for vectorstore_oaifile(vsid) -> vectorstore(vsid)
     IF NOT EXISTS (
         SELECT constraint_name 
@@ -49,7 +65,7 @@ BEGIN
             on delete cascade;
     end if;
 
-    -- Foreign key for assistant(aid) -> project(aid)
+    -- Foreign key for assistant(projectid) -> project(projectid)
     if not exists (
         select constraint_name
         from information_schema.table_constraints

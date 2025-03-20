@@ -1,19 +1,15 @@
 package com.unbumpkin.codechat.controller;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Vector;
 import java.io.File;
 import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,7 +32,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
-import com.unbumpkin.codechat.model.Message;
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.model.openai.OaiFile;
@@ -115,6 +110,33 @@ public class CodechatController {
         return ResponseEntity.ok("All data deleted");
     }
 
+    @PostMapping("create-empty-project")
+    public ResponseEntity<Project> createEmptyProject(
+        @RequestBody CreateProjectRequest request
+    ) throws Exception {
+        int projectId=projectRepository.addProject(request.name(), request.description());
+        if(projectId==0){
+            throw new Exception("project could not be created.");
+        }
+        System.out.println("project created with id: "+projectId);
+        Map<String,Integer> vectorStorMap = new LinkedHashMap<>();
+
+        //Here the order is important because the assistant will use the vector stores in this order
+        // Code, Markup, then Config
+        System.out.println("Create empty vector store for code files...");
+        createEmptyVectorStore( projectId, "vsCode",  Types.code, vectorStorMap);
+        System.out.println("Create empty vector store for markup files...");
+        createEmptyVectorStore( projectId, "vsMarkup",  Types.markup, vectorStorMap);
+        System.out.println("Create vector store for config files...");
+        createEmptyVectorStore( projectId, "vsConfig",  Types.config, vectorStorMap);
+        System.out.println("Create vector store for all files...");
+        String vsAlOaid=createEmptyVectorStore( projectId, "vsAll",  Types.all, vectorStorMap);
+        System.out.println("Create assistant...");
+        int assistantId=createAssistant(request.name(), projectId, vectorStorMap,vsAlOaid);
+        System.out.println("Assistant created with id: "+assistantId);
+        Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
+        return ResponseEntity.ok(project);
+    }
     
     @PostMapping("create-project")
     public ResponseEntity<Project> createProject(
@@ -136,10 +158,7 @@ public class CodechatController {
                 pfc=new GithubProjectFileCategorizer(request.username(), request.password());
                 sourcePath=pfc.addRepository(request.repoURL(), request.branch());
             } else {
-                throw new Exception("sourcePath is required");
-                // System.out.println("Scanning source path: "+request.sourcePath());
-                // pfc=new ProjectFileCategorizer();
-                // pfc.addDir(request.sourcePath());
+                throw new Exception("Repo url is required");
             }
             int basePathLength = sourcePath.length();
             Map<String,Integer> vectorStorMap = new LinkedHashMap<>();
@@ -158,7 +177,7 @@ public class CodechatController {
                     null,null,null,null)
             );
             int vsAllId=vsRepository.storeVectorStore(
-                new VectorStore(0, vsAllOaiId, "vsAll", 
+                new VectorStore(0, vsAllOaiId, projectId, "vsAll", 
                     "contain all the files in the project.", null, Types.all)
             );
             VectorStoreFile vsfService = new VectorStoreFile(vsAllOaiId);
@@ -181,6 +200,21 @@ public class CodechatController {
         } finally {
             pfc.deleteRepository();
         }
+    }
+    private String createEmptyVectorStore(
+        int projectId, String vsName, Types type, Map<String,Integer> vectorStorMap
+    ) throws IOException {
+        String vsDesc = "contain the "+type.name()+" files in the project.";
+        String vsOaiId = vsService.createVectorStore(
+            new VectorStore(
+                vsName, vsDesc, null, null, null, null
+            )
+        );
+        VectorStore vs = new VectorStore(0, vsOaiId, projectId, vsName, vsDesc, null, type);
+        int vsId=vsRepository.storeVectorStore(vs);
+        System.out.println("Empty vector store "+type.name()+" created with id: "+vsId+" and OaiId: "+vsOaiId);
+        vectorStorMap.put(vsOaiId, vsId);
+        return vsOaiId;
     }
     private void createVectorStore(
         CCProjectFileCategorizer pfc, int projectId, String vsName, Types type,
@@ -222,7 +256,7 @@ public class CodechatController {
         oaiFileRepository.storeOaiFiles(lFiles, projectId);
 
         //(int vsId, String oaiVsId, String vsname, String vsdesc, Instant created, Integer dayskeep, Types type)
-        VectorStore vs = new VectorStore(0, vsOaiId, vsName, 
+        VectorStore vs = new VectorStore(0, vsOaiId, projectId, vsName, 
             "Contains the "+type.name()+" files in the project.", null, type);
         int vsId=vsRepository.storeVectorStore(vs);
         vsRepository.addFiles(vsOaiId, lFileIds);
@@ -338,7 +372,6 @@ public class CodechatController {
         String assistantOaiId=assistantService.createAssistant(assistantBuilder);
         Integer[] vsIds = vectorStorMap.values().toArray(new Integer[0]);
         Assistant assistant = new Assistant(0, assistantOaiId, name, "Code search assistant for " + name,
-            //For now submit code 4 times
             projectId, vsIds[0], vsIds[1], vsIds[2], vsIds[3]
         );
         return assistantRepository.addAssistant(assistant);
