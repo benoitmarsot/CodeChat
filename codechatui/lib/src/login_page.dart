@@ -4,6 +4,7 @@ import 'package:codechatui/src/services/auth_service.dart';
 import 'package:codechatui/src/services/secure_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -50,14 +51,14 @@ class _LoginPageState extends State<LoginPage> {
         print('Login successful:\n  userId: $userId,\n token: $token');
         await _secureStorage.storeToken(token);
         await _secureStorage.storeUserId(userId);
-        if (mounted) {  // Check if the widget is still in the tree
+        if (mounted) {
+          // Check if the widget is still in the tree
           var authProvider = Provider.of<AuthProvider>(context, listen: false);
           authProvider.setToken(token);
-          authProvider.setUserId(
-            userId == null ? null : int.parse(userId)
-          );
+          authProvider.setUserId(userId == null ? null : int.parse(userId));
           print('Debug - Token set in Login._handleLogin: $token');
-          Navigator.of(context).pushReplacementNamed('home');  // or whatever your main route is named
+          Navigator.of(context)
+              .pushReplacementNamed('home'); // Navigate to home page
         }
       } else if (response.statusCode == 401) {
         setState(() {
@@ -91,8 +92,9 @@ class _LoginPageState extends State<LoginPage> {
           final responseData = jsonDecode(response.body);
           final newToken = responseData['token'];
           await _secureStorage.storeToken(newToken);
-          if(mounted) {
-            var authProvider = Provider.of<AuthProvider>(context, listen: false);
+          if (mounted) {
+            var authProvider =
+                Provider.of<AuthProvider>(context, listen: false);
             authProvider.setToken(newToken);
             print('Debug - Token refreshed: $newToken');
             Navigator.of(context).pushReplacementNamed('home');
@@ -123,55 +125,68 @@ class _LoginPageState extends State<LoginPage> {
         title: const Text('Login'),
       ),
       body: Center(
-        child: Card(
-          shape: RoundedRectangleBorder(
-            side: BorderSide(
-              color: theme.colorScheme.primary,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset(
+              'logo-w-copy.svg',
+              semanticsLabel: 'My SVG Image',
+              width: 200, // Optional: specify width
+              height: 200, // Optional: specify height
+              fit: BoxFit
+                  .contain, // Optional: specify how the SVG should be scaled
             ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Container(
-            width: 300, // Set a fixed width for the Card
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                TextField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                  ),
-                  onSubmitted: (_) => _handleLogin(),
+            Card(
+              shape: RoundedRectangleBorder(
+                side: BorderSide(
+                  color: theme.colorScheme.primary,
                 ),
-                const SizedBox(height: 16.0),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                  ),
-                  obscureText: true,
-                  onSubmitted: (_) => _handleLogin(),
-                ),
-                const SizedBox(height: 16.0),
-                if (_errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontSize: 14,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Container(
+                width: 300, // Set a fixed width for the Card
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    TextField(
+                      controller: _usernameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Username',
                       ),
+                      onSubmitted: (_) => _handleLogin(),
                     ),
-                  ),
-                ElevatedButton(
-                  onPressed: _handleLogin,
-                  child: const Text('Login'),
+                    const SizedBox(height: 16.0),
+                    TextField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                      ),
+                      obscureText: true,
+                      onSubmitted: (_) => _handleLogin(),
+                    ),
+                    const SizedBox(height: 16.0),
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(
+                            color: theme.colorScheme.error,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ElevatedButton(
+                      onPressed: _handleLogin,
+                      child: const Text('Login'),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
