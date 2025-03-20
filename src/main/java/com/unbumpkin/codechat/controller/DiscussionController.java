@@ -14,7 +14,6 @@ import com.unbumpkin.codechat.dto.request.MessageCreateRequest;
 import com.unbumpkin.codechat.model.Discussion;
 import com.unbumpkin.codechat.model.Message;
 import com.unbumpkin.codechat.model.openai.Assistant;
-import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.OaiThread;
 import com.unbumpkin.codechat.repository.DiscussionRepository;
 import com.unbumpkin.codechat.repository.MessageRepository;
@@ -26,16 +25,12 @@ import com.unbumpkin.codechat.service.openai.OaiMessageService;
 import com.unbumpkin.codechat.service.openai.OaiRunService;
 import com.unbumpkin.codechat.service.openai.OaiThreadService;
 import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
-import com.unbumpkin.codechat.util.AnswerUtils;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Roles;
 
 import java.io.IOException;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/discussions")

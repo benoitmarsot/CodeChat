@@ -40,7 +40,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, String extension, int projectId
+        String rootDir, int basePathLen, String extension, int projectId
     ) throws IOException {
         return this.uploadFiles(rootDir, extension, Purposes.assistants, projectId);
     }
@@ -65,7 +65,7 @@ public class OaiFileService  extends BaseOpenAIClient {
                 System.out.println("File "+file.getName()+" is empty, skipping...");
                 continue;
             }
-            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), purpose, projectId);
+            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), rootDir.length(), purpose, projectId);
             fileIdMap.put(oaiFile.fileId(), oaiFile);
             System.out.println(String.format("File %s uploaded with id: %s...",file,oaiFile.fileId()));
         }
@@ -103,7 +103,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @return the OaiFile object
      * @throws IOException
      */
-    public OaiFile uploadFile(String filePath, Purposes purpose, int projectId) throws IOException {
+    public OaiFile uploadFile(String filePath, int basePathLen, Purposes purpose, int projectId) throws IOException {
         String url = API_URL;
 
         File file=new java.io.File(filePath);
@@ -124,8 +124,8 @@ public class OaiFileService  extends BaseOpenAIClient {
             projectId,
             this.executeRequest(request).get("id").asText(),
             Paths.get(filePath).getFileName().toString(),
-            Paths.get(filePath).getParent().toString(),
-            filePath,
+            Paths.get(filePath).getParent().toString().substring(basePathLen),
+            filePath.substring(basePathLen),
             purpose,
             linecount
         );

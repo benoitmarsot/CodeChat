@@ -72,7 +72,7 @@ public class VectorStoreRepository {
      * @throws SQLException 
      */
     public int storeVectorStore(VectorStore vStore) throws DataAccessException, JsonProcessingException {
-        String sql = "INSERT INTO vectorstore (oai_vs_id, projectid, vs_name, vs_desc, dayskeep, type) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO vectorstore (oai_vs_id, projectid, vs_name, vs_desc, dayskeep, type) VALUES (?, ?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, new String[] { "vsid" });

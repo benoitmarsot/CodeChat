@@ -231,7 +231,7 @@ public class CodechatController {
         VectorStoreFile vsfService = new VectorStoreFile(vsOaiId);
         for (File file : pfc.getFileSetMap(type)) {
             FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
-            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), Purposes.assistants, projectId);
+            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength, Purposes.assistants, projectId);
             lFiles.add(
                 oaiFile
             );

@@ -117,6 +117,7 @@ public class OaiFileController {
 
         OaiFile file = oaiFileService.uploadFile(
             request.filepath(),
+            request.rootDir().length(),
             Purposes.valueOf(request.purpose().toLowerCase()),
             projectId
         );
