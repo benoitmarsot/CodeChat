@@ -51,7 +51,7 @@ $$ LANGUAGE plpgsql;
 DROP PROCEDURE IF EXISTS createoaifile;
 CREATE OR REPLACE PROCEDURE createoaifile(
     jsonFile json, 
-    projectid int
+    prid int
 ) AS $$
 DECLARE
     fid int;
@@ -65,9 +65,9 @@ BEGIN
     
     -- create the file record
     INSERT INTO oaifile (
-        projectid, oai_f_id, file_name, rootdir, filepath, purpose, linecount
+        prid, oai_f_id, file_name, rootdir, filepath, purpose, linecount
     ) VALUES (
-        projectid,
+        prid,
         jsonFile->>'fileId',
         jsonFile->>'fileName',
         jsonFile->>'rootdir',

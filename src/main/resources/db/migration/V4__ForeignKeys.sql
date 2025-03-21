@@ -4,18 +4,18 @@ DO $$
 BEGIN
     raise notice 'Create Foreign keys:';
 
-    -- Foreign key for oaifile(projectid) -> project(projectid)
+    -- Foreign key for oaifile(prid) -> projectressource(prid)
     if not exists (
         select constraint_name
         from information_schema.table_constraints
         where table_name = 'oaifile'
             and constraint_schema = 'core'
-            and constraint_name = 'oaifile_fk_project'
+            and constraint_name = 'oaifile_fk_projectressource'
     ) then
-        raise notice 'Creating oaifile_fk_project...';
+        raise notice 'Creating oaifile_fk_projectressource...';
         alter table oaifile
-            add constraint oaifile_fk_project
-            foreign key (projectid) references project(projectid)
+            add constraint oaifile_fk_projectressource
+            foreign key (prid) references projectressource(prid)
             on delete cascade;
     end if;
 
@@ -252,6 +252,35 @@ BEGIN
         alter table sharedproject
             add constraint sharedproject_fk_users
             foreign key (userid) references users(userid)
+            on delete cascade;
+    end if;
+
+    -- Foreign key for usersecret(userid) -> users(userid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'usersecret'
+            and constraint_schema = 'core'
+            and constraint_name = 'usersecret_fk_users'
+    ) then
+        raise notice 'Creating usersecret_fk_users...';
+        alter table usersecret
+            add constraint usersecret_fk_users
+            foreign key (userid) references users(userid)
+            on delete cascade;
+    end if;
+    -- Foreign key for projectressource(projectid) -> project(projectid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'projectressource'
+            and constraint_schema = 'core'
+            and constraint_name = 'projectressource_fk_project'
+    ) then
+        raise notice 'Creating projectressource_fk_project...';
+        alter table projectressource
+            add constraint projectressource_fk_project
+            foreign key (projectid) references project(projectid)
             on delete cascade;
     end if;
 END $$;

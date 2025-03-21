@@ -10,12 +10,12 @@ BEGIN
         ALTER TABLE users ADD CONSTRAINT email_unique UNIQUE (email);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'projectid_filepath_unique') THEN
-        ALTER TABLE oaifile ADD CONSTRAINT projectid_filepath_unique UNIQUE (projectid, filepath);
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'prid_filepath_unique') THEN
+        ALTER TABLE oaifile ADD CONSTRAINT prid_filepath_unique UNIQUE (prid, filepath);
     END IF;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_oaifile_projectid ON oaifile(projectid);
+CREATE INDEX IF NOT EXISTS idx_oaifile_prid ON oaifile(prid);
 CREATE INDEX IF NOT EXISTS idx_vectorstore_oaifile_vsid ON vectorstore_oaifile(vsid);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_assistant_oai_aid ON assistant(oai_aid);
 CREATE INDEX IF NOT EXISTS idx_assistant_projectid ON assistant(projectid);
@@ -28,4 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_discussion_projectid ON discussion(projectid);
 CREATE INDEX IF NOT EXISTS idx_sharedproject_userid ON sharedproject(userid);
 CREATE INDEX IF NOT EXISTS idx_sharedproject_projectid ON sharedproject(projectid);
 CREATE INDEX IF NOT EXISTS idx_vectorestore_projectid ON vectorstore(projectid);
+CREATE INDEX IF NOT EXISTS idx_usersecret_userid ON usersecret(userid);
+CREATE INDEX IF NOT EXISTS idx_projectressource_projectid ON projectressource(projectid);
+
 

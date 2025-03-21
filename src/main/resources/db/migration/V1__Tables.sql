@@ -8,9 +8,24 @@ create table if not exists users (
     role varchar(20) default 'user'
 );
 
+create table if not exists usersecret (
+    userid int not null,
+    prid int not null,
+    label varchar(25) not null,
+    value varchar(255) not null
+);
+
+create table projectressource (
+    prid serial,
+    projectid int not null,
+    uri varchar(512) not null
+);
+
+
+
 create table if not exists oaifile (
     fid serial,
-    projectid int not null,
+    prid int not null,
     oai_f_id varchar(30) not null,
     file_name varchar(255) not null,
     rootdir varchar(1024) not null,
