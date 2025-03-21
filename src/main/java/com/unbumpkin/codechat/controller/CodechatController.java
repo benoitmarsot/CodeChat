@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder;
@@ -33,6 +34,8 @@ import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 import com.unbumpkin.codechat.model.Project;
+import com.unbumpkin.codechat.model.UserSecret;
+import com.unbumpkin.codechat.model.UserSecret.Labels;
 import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.VectorStore;
@@ -40,6 +43,7 @@ import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
 import com.unbumpkin.codechat.repository.DiscussionRepository;
 import com.unbumpkin.codechat.repository.MessageRepository;
 import com.unbumpkin.codechat.repository.ProjectRepository;
+import com.unbumpkin.codechat.repository.ProjectResourceRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
@@ -72,7 +76,10 @@ public class CodechatController {
     private MessageRepository messageRepository;
     @Autowired
     private OaiThreadRepository threadRepository;
-    @Autowired DiscussionRepository discussionRepository;
+    @Autowired
+    DiscussionRepository discussionRepository;
+    @Autowired
+    ProjectResourceRepository projectResourceRepository;
 
     private int getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -110,6 +117,7 @@ public class CodechatController {
         return ResponseEntity.ok("All data deleted");
     }
 
+    @Transactional
     @PostMapping("create-empty-project")
     public ResponseEntity<Project> createEmptyProject(
         @RequestBody CreateProjectRequest request
@@ -138,6 +146,7 @@ public class CodechatController {
         return ResponseEntity.ok(project);
     }
     
+    @Transactional
     @PostMapping("create-project")
     public ResponseEntity<Project> createProject(
         @RequestBody CreateProjectRequest request
@@ -152,11 +161,21 @@ public class CodechatController {
             if(projectId==0){
                 throw new Exception("project could not be created.");
             }
+            Map<Labels,UserSecret> userSecrets = null;
+            //get the current userId
+            if(request.username()!=null && !request.username().isEmpty()){
+                userSecrets = new HashMap<>();
+                userSecrets.put(Labels.username, new UserSecret(Labels.username, request.username()));
+                userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
+    
+            }
+            projectResourceRepository.createResource(projectId, request.repoURL(), userSecrets);
             System.out.println("project created with id: "+projectId);
             String sourcePath = "";
             if(request.repoURL()!=null){
                 pfc=new GithubProjectFileCategorizer(request.username(), request.password());
                 sourcePath=pfc.addRepository(request.repoURL(), request.branch());
+
             } else {
                 throw new Exception("Repo url is required");
             }
@@ -217,7 +236,7 @@ public class CodechatController {
         return vsOaiId;
     }
     private void createVectorStore(
-        CCProjectFileCategorizer pfc, int projectId, String vsName, Types type,
+        CCProjectFileCategorizer pfc, int prId, String vsName, Types type,
         Map<String,CreateVSFileRequest> allFileIds, Map<String,Integer> vectorStorMap,
         int basePathLength
     ) throws IOException {
@@ -231,7 +250,7 @@ public class CodechatController {
         VectorStoreFile vsfService = new VectorStoreFile(vsOaiId);
         for (File file : pfc.getFileSetMap(type)) {
             FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
-            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength, Purposes.assistants, projectId);
+            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength, Purposes.assistants, prId);
             lFiles.add(
                 oaiFile
             );
@@ -253,10 +272,10 @@ public class CodechatController {
             vsfService.createFile(request);
             System.out.println("File id "+oaiFile.fileId()+" added to vector store "+vsOaiId);
         }
-        oaiFileRepository.storeOaiFiles(lFiles, projectId);
+        oaiFileRepository.storeOaiFiles(lFiles, prId);
 
         //(int vsId, String oaiVsId, String vsname, String vsdesc, Instant created, Integer dayskeep, Types type)
-        VectorStore vs = new VectorStore(0, vsOaiId, projectId, vsName, 
+        VectorStore vs = new VectorStore(0, vsOaiId, prId, vsName, 
             "Contains the "+type.name()+" files in the project.", null, type);
         int vsId=vsRepository.storeVectorStore(vs);
         vsRepository.addFiles(vsOaiId, lFileIds);

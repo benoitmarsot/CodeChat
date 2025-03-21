@@ -89,7 +89,7 @@ public abstract class BaseOpenAIClient {
         }
         
         // If we've exhausted all retries, throw the last exception
-        throw new IOException("Request failed after " + maxRetries + " attempts: " + lastException.getMessage(), lastException);
+        throw new IOException("Request failed after " + maxRetries + " attempts: " + (lastException==null?"":lastException.getMessage()), lastException);
     }
     
 }

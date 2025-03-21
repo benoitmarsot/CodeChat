@@ -2,7 +2,7 @@ package com.unbumpkin.codechat.model.openai;
 
 public record OaiFile(
     int fId,
-    int projectId,
+    int prId,
     String fileId, 
     String fileName, 
     String rootdir, 

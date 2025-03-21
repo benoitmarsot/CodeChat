@@ -47,12 +47,12 @@ public class OaiFileRepository {
      * @param projectId: The project ID to which the file belongs.
      * @throws JsonProcessingException
      */
-    public void storeOaiFile(OaiFile file, int projectId) throws JsonProcessingException, DataAccessException {
+    public void storeOaiFile(OaiFile file, int prId) throws JsonProcessingException, DataAccessException {
         ObjectMapper mapper = new ObjectMapper();
         String json = mapper.writeValueAsString(file);
 
         String sql = "call createoaifile(?::json,?)";
-        jdbcTemplate.update(sql, json, projectId);
+        jdbcTemplate.update(sql, json, prId);
     }
 
     /**
@@ -63,16 +63,16 @@ public class OaiFileRepository {
      * @throws DataAccessException
      */
     @Transactional
-    public long storeOaiFiles(Collection<OaiFile> files, int projectId) throws DataAccessException {
+    public long storeOaiFiles(Collection<OaiFile> files, int prId) throws DataAccessException {
         if (files == null || files.isEmpty()) {
             return 0;
         }
-        String csvData = getFilesCSV(files, projectId);
+        String csvData = getFilesCSV(files, prId);
 
         Long result = jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
             try {
                 CopyManager copyManager = new CopyManager(connection.unwrap(BaseConnection.class));
-                String sql = "COPY oaifile (projectid, oai_f_id, file_name, rootdir, filepath, purpose, linecount) "
+                String sql = "COPY oaifile (prid, oai_f_id, file_name, rootdir, filepath, purpose, linecount) "
                            + "FROM STDIN WITH (FORMAT csv, HEADER true, NULL 'null')";
                 try (InputStream inputStream = new ByteArrayInputStream(csvData.getBytes())) {
                     return copyManager.copyIn(sql, inputStream);
@@ -162,7 +162,9 @@ public class OaiFileRepository {
      * @return A list of OaiFiles.
      */
     public List<OaiFile> retrieveFiles(String rootDir, int projectId) {
-        String sql = "SELECT * FROM oaifile WHERE rootdir = ? AND projectid = ?";
+        String sql = "SELECT o.* FROM oaifile o " +
+            "JOIN projectressource pr ON o.prid = pr.prid " +
+            "WHERE o.rootdir = ? AND pr.projectid = ?";
         return jdbcTemplate.query(sql, ps -> {
             ps.setString(1, rootDir);
             ps.setInt(2, projectId);
@@ -175,7 +177,9 @@ public class OaiFileRepository {
      * @return A list of OaiFiles.
      */
     public List<OaiFile> listAllFiles(int projectId) {
-        String sql = "SELECT * FROM oaifile WHERE projectid = ?";
+        String sql = "SELECT o.* FROM oaifile o " +
+            "JOIN projectressource pr ON o.prid = pr.prid " +
+            "WHERE pr.projectid = ?";
         return jdbcTemplate.query(sql, (rs, rowNum) -> OaiFileFrom(rs), projectId);
     }
 
@@ -212,11 +216,11 @@ public class OaiFileRepository {
      * @param projectId The project ID to which the files belong.
      * @return A CSV format string.
      */
-    private String getFilesCSV(Collection<OaiFile> files, int projectId) {
+    private String getFilesCSV(Collection<OaiFile> files, int prId) {
         StringBuilder sb = new StringBuilder();
-        sb.append("projectid,fileid,filename,rootdir,filepath,purpose,linecount\n");
+        sb.append("prid,fileid,filename,rootdir,filepath,purpose,linecount\n");
         for (OaiFile file : files) {
-            sb.append(projectId).append(",");
+            sb.append(prId).append(",");
             sb.append(quoteAndEscape(file.fileId())).append(",");
             sb.append(quoteAndEscape(file.fileName())).append(",");
             sb.append(quoteAndEscape(file.rootdir())).append(",");

@@ -63,9 +63,9 @@ public class OaiFileController {
     @Operation(summary = "Get my repo files")
     @GetMapping("/myrepo")
     public ResponseEntity<Iterable<OaiFile>> getMyRepoFiles(
-        @RequestParam int projectId
+        @RequestParam int prId
     ) throws IOException {
-        List<OaiFile> files = oaiFileRepository.listAllFiles(projectId);
+        List<OaiFile> files = oaiFileRepository.listAllFiles(prId);
         return ResponseEntity.ok(files);
     }
 
@@ -81,7 +81,7 @@ public class OaiFileController {
     @PostMapping("/uploadDir")
     public ResponseEntity<Map<String, OaiFile>> uploadDir(
         @RequestBody UploadDirRequest request,
-        @RequestParam int projectId
+        @RequestParam int prId
     ) throws IOException, SQLException {
         if (!new File(request.rootDir()).isDirectory()) {
             throw new IllegalArgumentException("Invalid directory path: " + request.rootDir());
@@ -91,10 +91,10 @@ public class OaiFileController {
             request.rootDir(),
             request.extension(),
             Purposes.valueOf(request.purpose().toLowerCase()),
-            projectId
+            prId
         );
         try {
-            oaiFileRepository.storeOaiFiles(files.values(), projectId);
+            oaiFileRepository.storeOaiFiles(files.values(), prId);
         } catch (DataAccessException e) {
             for (OaiFile file : files.values()) {
                 oaiFileService.deleteFile(file.fileId());
@@ -109,7 +109,7 @@ public class OaiFileController {
     public ResponseEntity<OaiFile> uploadFile(
         @RequestHeader("Authorization") String authHeader,
         @RequestBody UploadFileRequest request,
-        @RequestParam int projectId
+        @RequestParam int prId
     ) throws IOException {
         if (!new File(request.filepath()).exists()) {
             throw new IllegalArgumentException("Invalid file path: " + request.filepath());
@@ -119,10 +119,10 @@ public class OaiFileController {
             request.filepath(),
             request.rootDir().length(),
             Purposes.valueOf(request.purpose().toLowerCase()),
-            projectId
+            prId
         );
         try {
-            oaiFileRepository.storeOaiFile(file, projectId);
+            oaiFileRepository.storeOaiFile(file, prId);
         } catch (IOException e) {
             oaiFileService.deleteFile(file.fileId());
             throw e;

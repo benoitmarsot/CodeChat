@@ -1,0 +1,200 @@
+package com.unbumpkin.codechat.repository;
+
+import com.unbumpkin.codechat.model.ProjectRessource;
+import com.unbumpkin.codechat.model.UserSecret;
+import com.unbumpkin.codechat.model.UserSecret.Labels;
+import com.unbumpkin.codechat.security.CustomAuthentication;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Repository;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Repository
+public class ProjectResourceRepository {
+    
+    private final JdbcTemplate jdbcTemplate;
+    private final String encryptionKey; 
+    
+    public ProjectResourceRepository(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+        if( System.getenv("USER_SECRET_KEY")!=null) {
+            this.encryptionKey = System.getenv("USER_SECRET_KEY");
+        } else {
+            // Only for development - use a proper key management solution in production
+            this.encryptionKey = "dev-key-1234567890abcdefghijklmn";
+            System.out.println("WARNING: Using default encryption key. Set SECRET_ENCRYPTION_KEY for production.");
+        }
+    }
+
+    private int getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof CustomAuthentication) {
+            return ((CustomAuthentication) authentication).getUserId();
+        }
+        throw new IllegalStateException("No authenticated user found");
+    }
+    
+    public ProjectRessource createResource(int projectId, String uri, Map<Labels, UserSecret> secrets) {
+        // Insert the project resource
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(
+                "INSERT INTO projectressource (projectid, uri) VALUES (?, ?)",
+                Statement.RETURN_GENERATED_KEYS
+            );
+            ps.setInt(1, projectId);
+            ps.setString(2, uri);
+            return ps;
+        }, keyHolder);
+        
+        Map<String, Object> keys = keyHolder.getKeys();
+        if (keys == null) {
+            throw new IllegalStateException("Failed to retrieve generated key for project resource");
+        }
+        int prId = (int) keys.get("prid");
+        
+        // Insert any associated secrets
+        if (secrets != null && !secrets.isEmpty()) {
+            for (UserSecret secret : secrets.values()) {
+                addSecret(prId, getCurrentUserId(), secret.label(), secret.value());
+            }
+        }
+        
+        return new ProjectRessource(prId, projectId, uri, secrets != null ? secrets : new HashMap<>());
+    }
+    
+    public ProjectRessource updateResource(int prId, String uri) {
+        jdbcTemplate.update(
+            "UPDATE projectressource SET uri = ? WHERE prid = ?",
+            uri, prId
+        );
+        
+        // Get the updated resource with its secrets
+        return getResource(prId);
+    }
+    
+    public void deleteResource(int prId) {
+        // Delete associated secrets first (cascading delete should handle this, but being explicit)
+        jdbcTemplate.update("DELETE FROM usersecret WHERE prid = ?", prId);
+        
+        // Delete the resource
+        jdbcTemplate.update("DELETE FROM projectressource WHERE prid = ?", prId);
+    }
+    
+    public ProjectRessource getResource(int prId) {
+        // Get the project resource
+        ProjectRessource resource = jdbcTemplate.queryForObject(
+            "SELECT prid, projectid, uri FROM projectressource WHERE prid = ?",
+            (rs, rowNum) -> new ProjectRessource(
+                rs.getInt("prid"),
+                rs.getInt("projectid"),
+                rs.getString("uri"),
+                new HashMap<>()
+            ),
+            prId
+        );
+        
+        if (resource != null) {
+            // Get the secrets for this resource
+            List<UserSecret> secretsList = jdbcTemplate.query(
+                "SELECT userid, label, value FROM usersecret WHERE prid = ?",
+                (rs, rowNum) -> new UserSecret(
+                    rs.getInt("userid"),
+                    Labels.valueOf(rs.getString("label")),
+                    decryptValue(rs.getString("value"))
+                ),
+                prId
+            );
+            
+            // Convert the list to a map
+            Map<Labels, UserSecret> secretsMap = new HashMap<>();
+            for (UserSecret secret : secretsList) {
+                secretsMap.put(secret.label(), secret);
+            }
+            
+            // Create a new ProjectRessource with the secrets map
+            return new ProjectRessource(
+                resource.prId(),
+                resource.projectId(),
+                resource.uri(),
+                secretsMap
+            );
+        }
+        
+        return null;
+    }
+    
+    public void updateSecret(int prId, int userId, String label, String value) {
+        if(value == null) {
+            deleteSecret(prId, label);
+            return;
+        }
+        jdbcTemplate.update(
+            "UPDATE usersecret SET value = ? WHERE prid = ? AND userid = ? AND label = ?",
+            encryptValue(value), prId, userId, label
+        );
+    }
+    
+    public void deleteSecret(int prId, String label) {
+        jdbcTemplate.update(
+            "DELETE FROM usersecret WHERE prid = ? AND label = ?",
+            prId, label
+        );
+    }
+    
+    public void addSecret(int prId, int userId, Labels label, String value) {
+        if(value == null) {
+            return;
+        }
+        jdbcTemplate.update(
+            "INSERT INTO usersecret (userid, prid, label, value) VALUES (?, ?, ?, ?) " +
+            "ON CONFLICT (userid, prid, label) DO UPDATE SET value = EXCLUDED.value",
+            userId, prId, label.toString(), encryptValue(value)
+        );
+    }
+    
+    // Helper methods for encryption and decryption
+    // TODO: Consider using a more secure approach than having key in ./zshrc
+    //       aws KMS? (maybe Linus)
+    
+    private String encryptValue(String value) {
+        try {
+            SecretKeySpec secretKey = new SecretKeySpec(encryptionKey.getBytes(StandardCharsets.UTF_8), "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            
+            byte[] encryptedBytes = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(encryptedBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("Error encrypting value", e);
+        }
+    }
+    
+    private String decryptValue(String encryptedValue) {
+        try {
+            SecretKeySpec secretKey = new SecretKeySpec(encryptionKey.getBytes(StandardCharsets.UTF_8), "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.DECRYPT_MODE, secretKey);
+            
+            byte[] decodedValue = Base64.getDecoder().decode(encryptedValue);
+            byte[] decryptedBytes = cipher.doFinal(decodedValue);
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new RuntimeException("Error decrypting value", e);
+        }
+    }
+}

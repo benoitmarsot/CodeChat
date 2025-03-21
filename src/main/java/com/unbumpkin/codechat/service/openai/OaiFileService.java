@@ -35,25 +35,29 @@ public class OaiFileService  extends BaseOpenAIClient {
     /**
      * Upload recursively all files in a directory with a specific extension, specifically for Assistants 
      * @param rootDir: the root directory to start the search
+     * @param basePathLen: the length of the base path to remove from the file path
      * @param extension: the extension of the files to upload
+     * @param prId: the project ressource id
      * @return a map of the file id and the OaiFile object
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, int basePathLen, String extension, int projectId
+        String rootDir, int basePathLen, String extension, int prId
     ) throws IOException {
-        return this.uploadFiles(rootDir, extension, Purposes.assistants, projectId);
+        return this.uploadFiles(rootDir, extension, Purposes.assistants, prId);
     }
     /**
      * Upload recursively all files in a directory with a specific extension 
      * @param rootDir: the root directory to start the search
+     * @param basePathLen: the length of the base path to remove from the file path
      * @param extension: the extension of the files to upload
+     * @param prId: the project ressource id
      * @param purpose: the purpose of the file upload
      * @return a map of the file id and the OaiFile object
      * @throws IOException
      */
     public Map<String,OaiFile> uploadFiles(
-        String rootDir, String extension, Purposes purpose, int projectId
+        String rootDir, String extension, Purposes purpose, int prId
     ) throws IOException {
         //recursivly read a directory and find files with a specific extension
         List<File> files= FileUtils.listFiles(rootDir, Set.of(extension));
@@ -65,7 +69,7 @@ public class OaiFileService  extends BaseOpenAIClient {
                 System.out.println("File "+file.getName()+" is empty, skipping...");
                 continue;
             }
-            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), rootDir.length(), purpose, projectId);
+            OaiFile oaiFile=this.uploadFile(file.getAbsolutePath(), rootDir.length(), purpose, prId);
             fileIdMap.put(oaiFile.fileId(), oaiFile);
             System.out.println(String.format("File %s uploaded with id: %s...",file,oaiFile.fileId()));
         }
@@ -103,7 +107,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @return the OaiFile object
      * @throws IOException
      */
-    public OaiFile uploadFile(String filePath, int basePathLen, Purposes purpose, int projectId) throws IOException {
+    public OaiFile uploadFile(String filePath, int basePathLen, Purposes purpose, int prId) throws IOException {
         String url = API_URL;
 
         File file=new java.io.File(filePath);
@@ -121,7 +125,7 @@ public class OaiFileService  extends BaseOpenAIClient {
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .build();
         OaiFile oaiFile = new OaiFile(0,
-            projectId,
+            prId,
             this.executeRequest(request).get("id").asText(),
             Paths.get(filePath).getFileName().toString(),
             Paths.get(filePath).getParent().toString().substring(basePathLen),
