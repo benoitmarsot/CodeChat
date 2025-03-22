@@ -40,13 +40,15 @@ public class FileUtils {
             }
         }
     }
-    public static String getFileExtension(File file) {
-        String name = file.getName();
-        int lastIndexOf = name.lastIndexOf(".");
+    public static String getFileExtension(String fileName) {
+        int lastIndexOf = fileName.lastIndexOf(".");
         if (lastIndexOf == -1) {
             return "";
         }
-        return name.substring(lastIndexOf+1);
+        return fileName.substring(lastIndexOf+1);
+    }
+    public static String getFileExtension(File file) {
+        return getFileExtension(file.getName());
     }
     public static int countLines(String path) throws IOException {
         return countLines(new File(path));

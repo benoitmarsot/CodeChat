@@ -5,17 +5,24 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.unbumpkin.codechat.model.Project;
+import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.repository.ProjectRepository;
+import com.unbumpkin.codechat.repository.ProjectResourceRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.service.openai.AssistantService;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
 
+import io.github.classgraph.Resource;
+
 import java.util.List;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 
 
@@ -65,6 +72,7 @@ public class ProjectController {
         projectRepository.markForDeletion(projectId);
         return ResponseEntity.ok().build();
     }
+    
     
     // todo: move that delete all to codechat controller (maybe)
     @DeleteMapping("/{projectId}")

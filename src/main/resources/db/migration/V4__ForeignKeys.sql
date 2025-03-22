@@ -4,18 +4,18 @@ DO $$
 BEGIN
     raise notice 'Create Foreign keys:';
 
-    -- Foreign key for oaifile(prid) -> projectressource(prid)
+    -- Foreign key for oaifile(prid) -> projectresource(prid)
     if not exists (
         select constraint_name
         from information_schema.table_constraints
         where table_name = 'oaifile'
             and constraint_schema = 'core'
-            and constraint_name = 'oaifile_fk_projectressource'
+            and constraint_name = 'oaifile_fk_projectresource'
     ) then
-        raise notice 'Creating oaifile_fk_projectressource...';
+        raise notice 'Creating oaifile_fk_projectresource...';
         alter table oaifile
-            add constraint oaifile_fk_projectressource
-            foreign key (prid) references projectressource(prid)
+            add constraint oaifile_fk_projectresource
+            foreign key (prid) references projectresource(prid)
             on delete cascade;
     end if;
 
@@ -269,17 +269,17 @@ BEGIN
             foreign key (userid) references users(userid)
             on delete cascade;
     end if;
-    -- Foreign key for projectressource(projectid) -> project(projectid)
+    -- Foreign key for projectresource(projectid) -> project(projectid)
     if not exists (
         select constraint_name
         from information_schema.table_constraints
-        where table_name = 'projectressource'
+        where table_name = 'projectresource'
             and constraint_schema = 'core'
-            and constraint_name = 'projectressource_fk_project'
+            and constraint_name = 'projectresource_fk_project'
     ) then
-        raise notice 'Creating projectressource_fk_project...';
-        alter table projectressource
-            add constraint projectressource_fk_project
+        raise notice 'Creating projectresource_fk_project...';
+        alter table projectresource
+            add constraint projectresource_fk_project
             foreign key (projectid) references project(projectid)
             on delete cascade;
     end if;

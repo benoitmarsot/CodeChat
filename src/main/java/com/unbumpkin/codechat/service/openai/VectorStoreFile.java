@@ -22,7 +22,7 @@ public class VectorStoreFile extends BaseOpenAIClient {
         this.vectorStoreId = vectorStoreId;
     }
 
-    public String createFile( CreateVSFileRequest createVSFileRequest) throws IOException {
+    public String addFile( CreateVSFileRequest createVSFileRequest) throws IOException {
         String url = String.format(API_URL, vectorStoreId);
         ObjectMapper mapper = new ObjectMapper();
         mapper.setSerializationInclusion(Include.NON_NULL);
@@ -74,7 +74,7 @@ public class VectorStoreFile extends BaseOpenAIClient {
         return executeRequest(request);
     }
 
-    public void deleteFile( String fileId) throws IOException {
+    public void removeFile( String fileId) throws IOException {
         String url = String.format(API_URL_WITH_FILE, vectorStoreId, fileId);
 
         Request request = new Request.Builder()

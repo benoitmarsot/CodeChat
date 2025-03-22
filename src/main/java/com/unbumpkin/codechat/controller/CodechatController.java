@@ -24,6 +24,7 @@ import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.GithubProjectFileCategorizer;
 import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer;
+import static com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.getFileType;
 import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
 import com.unbumpkin.codechat.util.ExtMimeType;
@@ -31,15 +32,18 @@ import com.unbumpkin.codechat.util.FileUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
+import com.unbumpkin.codechat.dto.GitHubChangeTracker;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 import com.unbumpkin.codechat.model.Project;
+import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.UserSecret;
 import com.unbumpkin.codechat.model.UserSecret.Labels;
 import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
+import com.unbumpkin.codechat.model.openai.VectorStore.VectorStoreResponse;
 import com.unbumpkin.codechat.repository.DiscussionRepository;
 import com.unbumpkin.codechat.repository.MessageRepository;
 import com.unbumpkin.codechat.repository.ProjectRepository;
@@ -48,9 +52,11 @@ import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
+import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -80,6 +86,7 @@ public class CodechatController {
     DiscussionRepository discussionRepository;
     @Autowired
     ProjectResourceRepository projectResourceRepository;
+    
 
     private int getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -145,6 +152,80 @@ public class CodechatController {
         Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
         return ResponseEntity.ok(project);
     }
+
+    @Transactional
+    @PostMapping("{projectId}/refresh-repo")
+    public ResponseEntity<Void> refreshRepo(
+        @PathVariable int projectId
+    ) {
+        GithubProjectFileCategorizer pfc=new GithubProjectFileCategorizer();
+        List<ProjectResource> resources = projectResourceRepository.getResources(projectId);
+        Map<Types,RepoVectorStoreResponse> vsMap = CCProjectFileCategorizer.getVectorStoretMap(
+            vsRepository.getVectorStoresByProjectId(projectId)
+        );
+        Map<Types,VectorStoreFile> vsfServicesMap = new HashMap<>(3);
+        vsfServicesMap.put(Types.code, new VectorStoreFile(vsMap.get(Types.code).vsid()));
+        vsfServicesMap.put(Types.config, new VectorStoreFile(vsMap.get(Types.config).vsid()));
+        vsfServicesMap.put(Types.markup, new VectorStoreFile(vsMap.get(Types.markup).vsid()));
+        VectorStoreFile vsfServicesAll = new VectorStoreFile(vsMap.get(Types.all).vsid());
+
+        for (ProjectResource resource : resources) {
+            if (resource.uri() != null) {
+                try {
+                    String branch=resource.secrets().get(Labels.branch).value();
+                    String oldCommitHash=resource.secrets().get(Labels.commitHash).value();
+                    String commitHash=pfc.getLatestCommitHash(resource.uri(), branch);
+                    if(commitHash.equals(oldCommitHash)){
+                        continue;
+                    }
+                    GitHubChangeTracker changes=pfc.getChangesSinceCommitViaGitHubAPI( 
+                        resource.uri(), oldCommitHash, branch
+                    );
+                    for (String deletedFile : changes.deletedFiles()) {
+                        OaiFile oaiFile = oaiFileRepository.getOaiFileByPath(deletedFile, resource.prId());
+                        if(oaiFile!=null){
+                            Types fileType=getFileType(oaiFile.fileName());
+                            vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
+                            vsfServicesAll.removeFile(oaiFile.fileId());
+                            oaiFileRepository.deleteFile(oaiFile.fileId());
+                            System.out.println(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from "+fileType.toString()+" vector store and deleted.");
+                        }
+                    }
+
+                    for (String addedFile : changes.addedFiles()) {
+                        File file = new File(addedFile);
+                        FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+                        OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), 0, Purposes.assistants, projectId);
+                        System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
+                        String oldExt = FileUtils.getFileExtension(desc.oldFile());
+                        Types fileType=getFileType(desc.oldFile().getName());
+                        CreateVSFileRequest request = new CreateVSFileRequest(
+                            oaiFile.fileId(), new HashMap<>() {{
+                                put("name", desc.oldFile().getName());
+                                put("path", desc.oldFile().getAbsolutePath());
+                                put("extension", oldExt);
+                                // Should I put the "."? If so put it in the assistant instructions
+                                put("mime-type", ExtMimeType.getMimeType(oldExt));
+                                put("nbLines", String.valueOf(FileUtils.countLines(desc.oldFile())));
+                                put("type", fileType.name());
+                            }}
+                        );
+                        vsfServicesMap.get(fileType).addFile( request);
+                        vsfServicesAll.addFile( request);
+                        System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
+                    }
+                    pfc.addRepository(resource.uri(), resource.secrets().get(Labels.branch).value());
+                    projectResourceRepository.updateSecret(projectId, Labels.commitHash, commitHash);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            
+        }
+        
+        return ResponseEntity.ok().build();
+    }
+
     
     @Transactional
     @PostMapping("create-project")
@@ -161,35 +242,35 @@ public class CodechatController {
             if(projectId==0){
                 throw new Exception("project could not be created.");
             }
-            Map<Labels,UserSecret> userSecrets = null;
-            //get the current userId
-            if(request.username()!=null && !request.username().isEmpty()){
-                userSecrets = new HashMap<>();
-                userSecrets.put(Labels.username, new UserSecret(Labels.username, request.username()));
-                userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
-    
-            }
-            projectResourceRepository.createResource(projectId, request.repoURL(), userSecrets);
             System.out.println("project created with id: "+projectId);
             String sourcePath = "";
             if(request.repoURL()!=null){
                 pfc=new GithubProjectFileCategorizer(request.username(), request.password());
                 sourcePath=pfc.addRepository(request.repoURL(), request.branch());
-
             } else {
                 throw new Exception("Repo url is required");
             }
+            //Create project resource
+            Map<Labels,UserSecret> userSecrets = new HashMap<>();
+            if(request.username()!=null && !request.username().isEmpty()){
+                userSecrets.put(Labels.username, new UserSecret(Labels.username, request.username()));
+                userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
+            }
+            userSecrets.put(Labels.branch, new UserSecret(Labels.branch, request.branch()));
+            userSecrets.put(Labels.commitHash, new UserSecret(Labels.commitHash, pfc.getCommitHash()));
+            ProjectResource pr=projectResourceRepository.createResource(projectId, request.repoURL(), userSecrets);
+
             int basePathLength = sourcePath.length();
             Map<String,Integer> vectorStorMap = new LinkedHashMap<>();
             Map<String,CreateVSFileRequest> allFileIds = new HashMap<>();
             //Here the order is important because the assistant will use the vector stores in this order
             // Code, Markup, then Config
             System.out.println("Uploading and create vector store for code files...");
-            createVectorStore(pfc, projectId, "vsCode", Types.code, allFileIds, vectorStorMap, basePathLength);
+            createVectorStore(pfc, pr.prId(), projectId, "vsCode", Types.code, allFileIds, vectorStorMap, basePathLength);
             System.out.println("Uploading and create vector store for markup files...");
-            createVectorStore(pfc, projectId, "vsMarkup", Types.markup, allFileIds, vectorStorMap, basePathLength);
+            createVectorStore(pfc, pr.prId(), projectId, "vsMarkup", Types.markup, allFileIds, vectorStorMap, basePathLength);
             System.out.println("Uploading and create vector store for config files...");
-            createVectorStore(pfc, projectId, "vsConfig", Types.config, allFileIds, vectorStorMap, basePathLength);
+            createVectorStore(pfc, pr.prId(), projectId, "vsConfig", Types.config, allFileIds, vectorStorMap, basePathLength);
             System.out.println("Create vector store for all files...");
             String vsAllOaiId=vsService.createVectorStore(
                 new VectorStore("vsAll","contain all the files in the project.", 
@@ -203,7 +284,7 @@ public class CodechatController {
 
             for (String oaiFileId : allFileIds.keySet()) {
 
-                vsfService.createFile(allFileIds.get(oaiFileId));
+                vsfService.addFile(allFileIds.get(oaiFileId));
                 System.out.println("File id "+oaiFileId+" added to global vector store "+vsAllOaiId);
 
             }
@@ -236,7 +317,7 @@ public class CodechatController {
         return vsOaiId;
     }
     private void createVectorStore(
-        CCProjectFileCategorizer pfc, int prId, String vsName, Types type,
+        CCProjectFileCategorizer pfc, int prId, int projectId, String vsName, Types type,
         Map<String,CreateVSFileRequest> allFileIds, Map<String,Integer> vectorStorMap,
         int basePathLength
     ) throws IOException {
@@ -269,13 +350,13 @@ public class CodechatController {
                 }}
             );
             allFileIds.put(oaiFile.fileId(), request);
-            vsfService.createFile(request);
+            vsfService.addFile(request);
             System.out.println("File id "+oaiFile.fileId()+" added to vector store "+vsOaiId);
         }
         oaiFileRepository.storeOaiFiles(lFiles, prId);
 
         //(int vsId, String oaiVsId, String vsname, String vsdesc, Instant created, Integer dayskeep, Types type)
-        VectorStore vs = new VectorStore(0, vsOaiId, prId, vsName, 
+        VectorStore vs = new VectorStore(0, vsOaiId, projectId, vsName, 
             "Contains the "+type.name()+" files in the project.", null, type);
         int vsId=vsRepository.storeVectorStore(vs);
         vsRepository.addFiles(vsOaiId, lFileIds);

@@ -29,6 +29,6 @@ CREATE INDEX IF NOT EXISTS idx_sharedproject_userid ON sharedproject(userid);
 CREATE INDEX IF NOT EXISTS idx_sharedproject_projectid ON sharedproject(projectid);
 CREATE INDEX IF NOT EXISTS idx_vectorestore_projectid ON vectorstore(projectid);
 CREATE INDEX IF NOT EXISTS idx_usersecret_userid ON usersecret(userid);
-CREATE INDEX IF NOT EXISTS idx_projectressource_projectid ON projectressource(projectid);
+CREATE INDEX IF NOT EXISTS idx_projectresource_projectid ON projectresource(projectid);
 
 

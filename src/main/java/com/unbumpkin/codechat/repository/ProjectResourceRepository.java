@@ -1,6 +1,6 @@
 package com.unbumpkin.codechat.repository;
 
-import com.unbumpkin.codechat.model.ProjectRessource;
+import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.UserSecret;
 import com.unbumpkin.codechat.model.UserSecret.Labels;
 import com.unbumpkin.codechat.security.CustomAuthentication;
@@ -47,13 +47,13 @@ public class ProjectResourceRepository {
         throw new IllegalStateException("No authenticated user found");
     }
     
-    public ProjectRessource createResource(int projectId, String uri, Map<Labels, UserSecret> secrets) {
+    public ProjectResource createResource(int projectId, String uri, Map<Labels, UserSecret> secrets) {
         // Insert the project resource
         KeyHolder keyHolder = new GeneratedKeyHolder();
         
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                "INSERT INTO projectressource (projectid, uri) VALUES (?, ?)",
+                "INSERT INTO projectresource (projectid, uri) VALUES (?, ?)",
                 Statement.RETURN_GENERATED_KEYS
             );
             ps.setInt(1, projectId);
@@ -70,16 +70,16 @@ public class ProjectResourceRepository {
         // Insert any associated secrets
         if (secrets != null && !secrets.isEmpty()) {
             for (UserSecret secret : secrets.values()) {
-                addSecret(prId, getCurrentUserId(), secret.label(), secret.value());
+                addSecret(prId, secret.label(), secret.value());
             }
         }
         
-        return new ProjectRessource(prId, projectId, uri, secrets != null ? secrets : new HashMap<>());
+        return new ProjectResource(prId, projectId, uri, secrets != null ? secrets : new HashMap<>());
     }
     
-    public ProjectRessource updateResource(int prId, String uri) {
+    public ProjectResource updateResource(int prId, String uri) {
         jdbcTemplate.update(
-            "UPDATE projectressource SET uri = ? WHERE prid = ?",
+            "UPDATE projectresource SET uri = ? WHERE prid = ?",
             uri, prId
         );
         
@@ -92,14 +92,64 @@ public class ProjectResourceRepository {
         jdbcTemplate.update("DELETE FROM usersecret WHERE prid = ?", prId);
         
         // Delete the resource
-        jdbcTemplate.update("DELETE FROM projectressource WHERE prid = ?", prId);
+        jdbcTemplate.update("DELETE FROM projectresource WHERE prid = ?", prId);
+    }
+    /**
+     * Get all resources for a project
+     * @param projectId The project ID
+     * @return A list of ProjectResource objects
+     */
+    public List<ProjectResource> getResources(int projectId) {
+        // First get all resources
+        List<ProjectResource> resources = jdbcTemplate.query(
+            "SELECT prid, projectid, uri FROM projectresource WHERE projectid = ?",
+            (rs, rowNum) -> new ProjectResource(
+                rs.getInt("prid"),
+                rs.getInt("projectid"),
+                rs.getString("uri"),
+                new HashMap<>()
+            ),
+            projectId
+        );
+        
+        // For each resource, fetch its secrets
+        for (int i = 0; i < resources.size(); i++) {
+            ProjectResource resource = resources.get(i);
+            
+            // Get the secrets for this resource
+            List<UserSecret> secretsList = jdbcTemplate.query(
+                "SELECT userid, label, value FROM usersecret WHERE prid = ?",
+                (rs, rowNum) -> new UserSecret(
+                    rs.getInt("userid"),
+                    Labels.valueOf(rs.getString("label")),
+                    decryptValue(rs.getString("value"))
+                ),
+                resource.prId()
+            );
+            
+            // Convert the list to a map
+            Map<Labels, UserSecret> secretsMap = new HashMap<>();
+            for (UserSecret secret : secretsList) {
+                secretsMap.put(secret.label(), secret);
+            }
+            
+            // Create a new ProjectResource with the secrets map
+            resources.set(i, new ProjectResource(
+                resource.prId(),
+                resource.projectId(),
+                resource.uri(),
+                secretsMap
+            ));
+        }
+        
+        return resources;
     }
     
-    public ProjectRessource getResource(int prId) {
+    public ProjectResource getResource(int prId) {
         // Get the project resource
-        ProjectRessource resource = jdbcTemplate.queryForObject(
-            "SELECT prid, projectid, uri FROM projectressource WHERE prid = ?",
-            (rs, rowNum) -> new ProjectRessource(
+        ProjectResource resource = jdbcTemplate.queryForObject(
+            "SELECT prid, projectid, uri FROM projectresource WHERE prid = ?",
+            (rs, rowNum) -> new ProjectResource(
                 rs.getInt("prid"),
                 rs.getInt("projectid"),
                 rs.getString("uri"),
@@ -126,8 +176,8 @@ public class ProjectResourceRepository {
                 secretsMap.put(secret.label(), secret);
             }
             
-            // Create a new ProjectRessource with the secrets map
-            return new ProjectRessource(
+            // Create a new Projectresource with the secrets map
+            return new ProjectResource(
                 resource.prId(),
                 resource.projectId(),
                 resource.uri(),
@@ -138,28 +188,30 @@ public class ProjectResourceRepository {
         return null;
     }
     
-    public void updateSecret(int prId, int userId, String label, String value) {
+    public void updateSecret(int prId, Labels label, String value) {
         if(value == null) {
             deleteSecret(prId, label);
             return;
         }
+        int userId = getCurrentUserId();
         jdbcTemplate.update(
             "UPDATE usersecret SET value = ? WHERE prid = ? AND userid = ? AND label = ?",
-            encryptValue(value), prId, userId, label
+            encryptValue(value), prId, userId, label.toString()
         );
     }
     
-    public void deleteSecret(int prId, String label) {
+    public void deleteSecret(int prId, Labels label) {
         jdbcTemplate.update(
             "DELETE FROM usersecret WHERE prid = ? AND label = ?",
-            prId, label
+            prId, label.toString()
         );
     }
     
-    public void addSecret(int prId, int userId, Labels label, String value) {
+    public void addSecret(int prId, Labels label, String value) {
         if(value == null) {
             return;
         }
+        int userId = getCurrentUserId();
         jdbcTemplate.update(
             "INSERT INTO usersecret (userid, prid, label, value) VALUES (?, ?, ?, ?) " +
             "ON CONFLICT (userid, prid, label) DO UPDATE SET value = EXCLUDED.value",

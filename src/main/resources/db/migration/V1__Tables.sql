@@ -15,7 +15,7 @@ create table if not exists usersecret (
     value varchar(255) not null
 );
 
-create table projectressource (
+create table projectresource (
     prid serial,
     projectid int not null,
     uri varchar(512) not null

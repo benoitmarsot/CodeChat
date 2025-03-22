@@ -93,6 +93,7 @@ public class VectorStoreService extends BaseOpenAIClient {
             e.printStackTrace();
         }
     }
+
     /**
      * Lists all vector stores.
      * @return

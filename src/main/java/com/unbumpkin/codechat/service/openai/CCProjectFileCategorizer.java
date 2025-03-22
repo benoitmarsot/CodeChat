@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.util.FileUtils;
 
 public class CCProjectFileCategorizer {
@@ -41,6 +42,14 @@ public class CCProjectFileCategorizer {
         .collect(Collectors.toSet()
     );
 
+    public static Map<Types, RepoVectorStoreResponse> getVectorStoretMap(List<RepoVectorStoreResponse> vectorStores) {
+        Map<Types, RepoVectorStoreResponse> vectorStoreMap = new HashMap<>();
+        for (RepoVectorStoreResponse vectorStore : vectorStores) {
+            vectorStoreMap.put(vectorStore.type(), vectorStore);
+        }
+        return vectorStoreMap;
+    }
+
     private final Map<Types, Set<File>> fileSetMap;
 
     public CCProjectFileCategorizer() {
@@ -61,15 +70,22 @@ public class CCProjectFileCategorizer {
         }
         return dir.getAbsolutePath();
     }
-    public void addFile(File file) {
-        String extension = FileUtils.getFileExtension(file);
+    public static Types getFileType(File file) {
+        return getFileType(file.getName());
+    }
+    public static Types getFileType(String fileName) {
+        String extension = FileUtils.getFileExtension(fileName);
         if (CodeExtensions.contains(extension)) {
-            fileSetMap.get(Types.code).add(file);
+            return Types.code;
         } else if (MarkupExtensions.contains(extension)) {
-            fileSetMap.get(Types.markup).add(file);
+            return Types.markup;
         } else if (ConfigExtensions.contains(extension)) {
-            fileSetMap.get(Types.config).add(file);
+            return Types.config;
         }
+        return null;
+    }
+    public void addFile(File file) {
+        fileSetMap.get(getFileType(file)).add(file);
     }
     public Set<File> getFileSetMap(Types type) {
         return this.fileSetMap.get(type);
@@ -79,5 +95,6 @@ public class CCProjectFileCategorizer {
             .flatMap(type -> fileSetMap.get(type).stream())
             .collect(Collectors.toSet());
     }
+
 
 }

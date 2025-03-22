@@ -54,6 +54,11 @@ public class OaiFileRepository {
         String sql = "call createoaifile(?::json,?)";
         jdbcTemplate.update(sql, json, prId);
     }
+    public OaiFile getOaiFileByPath(String path,int prId) {
+        String sql = "SELECT * FROM oaifile WHERE filepath = ? AND prid = ?";
+        return jdbcTemplate
+            .queryForObject(sql, (rs, rowNum) -> OaiFileFrom(rs), path, prId);
+    }
 
     /**
      * Saves the uploaded files to the database.

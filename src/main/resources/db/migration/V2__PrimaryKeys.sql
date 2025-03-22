@@ -46,7 +46,7 @@ BEGIN
         ALTER TABLE usersecret ADD CONSTRAINT usersecret_pkey PRIMARY KEY (userid,prid,label);
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'projectressource_pkey') THEN
-        ALTER TABLE projectressource ADD CONSTRAINT projectressource_pkey PRIMARY KEY (prid);
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'projectresource_pkey') THEN
+        ALTER TABLE projectresource ADD CONSTRAINT projectresource_pkey PRIMARY KEY (prid);
     END IF;
 END $$;

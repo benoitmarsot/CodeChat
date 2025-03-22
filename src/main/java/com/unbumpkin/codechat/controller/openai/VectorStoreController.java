@@ -154,7 +154,7 @@ public class VectorStoreController {
             throw new IllegalArgumentException("VectorStore already contains this file");
         }
         VectorStoreFile vectorStoreFile = new VectorStoreFile(vsOaiId);
-        vectorStoreFile.createFile(new CreateVSFileRequest(fOaiId, null));
+        vectorStoreFile.addFile(new CreateVSFileRequest(fOaiId, null));
         vectorStoreRepository.addFile(vsOaiId, fOaiId);
 
         return ResponseEntity.ok().build();
@@ -188,7 +188,7 @@ public class VectorStoreController {
         @PathVariable String vsid, @PathVariable String fileid
     ) throws IOException {
         VectorStoreFile vectorStoreFile = new VectorStoreFile(vsid);        
-        vectorStoreFile.deleteFile(fileid);
+        vectorStoreFile.removeFile(fileid);
 
         vectorStoreRepository.removeFile(vsid, fileid);
         return ResponseEntity.ok().build();
