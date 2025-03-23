@@ -230,5 +230,9 @@ public class ProjectRepository {
         // Delete all records in the project table
         String deleteProjectsSql = "DELETE FROM project";
         jdbcTemplate.update(deleteProjectsSql);
+
+        // Delete all records in usersecret table
+        String deleteSecretsSql = "DELETE FROM usersecret";
+        jdbcTemplate.update(deleteSecretsSql);
     }
 }

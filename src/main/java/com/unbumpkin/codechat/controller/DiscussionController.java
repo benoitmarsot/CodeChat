@@ -24,7 +24,7 @@ import com.unbumpkin.codechat.service.openai.ChatService;
 import com.unbumpkin.codechat.service.openai.OaiMessageService;
 import com.unbumpkin.codechat.service.openai.OaiRunService;
 import com.unbumpkin.codechat.service.openai.OaiThreadService;
-import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Roles;
 

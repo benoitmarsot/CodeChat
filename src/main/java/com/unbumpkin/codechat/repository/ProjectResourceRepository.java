@@ -218,6 +218,13 @@ public class ProjectResourceRepository {
             userId, prId, label.toString(), encryptValue(value)
         );
     }
+
+    public void removeProjectRessourceSecrets(int prId) {
+        jdbcTemplate.update(
+            "DELETE FROM usersecret WHERE prid = ?",
+            prId
+        );
+    }
     
     // Helper methods for encryption and decryption
     // TODO: Consider using a more secure approach than having key in ./zshrc

@@ -205,7 +205,7 @@ public class OaiFileRepository {
     private OaiFile OaiFileFrom(ResultSet rs) throws SQLException {
         return new OaiFile(
             rs.getInt("fid"),
-            rs.getInt("projectid"),
+            rs.getInt("prid"),
             rs.getString("oai_f_id"),
             rs.getString("file_name"),
             rs.getString("rootdir"),

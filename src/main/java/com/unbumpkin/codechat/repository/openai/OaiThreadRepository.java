@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 import com.unbumpkin.codechat.dto.request.AddOaiThreadRequest;
 import com.unbumpkin.codechat.model.openai.OaiThread;
 import com.unbumpkin.codechat.security.CustomAuthentication;
-import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 
 @Repository
 public class OaiThreadRepository {

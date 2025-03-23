@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.util.FileUtils;
 
-public class CCProjectFileCategorizer {
+public class CCProjectFileManager {
     public enum Types {
         code, markup, config, all
     }
@@ -52,7 +52,7 @@ public class CCProjectFileCategorizer {
 
     private final Map<Types, Set<File>> fileSetMap;
 
-    public CCProjectFileCategorizer() {
+    public CCProjectFileManager() {
         this.fileSetMap = new HashMap<>();
         fileSetMap.put(Types.code, new HashSet<>());
         fileSetMap.put(Types.config, new HashSet<>());

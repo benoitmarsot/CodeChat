@@ -35,21 +35,21 @@ import com.unbumpkin.codechat.dto.GitHubChangeTracker.GitHubChange;
 
 // This class extends the ProjectFileCategorizer 
 // and adds functionality to clone a GitHub repository and categorize its files.
-public class GithubProjectFileCategorizer extends CCProjectFileCategorizer {
+public class GithubRepoContentManager extends CCProjectFileManager {
 
     private final String username;
     private final String password;
     private File tempDir;
     private String commitHash;
 
-    public GithubProjectFileCategorizer(String username, String password) {
+    public GithubRepoContentManager(String username, String password) {
         super();
         this.tempDir = null;
         this.username = username;
         this.password = password;
         this.commitHash = null;
     }
-    public GithubProjectFileCategorizer() {
+    public GithubRepoContentManager() {
         super();
         this.tempDir = null;
         this.username = null;
@@ -58,8 +58,6 @@ public class GithubProjectFileCategorizer extends CCProjectFileCategorizer {
     public String getCommitHash() {
         return commitHash;
     }
-
-
 
     /**
      * Clones the given GitHub repository and categorizes its files using the inherited addDir method.
@@ -229,9 +227,10 @@ public class GithubProjectFileCategorizer extends CCProjectFileCategorizer {
                     case "modified":
                         // The GitHubChangeTracker has a MODIFIED type, so use it directly
                         changes.add(new GitHubChange(filePath, ChangeTypes.MODIFIED));
-                        // For tracking purposes, we also consider this an add (since we're downloading it)
+                        // For tracking purposes, we also consider this an add and delete (since we're downloading it)
                         addedFiles.add(filePath);
-                        
+                        deletedFiles.add(filePath);
+
                         // Download and save the file
                         downloadFileContent(fileJson, outputDir, filePath);
                         break;
@@ -288,6 +287,10 @@ public class GithubProjectFileCategorizer extends CCProjectFileCategorizer {
             }
             throw new IOException("Error processing GitHub API response: " + e.getMessage(), e);
         }
+    }
+
+    public String getTempDir() {
+        return tempDir.getAbsolutePath();
     }
 
 

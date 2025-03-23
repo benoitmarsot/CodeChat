@@ -22,10 +22,10 @@ import com.unbumpkin.codechat.service.openai.OaiFileService;
 import com.unbumpkin.codechat.service.openai.VectorStoreFile;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
-import com.unbumpkin.codechat.service.openai.GithubProjectFileCategorizer;
-import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer;
-import static com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.getFileType;
-import com.unbumpkin.codechat.service.openai.CCProjectFileCategorizer.Types;
+import com.unbumpkin.codechat.service.openai.GithubRepoContentManager;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
+import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFileType;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
 import com.unbumpkin.codechat.util.ExtMimeType;
 import com.unbumpkin.codechat.util.FileUtils;
@@ -157,10 +157,10 @@ public class CodechatController {
     @PostMapping("{projectId}/refresh-repo")
     public ResponseEntity<Void> refreshRepo(
         @PathVariable int projectId
-    ) {
-        GithubProjectFileCategorizer pfc=new GithubProjectFileCategorizer();
+    ) throws Exception {
+        GithubRepoContentManager pfc=new GithubRepoContentManager();
         List<ProjectResource> resources = projectResourceRepository.getResources(projectId);
-        Map<Types,RepoVectorStoreResponse> vsMap = CCProjectFileCategorizer.getVectorStoretMap(
+        Map<Types,RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
             vsRepository.getVectorStoresByProjectId(projectId)
         );
         Map<Types,VectorStoreFile> vsfServicesMap = new HashMap<>(3);
@@ -176,26 +176,33 @@ public class CodechatController {
                     String oldCommitHash=resource.secrets().get(Labels.commitHash).value();
                     String commitHash=pfc.getLatestCommitHash(resource.uri(), branch);
                     if(commitHash.equals(oldCommitHash)){
+                        System.out.println("No changes in the repo "+resource.uri());
                         continue;
                     }
                     GitHubChangeTracker changes=pfc.getChangesSinceCommitViaGitHubAPI( 
                         resource.uri(), oldCommitHash, branch
                     );
+                    int tempDirLength=pfc.getTempDir().length();
                     for (String deletedFile : changes.deletedFiles()) {
-                        OaiFile oaiFile = oaiFileRepository.getOaiFileByPath(deletedFile, resource.prId());
-                        if(oaiFile!=null){
-                            Types fileType=getFileType(oaiFile.fileName());
-                            vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
-                            vsfServicesAll.removeFile(oaiFile.fileId());
-                            oaiFileRepository.deleteFile(oaiFile.fileId());
-                            System.out.println(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from "+fileType.toString()+" vector store and deleted.");
+                        try {
+                            OaiFile oaiFile = oaiFileRepository.getOaiFileByPath(deletedFile, resource.prId());
+                            if(oaiFile!=null){
+                                Types fileType=getFileType(oaiFile.fileName());
+                                vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
+                                vsfServicesAll.removeFile(oaiFile.fileId());
+                                oaiFileService.deleteFile(oaiFile.fileId());
+                                oaiFileRepository.deleteFile(oaiFile.fileId());
+                                System.out.println(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from "+fileType.toString()+" vector store and deleted.");
+                            }
+                        } catch (Exception e) {
+                            System.out.println("Should be removed: Error deleting file: "+deletedFile);
                         }
                     }
 
                     for (String addedFile : changes.addedFiles()) {
-                        File file = new File(addedFile);
+                        File file = new File(pfc.getTempDir()+"/"+addedFile);
                         FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
-                        OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), 0, Purposes.assistants, projectId);
+                        OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength, Purposes.assistants, resource.prId());
                         System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
                         String oldExt = FileUtils.getFileExtension(desc.oldFile());
                         Types fileType=getFileType(desc.oldFile().getName());
@@ -212,17 +219,19 @@ public class CodechatController {
                         );
                         vsfServicesMap.get(fileType).addFile( request);
                         vsfServicesAll.addFile( request);
+                        oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
+
                         System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
                     }
-                    pfc.addRepository(resource.uri(), resource.secrets().get(Labels.branch).value());
-                    projectResourceRepository.updateSecret(projectId, Labels.commitHash, commitHash);
+                    projectResourceRepository.updateSecret(resource.prId(), Labels.commitHash, commitHash);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    throw e;
+                } finally {
+                    pfc.deleteRepository();
                 }
             }
-            
         }
-        
         return ResponseEntity.ok().build();
     }
 
@@ -232,7 +241,7 @@ public class CodechatController {
     public ResponseEntity<Project> createProject(
         @RequestBody CreateProjectRequest request
     ) throws Exception {
-        GithubProjectFileCategorizer pfc=new GithubProjectFileCategorizer();
+        GithubRepoContentManager pfc=new GithubRepoContentManager();
         try{ 
             //Test createAssistant
             // createAssistant("myProject", 24, new LinkedHashMap<>() {{
@@ -245,7 +254,7 @@ public class CodechatController {
             System.out.println("project created with id: "+projectId);
             String sourcePath = "";
             if(request.repoURL()!=null){
-                pfc=new GithubProjectFileCategorizer(request.username(), request.password());
+                pfc=new GithubRepoContentManager(request.username(), request.password());
                 sourcePath=pfc.addRepository(request.repoURL(), request.branch());
             } else {
                 throw new Exception("Repo url is required");
@@ -317,7 +326,7 @@ public class CodechatController {
         return vsOaiId;
     }
     private void createVectorStore(
-        CCProjectFileCategorizer pfc, int prId, int projectId, String vsName, Types type,
+        CCProjectFileManager pfc, int prId, int projectId, String vsName, Types type,
         Map<String,CreateVSFileRequest> allFileIds, Map<String,Integer> vectorStorMap,
         int basePathLength
     ) throws IOException {
@@ -341,7 +350,7 @@ public class CodechatController {
             CreateVSFileRequest request = new CreateVSFileRequest(
                 oaiFile.fileId(), new HashMap<>() {{
                     put("name", desc.oldFile().getName());
-                    put("path", desc.oldFile().getAbsolutePath().substring(basePathLength));
+                    put("path", desc.oldFile().getAbsolutePath().substring(basePathLength+1));
                     put("extension", oldExt);
                     // Should I put the "."? If so put it in the assistant instructions
                     put("mime-type", ExtMimeType.getMimeType(oldExt));
