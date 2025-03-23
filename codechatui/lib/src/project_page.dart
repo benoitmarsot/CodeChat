@@ -1,18 +1,26 @@
 import 'package:codechatui/src/config/app_config.dart';
 import 'package:codechatui/src/models/project.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
+import 'package:codechatui/src/widgets/choice-button.dart';
+import 'package:codechatui/src/widgets/github_widget.dart';
+import 'package:codechatui/src/widgets/web_widget.dart';
+import 'package:codechatui/src/widgets/zip_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/project_service.dart';
 import 'services/codechat_service.dart';
+
+enum DataSourceType { github, zip, web }
 
 class ProjectPage extends StatefulWidget {
   @override
   State<ProjectPage> createState() => _ProjectPageState();
 }
 
-class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStateMixin {
+class _ProjectPageState extends State<ProjectPage>
+    with SingleTickerProviderStateMixin {
   String? _errorMessage;
+  DataSourceType _selectedDataSource = DataSourceType.github;
 
   String _createdMessage = '';
   List<Project> _projects = [];
@@ -20,26 +28,39 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   final TextEditingController _prjNameController = TextEditingController();
   final TextEditingController _prjDesctController = TextEditingController();
   final TextEditingController _prjRepoURLController = TextEditingController();
-  final TextEditingController _branchNameController = TextEditingController(text: 'main');
+  final TextEditingController _branchNameController =
+      TextEditingController(text: 'main');
   final TextEditingController _userNameController = TextEditingController();
   final TextEditingController _userPswController = TextEditingController();
   final TextEditingController _patController = TextEditingController();
-  
+
   late TabController _tabController;
 
   int _initialTabIndex = 0;
+  bool _isEditing = false; // Track editing state
+  Project? _selectedProject; // Store the selected project
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabChange); // Add listener
     _fetchProjects();
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange); // Remove listener
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      print('Tab changed to: ${_tabController.index}');
+      if (_tabController.index != 1) _resetEditing();
+      // Add any additional logic you want to handle on tab change
+    }
   }
 
   Future<void> _fetchProjects() async {
@@ -48,13 +69,15 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
 
     try {
       final projects = await projectService.getAllProjects();
-      
+
       setState(() {
         _projects = projects;
 
-        _tabController.animateTo(  _projects.isEmpty ?  1 : 0); // Default to create tab if no projects exist
+        _tabController.animateTo(_projects.isEmpty
+            ? 1
+            : 0); // Default to create tab if no projects exist
       });
-      if(projects.length == 1) {
+      if (projects.length == 1) {
         _selectProject(projects[0]);
       }
     } catch (e) {
@@ -87,6 +110,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
 
     final uri = '${AppConfig.openaiBaseUrl}/files/uploadDir?projectId=1';
     print('Uploading to URI: $uri');
+
     // Show loading dialog
     showDialog(
       context: context,
@@ -111,7 +135,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       // Handle authentication parameters
       String? username;
       String? password;
-      
+
       if (_userNameController.text.isEmpty && _patController.text.isNotEmpty) {
         // If username is empty but PAT is provided, use PAT as username
         username = _patController.text;
@@ -120,7 +144,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         username = _userNameController.text;
         password = _userPswController.text;
       }
-      
+
       final project = await codechatService.createProject(
         _prjNameController.text,
         _prjDesctController.text,
@@ -133,36 +157,29 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       setState(() {
         _createdMessage = 'Project created';
       });
-      
+
       // Clear the form
       _prjNameController.clear();
       _prjDesctController.clear();
       _prjRepoURLController.clear();
-      
-      // Refresh projects and switch to projects tab
-      await _fetchProjects();
+
       // Dismiss loading dialog
       if (mounted) {
         Navigator.of(context).pop();
       }
+      // Refresh projects and switch to projects tab
+      await _fetchProjects();
 
       _selectProject(project);
       //_tabController.animateTo(0);  // Switch to first tab
-      
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to upload directory: $e';
       });
       print('Failed to upload directory: $e');
-    } 
+    }
   }
 
-  void _handleDrop(Object data) {
-    // Implement a safe approach for web without relying on deprecated APIs.
-    setState(() {
-      _prjRepoURLController.text = "Folder path from data";
-    });
-  }
   Future<void> _deleteProject(Project project, int index) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final projectService = ProjectService(authProvider: authProvider);
@@ -173,7 +190,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       setState(() {
         _projects.removeAt(index);
       });
-       await _fetchProjects();
+      await _fetchProjects();
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to delete project: $e';
@@ -188,15 +205,127 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       arguments: project,
     );
   }
-  void _selectProject(Project project) {
 
-    _redirectToChat(project);
+  void _selectProject(Project project) {
+    setState(() {
+      _selectedProject = project;
+      _isEditing = false; // Exit editing mode when selecting a new project
+      // Populate the text controllers with the selected project's data
+    });
+    //_redirectToChat(project);
+  }
+
+  void _handleProjectAction(String action, Project project) {
+    switch (action) {
+      case 'edit':
+        _selectProject(project);
+        _startEditing();
+
+      case 'delete':
+        int index = _projects.indexOf(project);
+        if (index != -1) {
+          _deleteProject(project, index);
+        }
+    }
+  }
+
+  void _startEditing() {
+    _prjNameController.text = _selectedProject?.name ?? '';
+    _prjDesctController.text = _selectedProject?.description ?? "";
+    _tabController.animateTo(1);
+    setState(() {
+      _isEditing = true;
+    });
+  }
+
+  void _resetEditing() {
+    setState(() {
+      _isEditing = false;
+      _prjNameController.clear();
+      _prjDesctController.clear();
+    });
+  }
+
+  void _cancelEdit() {
+    _resetEditing();
+    _tabController.animateTo(0);
+  }
+
+  Future<void> _saveChanges() async {
+    print('_saveChanges $_prjNameController.text');
+    //if (_selectedProject == null) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final projectService = ProjectService(authProvider: authProvider);
+
+    try {
+      // Update the project with the new values
+      final updatedProject = _selectedProject!.copyWith(
+        name: _prjNameController.text,
+        description: _prjDesctController.text,
+      );
+
+      await projectService.updateProject(updatedProject);
+
+      // Refresh the project list
+      await _fetchProjects();
+
+      setState(() {
+        _isEditing = false;
+        _createdMessage = 'Project updated successfully!';
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to update project: $e';
+      });
+      print('_errorMessage $_errorMessage');
+    }
+  }
+
+  Future<void> _refreshDataSource() async {
+    // Implement the logic to refresh the data source
+    // This might involve re-fetching data from the Git repo, Zip file, or Web URL
+    // You'll need to adapt this code based on your specific data source implementation
+    print('Refreshing data source...');
+    setState(() {
+      _createdMessage = 'Refreshing data source...';
+    });
+    await Future.delayed(Duration(seconds: 2)); // Simulate a long process
+    setState(() {
+      _createdMessage = 'Data source refreshed!';
+    });
+  }
+
+  Widget _buildDataSourceForm() {
+    switch (_selectedDataSource) {
+      case DataSourceType.github:
+        return GithubForm(
+          prjRepoURLController: _prjRepoURLController,
+          branchNameController: _branchNameController,
+          userNameController: _userNameController,
+          userPswController: _userPswController,
+          patController: _patController,
+        );
+      case DataSourceType.zip:
+        return ZipForm(
+          onFileSelected: (String? path) {
+            print(path);
+          },
+        );
+      case DataSourceType.web:
+      default:
+        return WebForm(
+          prjRepoURLController: _prjRepoURLController,
+          userNameController: _userNameController,
+          userPswController: _userPswController,
+        );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-   
+    //final theme = Theme.of(context);
+
     return DefaultTabController(
       initialIndex: _initialTabIndex,
       length: 3,
@@ -204,24 +333,21 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         appBar: AppBar(
           title: const Text('Projects'),
           bottom: TabBar(
-            controller: _tabController,  // Add controller here
+            controller: _tabController, // Add controller here
             tabs: const <Widget>[
               Tooltip(
                 message: 'Project List',
                 child: Tab(icon: Icon(Icons.folder_open)),
               ),
-               Tooltip(
-                message: 'Create Project',
-                child:Tab(icon: Icon(Icons.drive_folder_upload_outlined))
-               ),Tooltip(
-                message: 'Share',
-                child:Tab(icon: Icon(Icons.group_add))
-               )
+              Tooltip(
+                  message: 'Create Project',
+                  child: Tab(icon: Icon(Icons.drive_folder_upload_outlined))),
+              Tooltip(message: 'Share', child: Tab(icon: Icon(Icons.group_add)))
             ],
           ),
         ),
         body: TabBarView(
-          controller: _tabController,  
+          controller: _tabController,
           children: <Widget>[
             Card(
               margin: EdgeInsets.all(20),
@@ -231,7 +357,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
-                      child: Text('Open a project', style: TextStyle(fontSize: 20)),
+                      child: Text('Open a project',
+                          style: TextStyle(fontSize: 20)),
                     ),
                     Expanded(
                       child: ListView.builder(
@@ -239,23 +366,64 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                         itemBuilder: (context, index) {
                           final project = _projects[index];
                           return MouseRegion(
-                            onEnter: (_) => setState(() => _hoveredIndex = index),
+                            onEnter: (_) =>
+                                setState(() => _hoveredIndex = index),
                             onExit: (_) => setState(() => _hoveredIndex = null),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: _hoveredIndex == index 
-                                    ? Theme.of(context).colorScheme.primaryContainer
+                                color: _hoveredIndex == index
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
                                     : null,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: ListTile(
                                 title: Text(project.name),
                                 subtitle: Text(project.description),
-                                onTap: () => _selectProject(project),
-                                trailing: IconButton(
-                                  icon: Icon(Icons.delete),
-                                  onPressed: () => _deleteProject(project, index),
+                                onTap: () {
+                                  _selectProject(project);
+                                  _redirectToChat(project);
+                                },
+                                trailing: PopupMenuButton<String>(
+                                  padding: EdgeInsets.zero,
+                                  icon: Icon(
+                                    Icons.more_vert,
+                                    size: 16,
+                                  ),
+                                  iconSize: 16,
+                                  tooltip: 'Project options',
+                                  onSelected: (value) =>
+                                      _handleProjectAction(value, project),
+                                  itemBuilder: (BuildContext context) =>
+                                      <PopupMenuEntry<String>>[
+                                    const PopupMenuItem<String>(
+                                      value: 'edit',
+                                      child: ListTile(
+                                        leading: Icon(Icons.edit),
+                                        title: Text('Edit'),
+                                        dense: true,
+                                      ),
+                                    ),
+                                    const PopupMenuDivider(),
+                                    const PopupMenuItem<String>(
+                                      value: 'delete',
+                                      child: ListTile(
+                                        leading: Icon(Icons.delete,
+                                            color: Colors.red),
+                                        title: Text('Delete',
+                                            style:
+                                                TextStyle(color: Colors.red)),
+                                        dense: true,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                // IconButton(
+                                //   icon: Icon(Icons.delete),
+                                //   onPressed: () =>
+                                //       _deleteProject(project, index),
+                                // ),
                               ),
                             ),
                           );
@@ -273,115 +441,173 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                      child: Text('Create a project', style: TextStyle(fontSize: 20)),
-                    ),
-                    Spacer(),
-                    TextField(
-                      controller: _prjNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Project name:',
-                      ),
-                    ),
-                    const SizedBox(height: 16.0),
-                    TextField(
-                      controller: _prjDesctController,
-                      decoration: const InputDecoration(
-                        labelText: 'Description:',
-                      ),
-                    ),
-                    const SizedBox(height: 16.0),
-                    DragTarget<Object>(
-                      onWillAcceptWithDetails: (data) => true,
-                      onAcceptWithDetails: (details) {
-                        _handleDrop(details.data);
-                      },
-                      builder: (context, candidateData, rejectedData) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: TextField(
-                                controller: _prjRepoURLController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Git Repo URL (use the HTTPS link of your repo):',
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 12.0),
-                            Expanded(
-                              flex: 1,
-                              child: TextField(
-                                controller: _branchNameController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Branch name:',
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: TextField(
-                            controller: _userNameController,
+                    Text(_isEditing ? 'Edit Project' : 'Create a project',
+                        style: TextStyle(fontSize: 20)),
+                    FractionallySizedBox(
+                      widthFactor: 0.8,
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: _prjNameController,
                             decoration: const InputDecoration(
-                              labelText: 'Git user name (for private repo):',
+                              labelText: 'Project name:',
                             ),
                           ),
-                        ),
-                        SizedBox(width: 12.0),
-                        Expanded(
-                          flex: 1,
-                          child: TextField(
-                            controller: _userPswController, 
+                          const SizedBox(height: 16.0),
+                          TextField(
+                            controller: _prjDesctController,
                             decoration: const InputDecoration(
-                              labelText: 'Password:',
+                              labelText: 'Description:',
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    TextField(
-                      controller: _patController,
-                      decoration: const InputDecoration(
-                        labelText: 'Or PAT (for private repo):',
+                          const SizedBox(height: 24.0),
+                          // Data Source Type Selection
+
+                          Container(
+                            margin:
+                                const EdgeInsets.only(bottom: 16.0, top: 16.0),
+                            child: Row(children: [
+                              Text('Define Data Source',
+                                  style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold)),
+                            ]),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16.0),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 8),
+                                ChoiceButton(
+                                  text: 'GitHub',
+                                  icon: Icons.code,
+                                  isSelected: _selectedDataSource ==
+                                      DataSourceType.github,
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedDataSource =
+                                          DataSourceType.github;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 16),
+                                ChoiceButton(
+                                  text: 'Zip File',
+                                  icon: Icons.archive,
+                                  isSelected:
+                                      _selectedDataSource == DataSourceType.zip,
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedDataSource = DataSourceType.zip;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 16),
+                                ChoiceButton(
+                                  text: 'Web URL',
+                                  icon: Icons.web,
+                                  isSelected:
+                                      _selectedDataSource == DataSourceType.web,
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedDataSource = DataSourceType.web;
+                                    });
+                                  },
+                                ),
+                                // Expanded(
+                                //   child: ImageRadioListTile(
+                                //     title: const Text('GitHub Repo'),
+                                //     image: Image.asset(
+                                //         'assets/github_logo.png',
+                                //         width: 40),
+                                //     value: DataSourceType.github,
+                                //     groupValue: _selectedDataSource,
+                                //     onChanged: (DataSourceType? value) {
+                                //       setState(() {
+                                //         _selectedDataSource = value!;
+                                //       });
+                                //     },
+                                //   ),
+                                // ),
+                                // Expanded(
+                                //   child: ImageRadioListTile(
+                                //     title: const Text('Zip File'),
+                                //     image: Image.asset('assets/zip_logo.png',
+                                //         width: 40),
+                                //     value: DataSourceType.zip,
+                                //     groupValue: _selectedDataSource,
+                                //     onChanged: (DataSourceType? value) {
+                                //       setState(() {
+                                //         _selectedDataSource = value!;
+                                //       });
+                                //     },
+                                //   ),
+                                // ),
+                                // Expanded(
+                                //   child: ImageRadioListTile(
+                                //     title: const Text('Web URL'),
+                                //     image: Image.asset('assets/web_logo2.png',
+                                //         width: 40),
+                                //     value: DataSourceType.web,
+                                //     groupValue: _selectedDataSource,
+                                //     onChanged: (DataSourceType? value) {
+                                //       setState(() {
+                                //         _selectedDataSource = value!;
+                                //       });
+                                //     },
+                                //   ),
+                                // ),
+                              ],
+                            ),
+                          ),
+                          // Conditional Input Fields based on selected data source
+
+                          _buildDataSourceForm(),
+
+                          Align(
+                            alignment: Alignment.bottomRight,
+                            child: (_isEditing
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: _cancelEdit,
+                                        style: ElevatedButton.styleFrom(
+                                          textStyle: TextStyle(fontSize: 20),
+                                        ),
+                                        child: Text('Cancel'),
+                                      ),
+                                      SizedBox(width: 8),
+                                      ElevatedButton(
+                                        onPressed: _saveChanges,
+                                        style: ElevatedButton.styleFrom(
+                                          textStyle: TextStyle(fontSize: 20),
+                                        ),
+                                        child: Text('Save'),
+                                      ),
+                                      // ElevatedButton(
+                                      //   onPressed: () {
+                                      //     print('_saveChanges');
+                                      //     _saveChanges();
+                                      //   },
+                                      //   style: ElevatedButton.styleFrom(
+                                      //     textStyle: TextStyle(fontSize: 20),
+                                      //   ),
+                                      //   child: Text('Apply'),
+                                      // ),
+                                    ],
+                                  )
+                                : ElevatedButton(
+                                    onPressed: _createdProject,
+                                    style: ElevatedButton.styleFrom(
+                                      textStyle: TextStyle(fontSize: 20),
+                                    ),
+                                    child: Text('Create'),
+                                  )),
+                          ),
+                        ],
                       ),
                     ),
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(
-                            color: theme.colorScheme.error,
-                            fontSize: 14,
-                          ),
-                        ),
-                      )
-                    else if (_createdMessage.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Text(
-                          _createdMessage,
-                          style: TextStyle(
-                            color: theme.colorScheme.onPrimary,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 16.0),
-                    ElevatedButton(
-                      onPressed: _createdProject,
-                      child: const Text('Create', style: TextStyle(fontSize: 20)),
-                    ),
-                    Spacer(),
-                    Text(""),
                   ],
                 ),
               ),
@@ -394,7 +620,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
-                      child: Text('Share your project', style: TextStyle(fontSize: 20)),
+                      child: Text('Share your project',
+                          style: TextStyle(fontSize: 20)),
                     ),
                     SizedBox(height: 20),
                     Expanded(
@@ -409,7 +636,9 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('Invite a user',
-                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold)),
                                   SizedBox(height: 16),
                                   TextField(
                                     decoration: InputDecoration(
@@ -428,7 +657,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                          
+
                           // Center divider with debossed look
                           Container(
                             width: 1,
@@ -444,7 +673,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                               ],
                             ),
                           ),
-                          
+
                           // Right column - User list
                           Expanded(
                             child: Padding(
@@ -453,17 +682,23 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('Users with access',
-                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold)),
                                   SizedBox(height: 16),
                                   Expanded(
                                     child: ListView.builder(
-                                      itemCount: 5, // Replace with actual users count
+                                      itemCount:
+                                          5, // Replace with actual users count
                                       itemBuilder: (context, index) {
                                         return ListTile(
-                                          title: Text('User ${index + 1}'), // Replace with actual user name
-                                          subtitle: Text('user${index + 1}@example.com'), // Replace with actual email
+                                          title: Text(
+                                              'User ${index + 1}'), // Replace with actual user name
+                                          subtitle: Text(
+                                              'user${index + 1}@example.com'), // Replace with actual email
                                           trailing: IconButton(
-                                            icon: Icon(Icons.remove_circle_outline),
+                                            icon: Icon(
+                                                Icons.remove_circle_outline),
                                             onPressed: () {
                                               // TODO: Implement remove user functionality
                                             },
@@ -489,3 +724,43 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     );
   }
 }
+
+// class ImageRadioListTile<T> extends StatelessWidget {
+//   final Widget title;
+//   final Widget image;
+//   final T value;
+//   final T? groupValue;
+//   final ValueChanged<T?>? onChanged;
+
+//   const ImageRadioListTile({
+//     Key? key,
+//     required this.title,
+//     required this.image,
+//     required this.value,
+//     required this.groupValue,
+//     required this.onChanged,
+//   }) : super(key: key);
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return InkWell(
+//       onTap: () {
+//         if (onChanged != null) {
+//           onChanged!(value);
+//         }
+//       },
+//       child: Row(
+//         children: [
+//           Radio<T>(
+//             value: value,
+//             groupValue: groupValue,
+//             onChanged: onChanged,
+//           ),
+//           image,
+//           const SizedBox(width: 8),
+//           title,
+//         ],
+//       ),
+//     );
+//   }
+// }

@@ -1,4 +1,3 @@
-
 class Project {
   final int projectId;
   final String name;
@@ -20,6 +19,22 @@ class Project {
       description: json['description'],
       authorId: json['authorId'],
       assistantId: json['assistantId'],
+    );
+  }
+
+  Project copyWith({
+    int? projectId,
+    String? name,
+    String? description,
+    int? authorId,
+    int? assistantId,
+  }) {
+    return Project(
+      projectId: projectId ?? this.projectId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      authorId: authorId ?? this.authorId,
+      assistantId: assistantId ?? this.assistantId,
     );
   }
 
