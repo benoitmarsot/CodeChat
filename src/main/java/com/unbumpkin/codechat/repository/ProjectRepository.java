@@ -3,14 +3,15 @@ package com.unbumpkin.codechat.repository;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.stereotype.Repository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Repository;
 
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.security.CustomAuthentication;
@@ -107,7 +108,7 @@ public class ProjectRepository {
         String sql = """
             UPDATE project
             SET name = ?, description = ?
-            WHERE p.isdeleted=false and projectid = ? AND (authorid = ? OR EXISTS (
+            WHERE isdeleted=false and projectid = ? AND (authorid = ? OR EXISTS (
                 SELECT 1 FROM sharedproject
                 WHERE projectid = ? AND userid = ?
             ))
