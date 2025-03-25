@@ -5,11 +5,12 @@ import 'package:provider/provider.dart';
 import 'src/login_page.dart';
 import 'src/services/auth_provider.dart';
 import 'src/main_page.dart';
-import 'package:codechatui/src/chat_page.dart';  // Add this import
+import 'package:codechatui/src/chat_page.dart';
 
-void main() async {  // Make main async
-  WidgetsFlutterBinding.ensureInitialized();  // Required when using async in main
-  
+void main() async {
+  WidgetsFlutterBinding
+      .ensureInitialized(); // Required when using async in main
+
   final secureStorage = SecureStorageService();
   final token = await secureStorage.getToken();
   final userId = await secureStorage.getUserId();
@@ -30,7 +31,7 @@ void main() async {  // Make main async
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
-  
+
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -40,9 +41,10 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    void onThemeToggle() {
+    void _onThemeToggle() {
       setState(() => isDarkMode = !isDarkMode); // Toggle logic
     }
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => MainPageState()),
@@ -50,50 +52,63 @@ class _MyAppState extends State<MyApp> {
       child: MaterialApp(
         title: 'Codechat',
         theme: ThemeData(
-        useMaterial3:true,
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue, // Set primary color here
+          useMaterial3: true,
           brightness: Brightness.light,
-        ),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue, // Set primary color here
+            brightness: Brightness.light,
+          ),
           scaffoldBackgroundColor: Colors.white,
         ),
         darkTheme: ThemeData(
-          useMaterial3:true,
+          useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.blue, // Set primary color here
             brightness: Brightness.dark,
           ),
           scaffoldBackgroundColor: Colors.black,
         ),
-        themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light, // Conditional theme
+        themeMode:
+            isDarkMode ? ThemeMode.dark : ThemeMode.light, // Conditional theme
         home: const LoginPage(),
-        
-        initialRoute: '', 
-        onGenerateRoute: (settings) {
-          // Handle unknown routes or routes without context
-          return MaterialPageRoute(builder: (context) => const LoginPage());
-        },
-        routes: {
-          '': (context) => const LoginPage(),
-          'home': (context) => MainPage(
-              isDarkMode: isDarkMode,
-              onThemeToggle: onThemeToggle
 
-          ),
-          'chat': (context) {
-           
-            final args = ModalRoute.of(context)?.settings.arguments;
-            
-            // Safe handling of potentially null arguments
-            if (args is Project) {
-              return ChatPage(project: args, onThemeToggle:onThemeToggle);
-            }
-            // Otherwise go back to home
-            return MainPage(
-              isDarkMode: isDarkMode,
-              onThemeToggle: onThemeToggle);
-          },
+        initialRoute: '',
+        onGenerateRoute: (settings) {
+          return MaterialPageRoute(
+            settings: settings,
+            builder: (context) {
+              final authProvider =
+                  Provider.of<AuthProvider>(context, listen: false);
+              final isAuthenticated = authProvider.isAuthenticated;
+
+              switch (settings.name) {
+                // case '/register':
+                //   return RegisterPage();
+                case 'main':
+                  return isAuthenticated
+                      ? MainPage(
+                          isDarkMode: false, onThemeToggle: _onThemeToggle)
+                      : LoginPage();
+                case 'chat':
+                  final args = ModalRoute.of(context)?.settings.arguments;
+
+                  // Safe handling of potentially null arguments
+                  if (args is Project) {
+                    return ChatPage(
+                        project: args, onThemeToggle: _onThemeToggle);
+                  }
+                  // Otherwise go back to home
+                  return MainPage(
+                      isDarkMode: isDarkMode, onThemeToggle: _onThemeToggle);
+                case '':
+                default:
+                  return isAuthenticated
+                      ? MainPage(
+                          isDarkMode: false, onThemeToggle: _onThemeToggle)
+                      : LoginPage();
+              }
+            },
+          );
         },
       ),
     );
