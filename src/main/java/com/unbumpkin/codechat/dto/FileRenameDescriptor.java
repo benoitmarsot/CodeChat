@@ -2,6 +2,6 @@ package com.unbumpkin.codechat.dto;
 
 import java.io.File;
 
-public record FileRenameDescriptor(File oldFile, File newFile, String mimeType) {
+public record FileRenameDescriptor(String oldFileName, String oldFilePath, File newFile, String mimeType) {
     
 }

@@ -186,7 +186,7 @@ public class CodechatController {
                     for (String deletedFile : changes.deletedFiles()) {
                         try {
                             OaiFile oaiFile = oaiFileRepository.getOaiFileByPath(deletedFile, resource.prId());
-                            if(oaiFile!=null){
+                            if(oaiFile!=null) {
                                 Types fileType=getFileType(oaiFile.fileName());
                                 vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
                                 vsfServicesAll.removeFile(oaiFile.fileId());
@@ -195,35 +195,42 @@ public class CodechatController {
                                 System.out.println(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from "+fileType.toString()+" vector store and deleted.");
                             }
                         } catch (Exception e) {
-                            System.out.println("Should be removed: Error deleting file: "+deletedFile);
+                            System.out.println("This file is ignored or could not be retrieved: "+deletedFile);
                         }
                     }
 
                     for (String addedFile : changes.addedFiles()) {
-                        File file = new File(pfc.getTempDir()+"/"+addedFile);
-                        FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
-                        OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength, Purposes.assistants, resource.prId());
-                        System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
-                        String oldExt = FileUtils.getFileExtension(desc.oldFile());
-                        Types fileType=getFileType(desc.oldFile().getName());
-                        CreateVSFileRequest request = new CreateVSFileRequest(
-                            oaiFile.fileId(), new HashMap<>() {{
-                                put("name", desc.oldFile().getName());
-                                put("path", desc.oldFile().getAbsolutePath());
-                                put("extension", oldExt);
-                                // Should I put the "."? If so put it in the assistant instructions
-                                put("mime-type", ExtMimeType.getMimeType(oldExt));
-                                put("nbLines", String.valueOf(FileUtils.countLines(desc.oldFile())));
-                                put("type", fileType.name());
-                            }}
-                        );
-                        vsfServicesMap.get(fileType).addFile( request);
-                        vsfServicesAll.addFile( request);
-                        oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
+                        try {
+                            File file = new File(pfc.getTempDir()+"/"+addedFile);
+                            FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+                            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, resource.prId());
+                            System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
+                            String oldExt = FileUtils.getFileExtension(desc.oldFileName());
+                            Types fileType=getFileType(desc.oldFileName());
+                            CreateVSFileRequest request = new CreateVSFileRequest(
+                                oaiFile.fileId(), new HashMap<>() {{
+                                    put("name", desc.oldFileName());
+                                    put("path", desc.oldFilePath().substring(tempDirLength+1));
+                                    put("extension", oldExt);
+                                    // Should I put the "."? If so put it in the assistant instructions
+                                    put("mime-type", ExtMimeType.getMimeType(oldExt));
+                                    put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
+                                    put("type", fileType.name());
+                                }}
+                            );
+                            vsfServicesMap.get(fileType).addFile( request);
+                            vsfServicesAll.addFile( request);
+                            oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
 
-                        System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
+                           System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
+                        } catch (Exception e) {
+                            System.out.println("The file "+addedFile+" could not be added: "+e.getMessage());
+                        }   
                     }
+                    System.out.println("Updating commit hash...");
                     projectResourceRepository.updateSecret(resource.prId(), Labels.commitHash, commitHash);
+                    System.out.println("Done refreshing repo.");
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     throw e;
@@ -340,24 +347,26 @@ public class CodechatController {
         VectorStoreFile vsfService = new VectorStoreFile(vsOaiId);
         for (File file : pfc.getFileSetMap(type)) {
             FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
-            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength, Purposes.assistants, prId);
-            lFiles.add(
-                oaiFile
-            );
+            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength+1, Purposes.assistants, prId);
             System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
             lFileIds.add(oaiFile.fileId());
-            String oldExt = FileUtils.getFileExtension(desc.oldFile());
+            String oldExt = FileUtils.getFileExtension(desc.oldFileName());
+            String oldFilePath=desc.oldFilePath().substring(basePathLength+1);
             CreateVSFileRequest request = new CreateVSFileRequest(
                 oaiFile.fileId(), new HashMap<>() {{
-                    put("name", desc.oldFile().getName());
-                    put("path", desc.oldFile().getAbsolutePath().substring(basePathLength+1));
+                    put("name", desc.oldFileName());
+                    put("path", oldFilePath);
                     put("extension", oldExt);
                     // Should I put the "."? If so put it in the assistant instructions
                     put("mime-type", ExtMimeType.getMimeType(oldExt));
-                    put("nbLines", String.valueOf(FileUtils.countLines(desc.oldFile())));
+                    put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
                     put("type", type.name());
                 }}
             );
+            lFiles.add(
+                new OaiFile(0, prId, oaiFile.fileId(), desc.oldFileName(), oaiFile.rootdir(), oldFilePath, oaiFile.purpose(), oaiFile.linecount())
+            );
+
             allFileIds.put(oaiFile.fileId(), request);
             vsfService.addFile(request);
             System.out.println("File id "+oaiFile.fileId()+" added to vector store "+vsOaiId);

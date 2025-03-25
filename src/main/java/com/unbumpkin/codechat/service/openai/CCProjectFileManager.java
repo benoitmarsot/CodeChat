@@ -79,10 +79,8 @@ public class CCProjectFileManager {
             return Types.code;
         } else if (MarkupExtensions.contains(extension)) {
             return Types.markup;
-        } else if (ConfigExtensions.contains(extension)) {
-            return Types.config;
         }
-        return null;
+        return Types.config;
     }
     public void addFile(File file) {
         fileSetMap.get(getFileType(file)).add(file);
