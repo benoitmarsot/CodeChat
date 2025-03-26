@@ -140,6 +140,11 @@
 			<version>7.1.0.202411261347-r</version>
 			<scope>compile</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.microsoft.playwright</groupId>
+			<artifactId>playwright</artifactId>
+			<version>1.51.0</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>

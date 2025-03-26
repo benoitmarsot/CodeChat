@@ -1,36 +1,41 @@
 package com.unbumpkin.codechat.controller;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.unbumpkin.codechat.service.openai.AssistantBuilder;
-import com.unbumpkin.codechat.service.openai.AssistantService;
-import com.unbumpkin.codechat.service.openai.OaiFileService;
-import com.unbumpkin.codechat.service.openai.VectorStoreFile;
-import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
-import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
-import com.unbumpkin.codechat.service.openai.GithubRepoContentManager;
-import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
-import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFileType;
-import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
-import com.unbumpkin.codechat.service.openai.VectorStoreService;
-import com.unbumpkin.codechat.util.ExtMimeType;
-import com.unbumpkin.codechat.util.FileUtils;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.ElementHandle;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.LoadState;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.GitHubChangeTracker;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
@@ -41,9 +46,8 @@ import com.unbumpkin.codechat.model.UserSecret;
 import com.unbumpkin.codechat.model.UserSecret.Labels;
 import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.model.openai.OaiFile;
-import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
-import com.unbumpkin.codechat.model.openai.VectorStore.VectorStoreResponse;
+import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.repository.DiscussionRepository;
 import com.unbumpkin.codechat.repository.MessageRepository;
 import com.unbumpkin.codechat.repository.ProjectRepository;
@@ -54,11 +58,21 @@ import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.service.openai.AssistantBuilder;
+import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
+import com.unbumpkin.codechat.service.openai.AssistantService;
+import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
+import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFileType;
+import com.unbumpkin.codechat.service.openai.GithubRepoContentManager;
+import com.unbumpkin.codechat.service.openai.OaiFileService;
+import com.unbumpkin.codechat.service.openai.VectorStoreFile;
+import com.unbumpkin.codechat.service.openai.VectorStoreService;
+import com.unbumpkin.codechat.util.ExtMimeType;
+import com.unbumpkin.codechat.util.FileUtils;
 
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import ch.qos.logback.core.joran.sanity.Pair;
 
 
 @RestController
@@ -235,6 +249,76 @@ public class CodechatController {
         return ResponseEntity.ok().build();
     }
 
+    
+    @Transactional
+    @PostMapping("create-project-from-url")
+    public ResponseEntity<String> createProjectFromUrl(
+        @RequestBody CreateProjectRequest request
+    ) throws Exception {
+        String url = request.sourcePath();
+        if (url == null) {
+            throw new Exception("Source url required");
+        }
+        System.out.println("Beginning crawl of " + url);
+        Integer maxDepth = request.maxSearchDepth();
+        crawlWebsite(url, (maxDepth != null) ? maxDepth : 2, request.urlIncludes());
+        System.out.println("Done crawling");
+        return ResponseEntity.ok("Ok");
+    }
+    private void crawlWebsite(String startUrl, int maxDepth, String urlIncludes) {
+        try (
+            Playwright playwright = Playwright.create(); 
+            Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
+        ) {
+            Page page = browser.newPage();
+            Set<String> visited = new HashSet<>(Collections.singleton(startUrl));
+            Queue<PageNode> nodes = new LinkedList<>();
+            nodes.add(new PageNode(startUrl, 0));
+            
+            while (!nodes.isEmpty()) {
+                PageNode currentPage = nodes.poll();
+                String currentUrl = currentPage.url;
+                try {
+                    page.navigate(currentUrl, new Page.NavigateOptions().setTimeout(20000));
+                    page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+                } catch (Exception e) {
+                    System.err.println("Error navigating to " + currentUrl + ": " + e.getMessage());
+                    continue;
+                }
+                String text = page.textContent("body");
+
+                String filePath = System.getProperty("user.dir") + "/out/" + page.title() + ".txt";
+                try {
+                    Files.write(Paths.get(filePath), String.join("\n", text).getBytes());
+                    System.out.println("Successfully wrote to " + filePath);
+                } catch (IOException e) {
+                    System.err.println("Error writing to file: " + e.getMessage());
+                }
+                if (currentPage.depth >= maxDepth-1) {
+                    continue;
+                }
+                List<ElementHandle> anchorElements = page.querySelectorAll("a[href]");
+                for (ElementHandle element : anchorElements) {
+                    String nextUrl = element.getAttribute("href");
+                    boolean validUrl = nextUrl != null && nextUrl.startsWith("http") && (urlIncludes == null || nextUrl.contains(urlIncludes));
+                    if (validUrl && !visited.contains(nextUrl)) {
+                        visited.add(nextUrl);
+                        nodes.add(new PageNode(nextUrl, currentPage.depth + 1));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    static class PageNode {
+        String url;
+        int depth;
+        PageNode(String url, int depth) {
+            this.url = url;
+            this.depth = depth;
+        }
+    }
     
     @Transactional
     @PostMapping("create-project")
