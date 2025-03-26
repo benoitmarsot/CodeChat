@@ -68,14 +68,20 @@ public class ProjectRepository {
      */
     public Project getProjectById(int projectId) {
         String sql = """
-            SELECT p.*
+            SELECT p.*, a.aid
             FROM project p
             INNER JOIN Assistant a ON a.projectid = p.projectid
             LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE p.isdeleted=false and p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
-        return jdbcTemplate.queryForObject(sql, rowMapper, projectId, userId, userId);
+        try {
+            return jdbcTemplate.queryForObject(sql, rowMapper, projectId, userId, userId);
+           
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     /**
