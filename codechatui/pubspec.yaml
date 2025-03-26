@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   flutter_web_plugins:
     sdk: flutter
   flutter_svg: ^1.1.6
@@ -29,6 +28,7 @@ dependencies:
   open_file: ^3.5.10
   file_picker: ^9.2.1
   universal_io: ^2.2.2
+  google_fonts: ^6.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
