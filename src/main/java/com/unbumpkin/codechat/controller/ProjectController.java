@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.unbumpkin.codechat.dto.response.ProjectWithResource;
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.openai.Assistant;
@@ -33,6 +34,8 @@ public class ProjectController {
     @Autowired
     private ProjectRepository projectRepository;
     @Autowired
+    private ProjectResourceRepository projectResourceRepository;
+    @Autowired
     private AssistantRepository assistantRepository;
     @Autowired
     private VectorStoreRepository vectorStoreRepository;
@@ -50,7 +53,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}")
-    public ResponseEntity<Project> getProject(@PathVariable int projectId) {
+    public ResponseEntity<ProjectWithResource> getProject(@PathVariable int projectId) {
         return ResponseEntity.ok(projectRepository.getProjectById(projectId));
     }
 

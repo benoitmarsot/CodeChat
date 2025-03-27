@@ -2,9 +2,11 @@ package com.unbumpkin.codechat.repository;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -13,6 +15,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unbumpkin.codechat.dto.response.ProjectWithResource;
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
@@ -62,25 +68,59 @@ public class ProjectRepository {
     }
 
     /**
-     * Retrieve a project by ID.
+     * Retrieve a project by ID with associated resources.
      * @param projectId The project ID.
-     * @return The project.
+     * @return The project with resource information.
      */
-    public Project getProjectById(int projectId) {
+    public ProjectWithResource getProjectById(int projectId) {
         String sql = """
-            SELECT p.*, a.aid
+            SELECT 
+                p.projectid, p.name, p.description, p.authorid, 
+                a.aid, a.model, a.description as assistant_description,
+                COALESCE(json_agg(pr.uri ) FILTER (WHERE pr.uri IS NOT NULL), '[]'::json) as resources
+
             FROM project p
-            INNER JOIN Assistant a ON a.projectid = p.projectid
+            INNER JOIN assistant a ON a.projectid = p.projectid
             LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
-            WHERE p.isdeleted=false and p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
-        """;
+            LEFT JOIN projectresource pr ON p.projectid = pr.projectid
+            WHERE p.isdeleted=false AND p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
+            GROUP BY p.projectid, p.name, p.description, p.authorid, a.aid, a.model, a.description
+            """;
+        
         int userId = getCurrentUserId();
+        
         try {
-            return jdbcTemplate.queryForObject(sql, rowMapper, projectId, userId, userId);
-           
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
+            return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
+                // Parse the JSON array of resources to a Java List
+                List<String> resourceUris = new ArrayList<>();
+                String resourcesJson = rs.getString("resources");
+                if (resourcesJson != null && !resourcesJson.equals("[]")) {
+                    try {
+                        JsonNode resourcesNode = new ObjectMapper().readTree(resourcesJson);
+                        if (resourcesNode.isArray()) {
+                            for (JsonNode node : resourcesNode) {
+                                resourceUris.add(node.asText());
+                            }
+                        }
+                    } catch (JsonProcessingException e) {
+                        // Handle JSON parsing error
+                        e.printStackTrace();
+                    }
+                }
+                
+                return new ProjectWithResource(
+                    rs.getInt("projectid"),
+                    rs.getString("name"),
+                    rs.getString("description"),
+                    rs.getInt("authorid"),
+                    rs.getInt("aid"),
+                    rs.getString("model"),
+                    rs.getString("assistant_description"),
+                    resourceUris
+                );
+            }, projectId, userId, userId);
+        } catch (EmptyResultDataAccessException e) {
+            return null; // Project not found or user doesn't have access
         }
     }
 

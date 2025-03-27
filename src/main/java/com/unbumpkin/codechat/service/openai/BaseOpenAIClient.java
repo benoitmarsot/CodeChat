@@ -1,6 +1,7 @@
 package com.unbumpkin.codechat.service.openai;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -26,6 +27,14 @@ public abstract class BaseOpenAIClient {
 
         Models(String model) {
             this.model = model;
+        }
+        public static Models fromString(String model) {
+            for (Models m : Models.values()) {
+                if (m.model.equals(model)) {
+                    return m;
+                }
+            }
+            return null;
         }
         @Override
         public String toString() {
@@ -63,12 +72,12 @@ public abstract class BaseOpenAIClient {
             try {
                 try (Response response = client.newCall(request).execute()) {
                     String responseBody = response.body().string();
-                    if (!response.isSuccessful()) {
-                        throw new IOException(responseBody);
+                    if (!response.isSuccessful() && response.code() == 502) {
+                        throw new SocketTimeoutException(responseBody);
                     }
                     return objectMapper.readTree(responseBody);
                 }
-            } catch (IOException e) {
+            } catch (SocketTimeoutException e) {
                 lastException = e;
                 retryCount++;
                 
@@ -76,7 +85,6 @@ public abstract class BaseOpenAIClient {
                     break;
                 }
                 
-                // Exponential backoff: wait longer between consecutive retries
                 try {
                     Thread.sleep(1000 * retryCount);
                 } catch (InterruptedException ie) {

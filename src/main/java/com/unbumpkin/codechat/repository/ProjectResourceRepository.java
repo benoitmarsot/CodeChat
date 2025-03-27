@@ -95,6 +95,19 @@ public class ProjectResourceRepository {
         jdbcTemplate.update("DELETE FROM projectresource WHERE prid = ?", prId);
     }
     /**
+     * Get all resources uri for a project
+     * @param projectId
+     * @return
+     */
+    public List<String> getProjectResourcesUri(int projectId) {
+        return jdbcTemplate.query(
+            "SELECT pr.uri FROM projectresource pr WHERE pr.projectid = ?",
+            (rs, rowNum) -> rs.getString("uri"),
+            projectId
+        );
+    }
+
+    /**
      * Get all resources for a project
      * @param projectId The project ID
      * @return A list of ProjectResource objects
@@ -256,4 +269,5 @@ public class ProjectResourceRepository {
             throw new RuntimeException("Error decrypting value", e);
         }
     }
+
 }

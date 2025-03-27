@@ -21,8 +21,6 @@ create table projectresource (
     uri varchar(512) not null
 );
 
-
-
 create table if not exists oaifile (
     fid serial,
     prid int not null,
@@ -53,14 +51,20 @@ create table if not exists vectorstore_oaifile (
 create table if not exists assistant (
     aid serial,
     oai_aid varchar(30) not null,
+    projectid int not null,
     name varchar(256) not null,
     description varchar(512) null,
-    projectid int not null,
+    instruction text not null,
+    reasoningeffort varchar(20) not null,
+    model varchar(20) not null,
+    temperature float not null,
+    maxresults int not null default(10),
     codevsid int not null,
     markupvsid int not null,
     configvsid int not null,
     -- vector store that contains the sum of codevsid, markupvsid and configvsid 
-    fullvsid int not null 
+    fullvsid int not null,
+    created timestamp not null default now()
 );
 
 create table if not exists thread (
