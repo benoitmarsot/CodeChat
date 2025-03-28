@@ -24,27 +24,28 @@ void main() async {
         if (userId != null) authProvider.setUserId(userId);
         return authProvider;
       },
-      child: const MyApp(),
+      child: const App(),
     ),
   );
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class App extends StatefulWidget {
+  const App({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<App> createState() => _AppState();
 }
 
-class _MyAppState extends State<MyApp> {
-  bool isDarkMode = true; // Track the theme mode
+class _AppState extends State<App> {
+  bool isDarkMode = true;
 
   @override
   Widget build(BuildContext context) {
-    void _onThemeToggle() {
-      setState(() => isDarkMode = !isDarkMode); // Toggle logic
+    void onThemeToggle() {
+      setState(() => isDarkMode = !isDarkMode);
     }
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => MainPageState()),
@@ -56,7 +57,7 @@ class _MyAppState extends State<MyApp> {
           useMaterial3: true,
           brightness: Brightness.light,
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue, // Set primary color here
+            seedColor: Color(0xFF1E4396), // Set primary color here
             brightness: Brightness.light,
           ),
           scaffoldBackgroundColor: Colors.white,
@@ -64,49 +65,43 @@ class _MyAppState extends State<MyApp> {
         darkTheme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue, // Set primary color here
+            seedColor: Color(0xFF1E4396), // Set primary color here
             brightness: Brightness.dark,
           ),
           scaffoldBackgroundColor: Colors.black,
         ),
         themeMode:
             isDarkMode ? ThemeMode.dark : ThemeMode.light, // Conditional theme
-        home: const LoginPage(),
-
-        initialRoute: '',
+        home: authProvider.isAuthenticated
+            ? MainPage(isDarkMode: false, onThemeToggle: onThemeToggle)
+            : LoginPage(),
         onGenerateRoute: (settings) {
           return MaterialPageRoute(
             settings: settings,
             builder: (context) {
-              final authProvider =
-                  Provider.of<AuthProvider>(context, listen: false);
-              final isAuthenticated = authProvider.isAuthenticated;
+              if (!authProvider.isAuthenticated) {
+                return LoginPage();
+              }
 
               switch (settings.name) {
-                // case '/register':
+                // cxase '/register':
                 //   return RegisterPage();
-                case 'main':
-                  return isAuthenticated
-                      ? MainPage(
-                          isDarkMode: false, onThemeToggle: _onThemeToggle)
-                      : LoginPage();
+
                 case 'chat':
                   final args = ModalRoute.of(context)?.settings.arguments;
 
                   // Safe handling of potentially null arguments
                   if (args is Project) {
                     return ChatPage(
-                        project: args, onThemeToggle: _onThemeToggle);
+                        project: args, onThemeToggle: onThemeToggle);
                   }
                   // Otherwise go back to home
                   return MainPage(
-                      isDarkMode: isDarkMode, onThemeToggle: _onThemeToggle);
+                      isDarkMode: isDarkMode, onThemeToggle: onThemeToggle);
                 case '':
                 default:
-                  return isAuthenticated
-                      ? MainPage(
-                          isDarkMode: false, onThemeToggle: _onThemeToggle)
-                      : LoginPage();
+                  return MainPage(
+                      isDarkMode: false, onThemeToggle: onThemeToggle);
               }
             },
           );

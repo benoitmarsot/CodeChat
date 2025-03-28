@@ -20,7 +20,7 @@ class _PricingPageState extends State<PricingPage> {
     required bool isPrimary,
     required String buttonText,
   }) {
-     final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: isPrimary ? 8 : 4,
       shape: RoundedRectangleBorder(
@@ -74,9 +74,7 @@ class _PricingPageState extends State<PricingPage> {
                   children: [
                     Icon(
                       Icons.check_circle,
-                      color: isPrimary
-                          ? colorScheme.primary
-                          : Colors.green,
+                      color: isPrimary ? colorScheme.primary : Colors.green,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -87,26 +85,27 @@ class _PricingPageState extends State<PricingPage> {
             ),
             const SizedBox(height: 24),
             SizedBox(
-              width: double.infinity,
-              child: title!='Free'? ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isPrimary
-                      ? colorScheme.primary
-                      : Colors.white,
-                  foregroundColor: isPrimary ? Colors.white : Colors.black87,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: isPrimary
-                        ? BorderSide.none
-                        : BorderSide(color: Colors.grey[300]!),
-                  ),
-                  elevation: isPrimary ? 4 : 0,
-                ),
-                child: Text(buttonText),
-              ): const SizedBox.shrink()
-            ),
+                width: double.infinity,
+                child: title != 'Free'
+                    ? ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isPrimary ? colorScheme.primary : Colors.white,
+                          foregroundColor:
+                              isPrimary ? Colors.white : Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: isPrimary
+                                ? BorderSide.none
+                                : BorderSide(color: Colors.grey[300]!),
+                          ),
+                          elevation: isPrimary ? 4 : 0,
+                        ),
+                        child: Text(buttonText),
+                      )
+                    : const SizedBox.shrink()),
           ],
         ),
       ),
@@ -126,14 +125,8 @@ class _PricingPageState extends State<PricingPage> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    colorScheme.primary,
-                    colorScheme.tertiary,
-                  ],
-                ),
-              ),
+              color:
+                  Color(0xFF1E4396), //  Theme.of(context).colorScheme.primary,
               child: Column(
                 children: [
                   Text(
@@ -160,7 +153,7 @@ class _PricingPageState extends State<PricingPage> {
                 builder: (context, constraints) {
                   // Determine if we should stack the cards (when width is limited)
                   final bool shouldStack = constraints.maxWidth < 900;
-                  
+
                   // Define the cards to be displayed
                   final List<Widget> cards = [
                     _buildCardWithHover(
@@ -209,7 +202,7 @@ class _PricingPageState extends State<PricingPage> {
                         'Large project size',
                         'Extended code history'
                       ],
-                  colorScheme.primaryContainer,
+                      colorScheme.primaryContainer,
                       'Get Pro',
                       shouldStack,
                     ),
@@ -226,7 +219,7 @@ class _PricingPageState extends State<PricingPage> {
                         'SLA guarantees',
                         'Training & integration'
                       ],
-                 colorScheme.surfaceContainerHighest,
+                      colorScheme.surfaceContainerHighest,
                       'Contact Sales',
                       shouldStack,
                     ),
@@ -243,16 +236,19 @@ class _PricingPageState extends State<PricingPage> {
                       ),
                     );
                   }
-                  
+
                   // Otherwise, use a horizontal row
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: cards.map((card) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: card,
-                      )).toList(),
+                      children: cards
+                          .map((card) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: card,
+                              ))
+                          .toList(),
                     ),
                   );
                 },
@@ -266,7 +262,7 @@ class _PricingPageState extends State<PricingPage> {
   }
 
   Widget _buildCardWithHover(
-    BuildContext context, 
+    BuildContext context,
     String cardId,
     String title,
     String price,
@@ -296,9 +292,7 @@ class _PricingPageState extends State<PricingPage> {
             price: price,
             period: period,
             features: features,
-            bgColor: isHovered
-                ? colorScheme.primaryContainer
-                : bgColor,
+            bgColor: isHovered ? colorScheme.primaryContainer : bgColor,
             isPrimary: isHovered,
             buttonText: buttonText,
           ),
@@ -310,11 +304,12 @@ class _PricingPageState extends State<PricingPage> {
     if (stacked) {
       // Base position - index the cards from right to left
       final int index = ['free', 'team', 'pro', 'enterprise'].indexOf(cardId);
-      final double leftPosition = (index * 60.0); // Horizontal offset for stack effect
-      
+      final double leftPosition =
+          (index * 60.0); // Horizontal offset for stack effect
+
       // If hovered, bring to front by modifying position
       final double hoverAdjustment = isHovered ? -20 : 0;
-      
+
       return Positioned(
         left: leftPosition + hoverAdjustment,
         child: card,

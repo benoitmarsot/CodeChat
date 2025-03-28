@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-//import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -30,9 +30,9 @@ class _LoginPageState extends State<LoginPage> {
 
   void _checkExistingToken() async {
     final token = await _secureStorage.getToken();
-    if (token != null && mounted) {
-      Navigator.of(context).pushReplacementNamed('home');
-    }
+    // if (token != null && mounted) {
+    //   Navigator.of(context).pushReplacementNamed('');
+    // }
   }
 
   void _handleLogin() async {
@@ -119,7 +119,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /* Google Sign-In
+  // Google Sign-In
   Future<void> _handleGoogleSignIn() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -160,7 +160,7 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
-*/
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -181,12 +181,12 @@ class _LoginPageState extends State<LoginPage> {
                   .contain, // Optional: specify how the SVG should be scaled
             ),
             Text(
-              'CODECHAT AI',
-              style: GoogleFonts.lato(
+              'SAMTAL AI',
+              style: GoogleFonts.scada(
                 textStyle: Theme.of(context).textTheme.displayLarge,
                 fontSize: 48,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF477AE5),
+                color: const Color(0xFF1E4396),
               ),
             ),
             SizedBox(height: 24.0),
@@ -237,11 +237,11 @@ class _LoginPageState extends State<LoginPage> {
                       child: const Text('Login'),
                     ),
                     const SizedBox(height: 16.0),
-                    ElevatedButton(
-                      // Google Sign-In Button
-                      onPressed: _handleGoogleSignIn,
-                      child: const Text('Sign in with Google'),
-                    ),
+                    // ElevatedButton(
+                    //   // Google Sign-In Button
+                    //   onPressed: _handleGoogleSignIn,
+                    //   child: const Text('Sign in with Google'),
+                    // ),
                   ],
                 ),
               ),
