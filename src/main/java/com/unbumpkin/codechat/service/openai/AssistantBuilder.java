@@ -19,7 +19,7 @@ public class AssistantBuilder {
         file_search,
         function
     }
-    public enum ReasoningEffort {
+    public enum ReasoningEfforts {
         low,
         medium,
         high
@@ -32,7 +32,7 @@ public class AssistantBuilder {
     String description;
     @JsonProperty("instructions")
     String instructions;
-    ReasoningEffort reasoningEffort;
+    ReasoningEfforts reasoningEffort;
     @JsonProperty("tools")
     final Set<Tool> tools;
     @JsonProperty("tool_resources")
@@ -73,7 +73,7 @@ public class AssistantBuilder {
         this.metadata=metadata;
         return this;
     }
-    public AssistantBuilder setReasoningEffort(ReasoningEffort reasoningEffort) {
+    public AssistantBuilder setReasoningEffort(ReasoningEfforts reasoningEffort) {
         this.reasoningEffort = reasoningEffort;
         return this;
     }

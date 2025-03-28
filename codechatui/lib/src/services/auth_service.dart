@@ -5,7 +5,8 @@ import '../config/app_config.dart';
 class AuthService {
   static final String baseUrl = AppConfig.authBaseUrl;
 
-  Future<http.Response> register(String name, String email, String password, String role) async {
+  Future<http.Response> register(
+      String name, String email, String password, String role) async {
     final url = Uri.parse('$baseUrl/register');
     final response = await http.post(
       url,
@@ -18,6 +19,22 @@ class AuthService {
         'email': email,
         'password': password,
         'role': role,
+      }),
+    );
+    return response;
+  }
+
+  Future<http.Response> googleLogin(String accessToken) async {
+    final url = Uri.parse(
+        '$baseUrl/google-login'); // Replace once backend endpoint is implemented
+    final response = await http.post(
+      url,
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'User-Agent': 'Dart/2.14 (dart:io)',
+      },
+      body: jsonEncode(<String, String>{
+        'access_token': accessToken,
       }),
     );
     return response;

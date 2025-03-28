@@ -7,9 +7,11 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
+import com.unbumpkin.codechat.dto.request.ModifyAssistantRequest;
+import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -112,11 +114,14 @@ public class AssistantService extends BaseOpenAIClient {
             JsonNode jsonNode = this.executeRequest(request);
             return jsonNode;
     }
-    public JsonNode modifyAsssistant( Models model, String id, String name, List<AssistantTools> tools, String instructions) throws IOException {
-
-        String json = new ObjectMapper().writeValueAsString(new CreateAssistantRequest(
-            model, name, tools, instructions
-        ));
+    public JsonNode modifyAsssistant( 
+        ModifyAssistantRequest marRequest, String existingInstruction, String id
+    ) throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.setSerializationInclusion(Include.NON_NULL);
+        String json = new ObjectMapper().writeValueAsString(
+            marRequest.toOaiModifyAssistantRequest(existingInstruction)
+        );
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()
@@ -197,7 +202,7 @@ public class AssistantService extends BaseOpenAIClient {
             .setName("Code chat assistant")
             .setDescription("Help in the reviewing of code")
             .setInstructions("You are a code reviewer. When asked a question, provide feedback on the code base provided in your vector store.")
-            .setReasoningEffort(ReasoningEffort.high)
+            .setReasoningEffort(ReasoningEfforts.high)
             .addFileSearchTool()
             .addFileSearchAssist()
             .setToolResourcesFileSearch(Set.of("vs_67aec52acf3c819198ef877500651d8f"))

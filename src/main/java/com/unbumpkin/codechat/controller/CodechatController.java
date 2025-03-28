@@ -25,7 +25,19 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.unbumpkin.codechat.service.openai.AssistantBuilder;
+import com.unbumpkin.codechat.service.openai.AssistantService;
+import com.unbumpkin.codechat.service.openai.OaiFileService;
+import com.unbumpkin.codechat.service.openai.VectorStoreFile;
+import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
+import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
+import com.unbumpkin.codechat.service.openai.GithubRepoContentManager;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
+import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFileType;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
+import com.unbumpkin.codechat.service.openai.VectorStoreService;
+import com.unbumpkin.codechat.util.ExtMimeType;
+import com.unbumpkin.codechat.util.FileUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.microsoft.playwright.Browser;
@@ -196,7 +208,7 @@ public class CodechatController {
                     for (String deletedFile : changes.deletedFiles()) {
                         try {
                             OaiFile oaiFile = oaiFileRepository.getOaiFileByPath(deletedFile, resource.prId());
-                            if(oaiFile!=null){
+                            if(oaiFile!=null) {
                                 Types fileType=getFileType(oaiFile.fileName());
                                 vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
                                 vsfServicesAll.removeFile(oaiFile.fileId());
@@ -205,35 +217,42 @@ public class CodechatController {
                                 System.out.println(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from "+fileType.toString()+" vector store and deleted.");
                             }
                         } catch (Exception e) {
-                            System.out.println("Should be removed: Error deleting file: "+deletedFile);
+                            System.out.println("This file is ignored or could not be retrieved: "+deletedFile);
                         }
                     }
 
                     for (String addedFile : changes.addedFiles()) {
-                        File file = new File(pfc.getTempDir()+"/"+addedFile);
-                        FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
-                        OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength, Purposes.assistants, resource.prId());
-                        System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
-                        String oldExt = FileUtils.getFileExtension(desc.oldFile());
-                        Types fileType=getFileType(desc.oldFile().getName());
-                        CreateVSFileRequest request = new CreateVSFileRequest(
-                            oaiFile.fileId(), new HashMap<>() {{
-                                put("name", desc.oldFile().getName());
-                                put("path", desc.oldFile().getAbsolutePath());
-                                put("extension", oldExt);
-                                // Should I put the "."? If so put it in the assistant instructions
-                                put("mime-type", ExtMimeType.getMimeType(oldExt));
-                                put("nbLines", String.valueOf(FileUtils.countLines(desc.oldFile())));
-                                put("type", fileType.name());
-                            }}
-                        );
-                        vsfServicesMap.get(fileType).addFile( request);
-                        vsfServicesAll.addFile( request);
-                        oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
+                        try {
+                            File file = new File(pfc.getTempDir()+"/"+addedFile);
+                            FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+                            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, resource.prId());
+                            System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
+                            String oldExt = FileUtils.getFileExtension(desc.oldFileName());
+                            Types fileType=getFileType(desc.oldFileName());
+                            CreateVSFileRequest request = new CreateVSFileRequest(
+                                oaiFile.fileId(), new HashMap<>() {{
+                                    put("name", desc.oldFileName());
+                                    put("path", desc.oldFilePath().substring(tempDirLength+1));
+                                    put("extension", oldExt);
+                                    // Should I put the "."? If so put it in the assistant instructions
+                                    put("mime-type", ExtMimeType.getMimeType(oldExt));
+                                    put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
+                                    put("type", fileType.name());
+                                }}
+                            );
+                            vsfServicesMap.get(fileType).addFile( request);
+                            vsfServicesAll.addFile( request);
+                            oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
 
-                        System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
+                           System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
+                        } catch (Exception e) {
+                            System.out.println("The file "+addedFile+" could not be added: "+e.getMessage());
+                        }   
                     }
+                    System.out.println("Updating commit hash...");
                     projectResourceRepository.updateSecret(resource.prId(), Labels.commitHash, commitHash);
+                    System.out.println("Done refreshing repo.");
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     throw e;
@@ -506,24 +525,26 @@ public class CodechatController {
         VectorStoreFile vsfService = new VectorStoreFile(vsOaiId);
         for (File file : pfc.getFileSetMap(type)) {
             FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
-            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength, Purposes.assistants, prId);
-            lFiles.add(
-                oaiFile
-            );
+            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength+1, Purposes.assistants, prId);
             System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
             lFileIds.add(oaiFile.fileId());
-            String oldExt = FileUtils.getFileExtension(desc.oldFile());
+            String oldExt = FileUtils.getFileExtension(desc.oldFileName());
+            String oldFilePath=desc.oldFilePath().substring(basePathLength+1);
             CreateVSFileRequest request = new CreateVSFileRequest(
                 oaiFile.fileId(), new HashMap<>() {{
-                    put("name", desc.oldFile().getName());
-                    put("path", desc.oldFile().getAbsolutePath().substring(basePathLength+1));
+                    put("name", desc.oldFileName());
+                    put("path", oldFilePath);
                     put("extension", oldExt);
                     // Should I put the "."? If so put it in the assistant instructions
                     put("mime-type", ExtMimeType.getMimeType(oldExt));
-                    put("nbLines", String.valueOf(FileUtils.countLines(desc.oldFile())));
+                    put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
                     put("type", type.name());
                 }}
             );
+            lFiles.add(
+                new OaiFile(0, prId, oaiFile.fileId(), desc.oldFileName(), oaiFile.rootdir(), oldFilePath, oaiFile.purpose(), oaiFile.linecount())
+            );
+
             allFileIds.put(oaiFile.fileId(), request);
             vsfService.addFile(request);
             System.out.println("File id "+oaiFile.fileId()+" added to vector store "+vsOaiId);
@@ -540,85 +561,87 @@ public class CodechatController {
     private int createAssistant(
         String name, int projectId, Map<String,Integer> vectorStorMap, String vsAllOaiId
     ) throws IOException {
-        AssistantBuilder assistantBuilder = new AssistantBuilder(Models.o3_mini);
+        Models model=Models.o3_mini;
+        AssistantBuilder assistantBuilder = new AssistantBuilder(model);
+        String instruction="""
+            <Function: You are a code search assistant designed to help users analyze and understand their projects. Your primary role is to provide detailed explanations, code snippets, and actionable suggestions based on the project's files and metadata.>
 
+            Always respond in the following structured JSON format, and do not prefix with ```<language>:
+            {
+                "answers": [
+                    {
+                        "explanation": "<Detailed explanation>",
+                        "language": "<Programming language (if applicable)>",
+                        "code": "<Formatted code snippet (if applicable)>",
+                        "codeExplanation": "<Explanation of the code snippet (if applicable)>",
+                        "references": ["<Relevant sources>"]
+                    }
+                    // Add more answers as needed
+                ],
+                "conversationalGuidance": "<Additional guidance for the user: Intelligent Follow-ups, Actionable Suggestions, Engagement & Clarifications, etc.>"
+            }
+
+
+            Use plain text in the response.
+            Markdown is supported in the explanation, code explanation, and reference fields.
+
+            ### File Metadata Usage
+            When analyzing files, use the following attributes from the file metadata to provide insights and context:
+            - **`name`**: Use the file name to identify the file and provide context in your response.
+            - **`path`**: Use the file's relative path to locate it within the project and reference it in your response.
+            - **`extension`**: Use the file extension to determine the programming language or file type (e.g., `java` for Java, `py` for Python).
+            - **`mime-type`**: Use the MIME type to understand the file's format or content type (e.g., `text/plain`, `application/json`).
+            - **`nbLines`**: Use the number of lines in the file to assess its size or complexity. For example:
+            - Small files (e.g., <50 lines) may be utility scripts or configuration files.
+            - Large files (e.g., >500 lines) may indicate complex logic or large datasets.
+            - **`type`**: Use the file type (e.g., `code`, `markup`, `config`) to tailor your analysis and suggestions. For example:
+            - For `code` files, focus on programming logic, structure, and potential improvements.
+            - For `markup` files, focus on formatting, structure, and content organization.
+            - For `config` files, focus on configuration correctness and best practices.
+
+            ### Analyzing Files
+            - Use the `extension` and `mime-type` attributes to determine the programming language or file type. For example:
+            - `java` → Java
+            - `py` → Python
+            - `html` → HTML
+            - Use the `nbLines` attribute to assess the file's complexity and provide insights. For example:
+            - "This file contains 120 lines of Java code, which suggests it implements a moderately complex class."
+            - Use the `type` attribute to guide your analysis. For example:
+            - For `code` files, analyze the logic, structure, and potential improvements.
+            - For `markup` files, analyze the formatting and content organization.
+            - For `config` files, analyze the correctness and adherence to best practices.
+
+            ### Referencing Files
+            - Donot use the internal name, always use file metadata such as `name` and `path` when referencing specific files.
+            - Use the `nbLines` attribute to provide insights into the file's size or complexity when relevant.
+            - Use the `mime-type` attribute to describe the file's format or content type.
+            - When retrieving code, always reference the file's `path` and `name` to provide context.
+
+            #### Markdown Links for References
+            - Use Markdown links with a title attribute to reference files. For example:
+            `[MyClass.java](src/main/java/com/example/MyClass.java "Java source file")`.
+
+            ### Handling Non-Code Queries
+            - If the query is not related to code, omit the `language` and `code` fields in the response. Focus on providing a clear explanation and actionable suggestions.
+
+            ### Example Response
+            {
+                "answers": [
+                    {
+                        "explanation": "The file `MyClass.java` contains the implementation of the main application logic. It is located at `src/main/java/com/example/MyClass.java` and contains 120 lines of Java code. The file's MIME type is `text/x-java-source`.",
+                        "language": "Java",
+                        "code": "public class MyClass { ... }",
+                        "codeExplanation": "This code defines the main class of the application.",
+                        "references": ["[MyClass.java](src/main/java/com/example/MyClass.java \"Java source file\")"]
+                    }
+                ],
+                "conversationalGuidance": "Would you like to see more details about this file or related files?"
+            }
+            """;
+        
         assistantBuilder.setName(name)
             .setDescription("Code search assistant for " + name)
-            .setInstructions("""
-                You are a code search assistant designed to help users analyze and understand their projects. Your primary role is to provide detailed explanations, code snippets, and actionable suggestions based on the project's files and metadata.
-
-                Always respond in the following structured JSON format, and do not prefix with ```<language>:
-                {
-                    "answers": [
-                        {
-                            "explanation": "<Detailed explanation>",
-                            "language": "<Programming language (if applicable)>",
-                            "code": "<Formatted code snippet (if applicable)>",
-                            "codeExplanation": "<Explanation of the code snippet (if applicable)>",
-                            "references": ["<Relevant sources>"]
-                        }
-                        // Add more answers as needed
-                    ],
-                    "conversationalGuidance": "<Additional guidance for the user: Intelligent Follow-ups, Actionable Suggestions, Engagement & Clarifications, etc.>"
-                }
-
-
-                Use plain text in the response.
-                Markdown is supported in the explanation, code explanation, and reference fields.
-
-                ### File Metadata Usage
-                When analyzing files, use the following attributes from the file metadata to provide insights and context:
-                - **`name`**: Use the file name to identify the file and provide context in your response.
-                - **`path`**: Use the file's relative path to locate it within the project and reference it in your response.
-                - **`extension`**: Use the file extension to determine the programming language or file type (e.g., `java` for Java, `py` for Python).
-                - **`mime-type`**: Use the MIME type to understand the file's format or content type (e.g., `text/plain`, `application/json`).
-                - **`nbLines`**: Use the number of lines in the file to assess its size or complexity. For example:
-                - Small files (e.g., <50 lines) may be utility scripts or configuration files.
-                - Large files (e.g., >500 lines) may indicate complex logic or large datasets.
-                - **`type`**: Use the file type (e.g., `code`, `markup`, `config`) to tailor your analysis and suggestions. For example:
-                - For `code` files, focus on programming logic, structure, and potential improvements.
-                - For `markup` files, focus on formatting, structure, and content organization.
-                - For `config` files, focus on configuration correctness and best practices.
-
-                ### Analyzing Files
-                - Use the `extension` and `mime-type` attributes to determine the programming language or file type. For example:
-                - `java` → Java
-                - `py` → Python
-                - `html` → HTML
-                - Use the `nbLines` attribute to assess the file's complexity and provide insights. For example:
-                - "This file contains 120 lines of Java code, which suggests it implements a moderately complex class."
-                - Use the `type` attribute to guide your analysis. For example:
-                - For `code` files, analyze the logic, structure, and potential improvements.
-                - For `markup` files, analyze the formatting and content organization.
-                - For `config` files, analyze the correctness and adherence to best practices.
-
-                ### Referencing Files
-                - Donot use the internal name, always use file metadata such as `name` and `path` when referencing specific files.
-                - Use the `nbLines` attribute to provide insights into the file's size or complexity when relevant.
-                - Use the `mime-type` attribute to describe the file's format or content type.
-                - When retrieving code, always reference the file's `path` and `name` to provide context.
-
-                #### Markdown Links for References
-                - Use Markdown links with a title attribute to reference files. For example:
-                `[MyClass.java](src/main/java/com/example/MyClass.java "Java source file")`.
-
-                ### Handling Non-Code Queries
-                - If the query is not related to code, omit the `language` and `code` fields in the response. Focus on providing a clear explanation and actionable suggestions.
-
-                ### Example Response
-                {
-                    "answers": [
-                        {
-                            "explanation": "The file `MyClass.java` contains the implementation of the main application logic. It is located at `src/main/java/com/example/MyClass.java` and contains 120 lines of Java code. The file's MIME type is `text/x-java-source`.",
-                            "language": "Java",
-                            "code": "public class MyClass { ... }",
-                            "codeExplanation": "This code defines the main class of the application.",
-                            "references": ["[MyClass.java](src/main/java/com/example/MyClass.java \"Java source file\")"]
-                        }
-                    ],
-                    "conversationalGuidance": "Would you like to see more details about this file or related files?"
-                }
-                """).setReasoningEffort(ReasoningEffort.high)
+            .setInstructions(instruction).setReasoningEffort(ReasoningEfforts.high)
             //.setTemperature(.02) //Not suported in o3-mini
             .addFileSearchTool().addFileSearchAssist()
             .setFileSearchMaxNumResults(20) //default
@@ -646,8 +669,9 @@ public class CodechatController {
         mapper.writeValueAsString(assistantBuilder);
         String assistantOaiId=assistantService.createAssistant(assistantBuilder);
         Integer[] vsIds = vectorStorMap.values().toArray(new Integer[0]);
-        Assistant assistant = new Assistant(0, assistantOaiId, name, "Code search assistant for " + name,
-            projectId, vsIds[0], vsIds[1], vsIds[2], vsIds[3]
+        Assistant assistant = new Assistant(
+            0, assistantOaiId, projectId, name, "Code search assistant for " + name,
+            instruction, ReasoningEfforts.high, model, .7f, 10, vsIds[0], vsIds[1], vsIds[2], vsIds[3]
         );
         return assistantRepository.addAssistant(assistant);
     }

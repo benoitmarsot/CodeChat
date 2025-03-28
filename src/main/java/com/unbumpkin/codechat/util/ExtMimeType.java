@@ -125,6 +125,8 @@ public class ExtMimeType {
     }
     public static FileRenameDescriptor oaiRename(File file) {
         String ext = FileUtils.getFileExtension(file);
+        String oldFileName=file.getName();
+        String oldFilePath=file.getPath();
         File renamedFile = file;
         if (!oaiSupported(ext)) {
             // Rename the file with a .txt extension
@@ -133,7 +135,7 @@ public class ExtMimeType {
                 file = renamedFile; // Update the file reference
             }            
         } 
-        return new FileRenameDescriptor(file, renamedFile, getMimeType(ext));
+        return new FileRenameDescriptor(oldFileName, oldFilePath, renamedFile, getMimeType(ext));
     }
     
 }

@@ -124,11 +124,14 @@ public class OaiFileService  extends BaseOpenAIClient {
                 .post(requestBody)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .build();
+        String parentPath=Paths.get(filePath).getParent().toString();
+        // removal of the first "/" may execeed the length of the string if the path is the root directory
+        parentPath=parentPath.length()<=basePathLen?"":parentPath.substring(basePathLen);
         OaiFile oaiFile = new OaiFile(0,
             prId,
             this.executeRequest(request).get("id").asText(),
             Paths.get(filePath).getFileName().toString(),
-            Paths.get(filePath).getParent().toString().substring(basePathLen),
+            parentPath,
             filePath.substring(basePathLen),
             purpose,
             linecount

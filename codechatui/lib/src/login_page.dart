@@ -1,10 +1,12 @@
-import 'dart:convert'; // Import the dart:convert package
+import 'dart:convert';
 import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:codechatui/src/services/auth_service.dart';
 import 'package:codechatui/src/services/secure_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -28,9 +30,9 @@ class _LoginPageState extends State<LoginPage> {
 
   void _checkExistingToken() async {
     final token = await _secureStorage.getToken();
-    if (token != null && mounted) {
-      Navigator.of(context).pushReplacementNamed('home');
-    }
+    // if (token != null && mounted) {
+    //   Navigator.of(context).pushReplacementNamed('');
+    // }
   }
 
   void _handleLogin() async {
@@ -117,6 +119,48 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // Google Sign-In
+  Future<void> _handleGoogleSignIn() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        // User cancelled the sign-in flow.
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final String? accessToken = googleAuth.accessToken;
+
+      // Send the accessToken to your backend for verification and token exchange
+      final response = await _authService.googleLogin(accessToken!);
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final token = responseData['token'];
+        final userId = responseData['userId'];
+
+        await _secureStorage.storeToken(token);
+        await _secureStorage.storeUserId(userId);
+
+        if (mounted) {
+          var authProvider = Provider.of<AuthProvider>(context, listen: false);
+          authProvider.setToken(token);
+          authProvider.setUserId(userId == null ? null : int.parse(userId));
+          Navigator.of(context).pushReplacementNamed('home');
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Google login failed: ${response.body}';
+        });
+      }
+    } catch (error) {
+      setState(() {
+        _errorMessage = 'Google sign-in failed: $error';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -129,13 +173,23 @@ class _LoginPageState extends State<LoginPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             SvgPicture.asset(
-              'logo-w-copy.svg',
+              'logo.svg',
               semanticsLabel: 'My SVG Image',
               width: 200, // Optional: specify width
               height: 200, // Optional: specify height
               fit: BoxFit
                   .contain, // Optional: specify how the SVG should be scaled
             ),
+            Text(
+              'SAMTAL AI',
+              style: GoogleFonts.scada(
+                textStyle: Theme.of(context).textTheme.displayLarge,
+                fontSize: 48,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1E4396),
+              ),
+            ),
+            SizedBox(height: 24.0),
             Card(
               shape: RoundedRectangleBorder(
                 side: BorderSide(
@@ -182,6 +236,12 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: _handleLogin,
                       child: const Text('Login'),
                     ),
+                    const SizedBox(height: 16.0),
+                    // ElevatedButton(
+                    //   // Google Sign-In Button
+                    //   onPressed: _handleGoogleSignIn,
+                    //   child: const Text('Sign in with Google'),
+                    // ),
                   ],
                 ),
               ),
