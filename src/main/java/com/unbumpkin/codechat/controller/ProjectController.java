@@ -1,28 +1,28 @@
 package com.unbumpkin.codechat.controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.unbumpkin.codechat.dto.response.ProjectWithResource;
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.model.ProjectResource;
-import com.unbumpkin.codechat.model.openai.Assistant;
-import com.unbumpkin.codechat.model.openai.OaiFile;
-import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.repository.ProjectRepository;
 import com.unbumpkin.codechat.repository.ProjectResourceRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.service.openai.AssistantService;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
-import com.unbumpkin.codechat.service.openai.VectorStoreService;
-
-import io.github.classgraph.Resource;
-
-import java.util.List;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 
 
@@ -45,6 +45,8 @@ public class ProjectController {
     @Autowired
     private AssistantService assistantService;
 
+    @Autowired
+    private ProjectResourceRepository projectResourceRepository;
 
     @PostMapping
     public ResponseEntity<Void> createProject(@RequestBody Project project) {
@@ -133,4 +135,18 @@ public class ProjectController {
         projectRepository.revokeUserAccessFromProject(projectId, userId);
         return ResponseEntity.ok().build();
     }
+    //consider moving this to the project resource controller
+
+    @PostMapping("/{projectId}/resources")
+    public ResponseEntity<ProjectResource> addResource(@PathVariable int projectId, @RequestBody ProjectResource resource) {
+        ProjectResource createdResource = projectResourceRepository.createResource(projectId, resource.uri(), resource.secrets());
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdResource);
+    }
+    
+    @GetMapping("/{projectId}/resources")
+    public ResponseEntity<List<ProjectResource>> getResources(@PathVariable int projectId) {
+        List<ProjectResource> resources = projectResourceRepository.getResources(projectId);
+        return ResponseEntity.ok(resources);
+    }
+    
 }
