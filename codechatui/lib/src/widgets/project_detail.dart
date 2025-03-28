@@ -1,25 +1,29 @@
+import 'dart:async';
+
 import 'package:codechatui/src/config/app_config.dart';
+import 'package:codechatui/src/models/exceptions.dart';
 import 'package:codechatui/src/models/project.dart';
-import 'package:codechatui/src/project_page.dart';
+import 'package:codechatui/src/models/project_resources.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:codechatui/src/services/codechat_service.dart';
 import 'package:codechatui/src/services/project_service.dart';
 import 'package:codechatui/src/widgets/choice-button.dart';
 import 'package:codechatui/src/widgets/github_widget.dart';
-import 'package:codechatui/src/widgets/web_widget.dart';
 import 'package:codechatui/src/widgets/zip_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
+import 'package:codechatui/src/utils/error_handler.dart';
 
 enum DataSourceType { github, zip, web }
 
 class ProjectDetail extends StatefulWidget {
   final int projectId; // Prop for initial value
-  final bool? isEditing;
+  final bool isEditing;
+  final Future<void> Function()? onSave;
   //final ValueChanged<Project?>? onProjectChanged; // Callback for changes
 
-  const ProjectDetail({super.key, this.projectId = -1, this.isEditing});
+  const ProjectDetail(
+      {super.key, this.projectId = -1, this.onSave, required this.isEditing});
 
   @override
   _ProjectDetailState createState() => _ProjectDetailState();
@@ -39,20 +43,30 @@ class _ProjectDetailState extends State<ProjectDetail> {
   final TextEditingController _webURLController = TextEditingController();
 
   int? _projectId;
+  Future<void> Function()? _onSave;
 
   String _createdMessage = '';
   String? _errorMessage;
+  bool get hasDataSource =>
+      _prjRepoURLController.text.isNotEmpty ||
+      _zipFilePathController.text.isNotEmpty ||
+      _webURLController.text.isNotEmpty;
 
   DataSourceType _selectedDataSource = DataSourceType.github;
-  bool? _isEditing;
-  Project? _selectedProject; // Internal state variable
+  bool _isEditing = false;
+  Project? _selectedProject;
+  List<ProjectResource> _selectedProjectResources = [];
 
   @override
   void initState() {
     super.initState();
     _projectId = widget.projectId;
-    _isEditing = widget.isEditing ?? false;
-    _fetchProjectDetails();
+    if (widget.onSave != null) _onSave = widget.onSave;
+    _isEditing = widget.isEditing;
+    if (_isEditing) {
+      _fetchProjectDetails();
+      _fetchProjectResources();
+    }
   }
 
   void _loadProjectData() {
@@ -63,6 +77,14 @@ class _ProjectDetailState extends State<ProjectDetail> {
     } else {
       _prjNameController.clear();
       _prjDesctController.clear();
+    }
+  }
+
+  void _loadResourceData() {
+    if (_projectId != null) {
+      _prjRepoURLController.text = _selectedProjectResources[0].uri;
+    } else {
+      _prjRepoURLController.clear();
     }
   }
 
@@ -80,79 +102,105 @@ class _ProjectDetailState extends State<ProjectDetail> {
       });
       return;
     }
-    if (_prjRepoURLController.text.isEmpty) {
-      setState(() {
-        _errorMessage = 'Repo URL is required';
-      });
-      return;
-    }
+    // if (_prjRepoURLController.text.isEmpty) {
+    //   setState(() {
+    //     _errorMessage = 'Repo URL is required';
+    //   });
+    //   return;
+    // }
+    if (hasDataSource == false) {
+      try {
+        final project = await codechatService.createEmtptyProject(
+            _prjNameController.text, _prjDesctController.text);
 
-    final uri = '${AppConfig.openaiBaseUrl}/files/uploadDir?projectId=1';
-    print('Uploading to URI: $uri');
+        setState(() {
+          _createdMessage = 'Emtpy Project created';
+        });
+        _prjNameController.clear();
+        _prjDesctController.clear();
 
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 16),
-                Text("Creating project...\nIt will take a while..."),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    try {
-      // Handle authentication parameters
-      String? username;
-      String? password;
-
-      if (_userNameController.text.isEmpty && _patController.text.isNotEmpty) {
-        // If username is empty but PAT is provided, use PAT as username
-        username = _patController.text;
-      } else if (_userNameController.text.isNotEmpty) {
-        // If username is provided, use username and password
-        username = _userNameController.text;
-        password = _userPswController.text;
-      }
-
-      final project = await codechatService.createProject(
-        _prjNameController.text,
-        _prjDesctController.text,
-        _prjRepoURLController.text,
-        _branchNameController.text,
-        username,
-        password,
-      );
-
-      setState(() {
-        _createdMessage = 'Project created';
-      });
-
-      // Clear the form
-      _prjNameController.clear();
-      _prjDesctController.clear();
-      _prjRepoURLController.clear();
-
-      // Dismiss loading dialog
-      if (mounted) {
+        _selectedProject = project;
+        _onSave!();
         Navigator.of(context).pop();
+      } on ForbiddenException catch (e) {
+        // Handle 403 error
+        ErrorHandler.handleForbiddenError(context, e.message);
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'Failed to create empty project: $e';
+        });
+        print('Failed to create project: $e');
       }
+    } else {
+      final uri = '${AppConfig.openaiBaseUrl}/files/uploadDir?projectId=1';
+      print('Uploading to URI: $uri');
 
-      _selectedProject = project;
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to upload directory: $e';
-      });
-      print('Failed to upload directory: $e');
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text("Creating project...\nIt will take a while..."),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      try {
+        // Handle authentication parameters
+        String? username;
+        String? password;
+
+        if (_userNameController.text.isEmpty &&
+            _patController.text.isNotEmpty) {
+          // If username is empty but PAT is provided, use PAT as username
+          username = _patController.text;
+        } else if (_userNameController.text.isNotEmpty) {
+          // If username is provided, use username and password
+          username = _userNameController.text;
+          password = _userPswController.text;
+        }
+
+        final project = await codechatService.createProject(
+          _prjNameController.text,
+          _prjDesctController.text,
+          _prjRepoURLController.text,
+          _branchNameController.text,
+          username,
+          password,
+        );
+
+        setState(() {
+          _createdMessage = 'Project created';
+        });
+
+        // Clear the form
+        _prjNameController.clear();
+        _prjDesctController.clear();
+        _prjRepoURLController.clear();
+
+        // Dismiss loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        _selectedProject = project;
+        _onSave!();
+        Navigator.of(context).pop();
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'Failed to upload directory: $e';
+        });
+        print('Failed to upload directory: $e');
+      }
     }
   }
 
@@ -191,8 +239,8 @@ class _ProjectDetailState extends State<ProjectDetail> {
 
         Navigator.pop(context);
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(_createdMessage)));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(_createdMessage), backgroundColor: Colors.green));
         }
       });
     } catch (e) {
@@ -204,6 +252,12 @@ class _ProjectDetailState extends State<ProjectDetail> {
   }
 
   Future<void> _fetchProjectDetails() async {
+    if (widget.projectId <= 0) {
+      setState(() {
+        _errorMessage = 'Invalid project ID';
+      });
+      return;
+    }
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final projectService = ProjectService(authProvider: authProvider);
 
@@ -218,8 +272,46 @@ class _ProjectDetailState extends State<ProjectDetail> {
       setState(() {
         _errorMessage = 'Failed to fetch project details: $e';
       });
+    } finally {
+      if (mounted && _errorMessage == null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
+      }
+    }
+  }
+
+  Future<void> _fetchProjectResources() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final projectService = ProjectService(authProvider: authProvider);
+
+    if (widget.projectId <= 0) {
+      setState(() {
+        _errorMessage = 'Invalid project ID';
+      });
+      return;
+    }
+
+    try {
+      final updatedResources =
+          await projectService.getProjectResources(widget.projectId);
+      if (updatedResources.isNotEmpty) {
+        setState(() {
+          _selectedProjectResources = updatedResources;
+          _loadResourceData();
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to fetch project details: $e';
+      });
       print('Error fetching project details: $e');
     }
+    // finally {
+    //   if (mounted && _errorMessage!.isNotEmpty) {
+    //     ScaffoldMessenger.of(context)
+    //         .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
+    //   }
+    // }
   }
 
   Future<void> _refreshDataSource() async {

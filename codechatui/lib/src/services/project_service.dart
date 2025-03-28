@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:codechatui/src/config/app_config.dart';
+import 'package:codechatui/src/models/exceptions.dart';
+import 'package:codechatui/src/models/project_resources.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:http/http.dart' as http;
 import '../models/project.dart';
@@ -11,9 +13,9 @@ class ProjectService {
   ProjectService({required this.authProvider});
 
   Map<String, String> get _headers => {
-      'Authorization': 'Bearer ${authProvider.token}',
-      'Content-Type': 'application/json',
-    };
+        'Authorization': 'Bearer ${authProvider.token}',
+        'Content-Type': 'application/json',
+      };
 
   Future<List<Project>> getAllProjects() async {
     final response = await http.get(
@@ -23,6 +25,9 @@ class ProjectService {
     if (response.statusCode == 200) {
       List<dynamic> jsonList = json.decode(response.body);
       return jsonList.map((json) => Project.fromJson(json)).toList();
+    }
+    if (response.statusCode == 403) {
+      throw ForbiddenException('Access denied. Please log in again.');
     }
     throw Exception('Failed to load projects');
   }
@@ -36,6 +41,22 @@ class ProjectService {
       return Project.fromJson(json.decode(response.body));
     }
     throw Exception('Failed to load project');
+  }
+
+  Future<List<ProjectResource>> getProjectResources(int projectId) async {
+    if (projectId <= 0) {
+      throw Exception('Invalid project ID');
+    }
+    final response = await http.get(
+      Uri.parse('$baseUrl/$projectId/resources'),
+      headers: _headers,
+    );
+    if (response.statusCode == 200) {
+      List<dynamic> jsonList = json.decode(response.body);
+      return jsonList.map((json) => ProjectResource.fromJson(json)).toList();
+    }
+    return [];
+    //throw Exception('Failed to load project resources');
   }
 
   Future<void> createProject(Project project) async {

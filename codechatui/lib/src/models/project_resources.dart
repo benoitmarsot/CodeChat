@@ -1,54 +1,61 @@
+typedef Secrets = Map<String, String>;
+
 class ProjectResource {
-  final String id;
-  final String name;
-  final String resourceUrl;
-  final String description;
+  final int resourceId;
+  final int projectId;
+  final String uri;
+  final Map<String, Secret>? secrets;
 
   ProjectResource({
-    required this.id,
-    required this.name,
-    required this.resourceUrl,
-    this.description = '',
+    required this.resourceId,
+    required this.projectId,
+    required this.uri,
+    this.secrets,
   });
 
-  factory ProjectResource.fromMap(Map<String, dynamic> map) {
+  factory ProjectResource.fromJson(Map<String, dynamic> json) {
     return ProjectResource(
-      id: map['id'] as String,
-      name: map['name'] as String,
-      resourceUrl: map['resourceUrl'] as String,
-      description: map['description'] as String? ?? '',
+      resourceId: json['prId'],
+      projectId: json['projectId'],
+      uri: json['uri'],
+      secrets: json['secrets'] != null
+          ? (json['secrets'] as Map<String, dynamic>).map(
+              (key, value) => MapEntry(key, Secret.fromJson(value)),
+            )
+          : null,
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'resourceUrl': resourceUrl,
-      'description': description,
-    };
+  Map<String, dynamic> toJson() => {
+        'resourceId': resourceId,
+        'projectId': projectId,
+        'uri': uri,
+        'secrets': secrets,
+      };
+}
+
+class Secret {
+  final int userId;
+  final String label;
+  final String value;
+
+  Secret({
+    required this.userId,
+    required this.label,
+    required this.value,
+  });
+
+  factory Secret.fromJson(Map<String, dynamic> json) {
+    return Secret(
+      userId: json['userid'],
+      label: json['label'],
+      value: json['value'],
+    );
   }
 
-  @override
-  String toString() {
-    return 'ProjectResource(id: $id, name: $name, resourceUrl: $resourceUrl, description: $description)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is ProjectResource &&
-        other.id == id &&
-        other.name == name &&
-        other.resourceUrl == resourceUrl &&
-        other.description == description;
-  }
-
-  @override
-  int get hashCode {
-    return id.hashCode ^
-        name.hashCode ^
-        resourceUrl.hashCode ^
-        description.hashCode;
-  }
+  Map<String, dynamic> toJson() => {
+        'userid': userId,
+        'label': label,
+        'value': value,
+      };
 }

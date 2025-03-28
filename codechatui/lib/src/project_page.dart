@@ -1,9 +1,12 @@
+import 'package:codechatui/src/login_page.dart';
+import 'package:codechatui/src/models/exceptions.dart';
 import 'package:codechatui/src/models/project.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:codechatui/src/widgets/project_detail.dart';
 import 'package:provider/provider.dart';
 import 'services/project_service.dart';
+import 'package:codechatui/src/utils/error_handler.dart';
 
 class ProjectPage extends StatefulWidget {
   @override
@@ -38,12 +41,31 @@ class _ProjectPageState extends State<ProjectPage>
       if (projects.length == 1) {
         _selectProject(projects[0]);
       }
+    } on ForbiddenException catch (e) {
+      // Handle 403 error
+      ErrorHandler.handleForbiddenError(context, e.message);
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to load projects: $e';
       });
     }
   }
+
+  // void _handleForbiddenError(String message) {
+  //   // Log the user out and redirect to the login page
+  //   final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  //   authProvider.clearAll();
+
+  //   // Show a snackbar with the error message
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(content: Text(message), backgroundColor: Colors.red),
+  //   );
+
+  //   // Redirect to the login page
+  //   Navigator.of(context).pushReplacement(
+  //     MaterialPageRoute(builder: (context) => const LoginPage()),
+  //   );
+  // }
 
   Future<void> _deleteProject(Project project, int index) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -89,11 +111,28 @@ class _ProjectPageState extends State<ProjectPage>
             context,
             MaterialPageRoute(
               builder: (context) => ProjectDetail(
-                  projectId: project.projectId, isEditing: true), //onSave
+                  projectId: project.projectId,
+                  isEditing: true,
+                  onSave: _fetchProjects),
             ));
 
-        //widget.onNavigateToProjectDetail(project.projectId);
-        //GoRouter.of(context).go('/projects/detail/${project.projectId}');
+        break;
+      case 'refresh':
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Not Implemented'),
+              content: Text('The refresh feature is not implemented yet.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
         break;
       case 'delete':
         int index = _projects.indexOf(project);
@@ -117,7 +156,8 @@ class _ProjectPageState extends State<ProjectPage>
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ProjectDetail(),
+                    builder: (context) =>
+                        ProjectDetail(isEditing: false, onSave: _fetchProjects),
                   ));
             },
           ),
@@ -167,6 +207,14 @@ class _ProjectPageState extends State<ProjectPage>
                               child: ListTile(
                                 leading: Icon(Icons.edit),
                                 title: Text('Edit'),
+                                dense: true,
+                              ),
+                            ),
+                            const PopupMenuItem<String>(
+                              value: 'refresh',
+                              child: ListTile(
+                                leading: Icon(Icons.refresh),
+                                title: Text('Refresh'),
                                 dense: true,
                               ),
                             ),
