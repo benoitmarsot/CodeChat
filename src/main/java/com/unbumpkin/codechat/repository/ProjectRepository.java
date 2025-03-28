@@ -54,7 +54,7 @@ public class ProjectRepository {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, name);
             ps.setString(2, description);
-            ps.setInt(3, getCurrentUserId());
+            ps.setInt(3, 1);
             return ps;
         }, keyHolder);
         Number key = keyHolder.getKey();

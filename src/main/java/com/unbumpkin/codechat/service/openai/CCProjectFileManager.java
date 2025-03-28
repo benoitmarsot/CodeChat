@@ -15,7 +15,7 @@ import com.unbumpkin.codechat.util.FileUtils;
 
 public class CCProjectFileManager {
     public enum Types {
-        code, markup, config, all
+        code, markup, config, all, html
     }
 
     public static final Set<String> CodeExtensions = Set.of(
