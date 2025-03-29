@@ -11,6 +11,7 @@ import 'package:codechatui/src/widgets/choice-button.dart';
 import 'package:codechatui/src/widgets/github_widget.dart';
 import 'package:codechatui/src/widgets/zip_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart';
 import 'package:provider/provider.dart';
 import 'package:codechatui/src/utils/error_handler.dart';
 
@@ -194,12 +195,16 @@ class _ProjectDetailState extends State<ProjectDetail> {
         }
         _selectedProject = project;
         _onSave!();
+        // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        //     content: Text(_createdMessage!), backgroundColor: Colors.green));
         Navigator.of(context).pop();
       } catch (e) {
         setState(() {
           _errorMessage = 'Failed to upload directory: $e';
         });
         print('Failed to upload directory: $e');
+        // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        //     content: Text(_errorMessage!), backgroundColor: Colors.red));
       }
     }
   }
@@ -232,7 +237,10 @@ class _ProjectDetailState extends State<ProjectDetail> {
       );
 
       await projectService.updateProject(updatedProject);
-
+      if (hasDataSource) {
+        // If there's a data source, you might want to refresh or update it here
+        //await projectService.refreshRepo(_selectedProject!.projectId);
+      }
       setState(() {
         //_isEditing = false;
         _createdMessage = 'Project updated successfully!';
@@ -243,11 +251,28 @@ class _ProjectDetailState extends State<ProjectDetail> {
               content: Text(_createdMessage), backgroundColor: Colors.green));
         }
       });
+      _onSave!();
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to update project: $e';
       });
       print('_errorMessage $_errorMessage');
+    }
+  }
+
+  Future<void> _deleteProject() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final projectService = ProjectService(authProvider: authProvider);
+    if (_projectId == null || _projectId! < 0) return;
+    try {
+      // Adjust the method below to match your project service code
+      final updatedProject = await projectService.deleteProject(_projectId!);
+      _onSave!(); // Call the onSave callback to refresh the project list
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to delete project: $e';
+      });
     }
   }
 
@@ -273,7 +298,7 @@ class _ProjectDetailState extends State<ProjectDetail> {
         _errorMessage = 'Failed to fetch project details: $e';
       });
     } finally {
-      if (mounted && _errorMessage == null) {
+      if (mounted && _errorMessage != null && _errorMessage!.isNotEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
       }
@@ -315,17 +340,47 @@ class _ProjectDetailState extends State<ProjectDetail> {
   }
 
   Future<void> _refreshDataSource() async {
-    // Implement the logic to refresh the data source
-    // This might involve re-fetching data from the Git repo, Zip file, or Web URL
-    // You'll need to adapt this code based on your specific data source implementation
-    print('Refreshing data source...');
-    setState(() {
-      _createdMessage = 'Refreshing data source...';
-    });
-    await Future.delayed(Duration(seconds: 2)); // Simulate a long process
-    setState(() {
-      _createdMessage = 'Data source refreshed!';
-    });
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final codechattService = CodechatService(authProvider: authProvider);
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text("Refreshing project repo...\nIt will take a while..."),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    try {
+      await codechattService.refreshRepo(_projectId!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Refreshed project data source'),
+            backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to refresh data source: $e'),
+            backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   Widget _buildDataSourceForm() {
@@ -363,6 +418,59 @@ class _ProjectDetailState extends State<ProjectDetail> {
       color: Theme.of(context).colorScheme.surface,
       child: Scaffold(
         appBar: AppBar(
+          actions: [
+            if (_isEditing == true)
+              IconButton(
+                icon: Icon(Icons.refresh),
+                onPressed: hasDataSource ? _refreshDataSource : null,
+                tooltip: hasDataSource
+                    ? 'Refresh Data Source'
+                    : 'You need to define a project URL to be able to refresh it.',
+              ),
+            if (_isEditing == true && _selectedProject != null)
+              IconButton(
+                icon: Icon(Icons.delete),
+                color: Colors.red,
+                onPressed: () async {
+                  // Confirm deletion
+                  final confirmDelete = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text('Confirm Deletion'),
+                      content: Text(
+                          'Are you sure you want to delete the project "${_selectedProject!.name}"?'),
+                      actions: [
+                        TextButton(
+                          onPressed: _deleteProject,
+                          child: Text('Delete'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: Text('Cancel'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmDelete == true) {
+                    final authProvider =
+                        Provider.of<AuthProvider>(context, listen: false);
+                    final projectService =
+                        ProjectService(authProvider: authProvider);
+                    try {
+                      await projectService
+                          .deleteProject(_selectedProject!.projectId);
+                      Navigator.of(context).pop(); // Close the detail page
+                    } catch (e) {
+                      setState(() {
+                        _errorMessage = 'Failed to delete project: $e';
+                      });
+                    }
+                  }
+                },
+                tooltip: 'Delete Project',
+              ),
+          ],
           title: Text(_isEditing == true
               ? 'Edit Project'
               : _selectedProject != null

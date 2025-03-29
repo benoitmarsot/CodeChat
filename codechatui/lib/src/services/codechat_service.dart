@@ -14,6 +14,16 @@ class CodechatService {
         'Content-Type': 'application/json',
       };
 
+  Future<void> refreshRepo(int projectId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/$projectId/refresh-repo'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to refresh repository for project $projectId');
+    }
+  }
+
   Future<Project> createEmtptyProject(String name, String description) async {
     final Map<String, dynamic> requestBody = {
       'name': name,
