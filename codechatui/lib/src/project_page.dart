@@ -1,4 +1,3 @@
-import 'package:codechatui/src/login_page.dart';
 import 'package:codechatui/src/models/exceptions.dart';
 import 'package:codechatui/src/models/project.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
