@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.GitHubChangeTracker;
+import com.unbumpkin.codechat.dto.request.AddRepoRequest;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 import com.unbumpkin.codechat.model.Project;
@@ -152,6 +153,78 @@ public class CodechatController {
         return ResponseEntity.ok(project);
     }
 
+    @Transactional
+    @PostMapping("add-project-repo")
+    public ResponseEntity<ProjectResource> createProjectResource(
+        @RequestBody AddRepoRequest request
+    ) throws Exception {
+        int projectId=request.projectId();
+        GithubRepoContentManager pfc=new GithubRepoContentManager();
+        try{ 
+            String sourcePath = "";
+            if(request.repoURL()!=null){
+                pfc=new GithubRepoContentManager(request.username(), request.password());
+                sourcePath=pfc.addRepository(request.repoURL(), request.branch());
+            } else {
+                throw new Exception("Repo url is required");
+            }
+            //Create project resource
+            Map<Labels,UserSecret> userSecrets = new HashMap<>();
+            if(request.username()!=null && !request.username().isEmpty()){
+                userSecrets.put(Labels.username, new UserSecret(Labels.username, request.username()));
+                userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
+            }
+            userSecrets.put(Labels.branch, new UserSecret(Labels.branch, request.branch()));
+            userSecrets.put(Labels.commitHash, new UserSecret(Labels.commitHash, pfc.getCommitHash()));
+            ProjectResource resource=projectResourceRepository.createResource(
+                request.projectId(), request.repoURL(), userSecrets
+            );
+            Map<Types,RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
+                vsRepository.getVectorStoresByProjectId(projectId)
+            );
+            Map<Types,VectorStoreFile> vsfServicesMap = new HashMap<>(3);
+            vsfServicesMap.put(Types.code, new VectorStoreFile(vsMap.get(Types.code).vsid()));
+            vsfServicesMap.put(Types.config, new VectorStoreFile(vsMap.get(Types.config).vsid()));
+            vsfServicesMap.put(Types.markup, new VectorStoreFile(vsMap.get(Types.markup).vsid()));
+            VectorStoreFile vsfServicesAll = new VectorStoreFile(vsMap.get(Types.all).vsid());
+            int tempDirLength=pfc.getTempDir().length();
+            for (File file : pfc.getAllFiles()) {
+                try {
+                    FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+                    OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, resource.prId());
+                    System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
+                    String oldExt = FileUtils.getFileExtension(desc.oldFileName());
+                    Types fileType=getFileType(desc.oldFileName());
+                    CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
+                        oaiFile.fileId(), new HashMap<>() {{
+                            put("name", desc.oldFileName());
+                            put("path", desc.oldFilePath().substring(tempDirLength+1));
+                            put("extension", oldExt);
+                            // Should I put the "."? If so put it in the assistant instructions
+                            put("mime-type", ExtMimeType.getMimeType(oldExt));
+                            put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
+                            put("type", fileType.name());
+                        }}
+                    );
+                    vsfServicesMap.get(fileType).addFile( creaVsRequest);
+                    vsfServicesAll.addFile( creaVsRequest);
+                    oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
+
+                   System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
+                } catch (Exception e) {
+                    System.out.println("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+                }   
+            }
+            System.out.println("Done adding new repo.");
+            return ResponseEntity.ok(resource);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        } finally {
+            pfc.deleteRepository();
+        }
+
+    }
     @Transactional
     @PostMapping("{projectId}/refresh-repo")
     public ResponseEntity<Void> refreshRepo(

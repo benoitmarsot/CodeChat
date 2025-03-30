@@ -90,6 +90,7 @@ public class CCProjectFileManager {
     }
     public Set<File> getAllFiles() {
         return Stream.of(Types.values())
+            .filter(type -> type != Types.all)
             .flatMap(type -> fileSetMap.get(type).stream())
             .collect(Collectors.toSet());
     }
