@@ -17,6 +17,8 @@ import 'package:codechatui/src/utils/error_handler.dart';
 
 enum DataSourceType { github, zip, web }
 
+enum Temperature { extraSmall, small, medium, large, extraLarge }
+
 class ProjectDetail extends StatefulWidget {
   final int projectId; // Prop for initial value
   final bool isEditing;
@@ -43,6 +45,8 @@ class _ProjectDetailState extends State<ProjectDetail>
   final TextEditingController _patController = TextEditingController();
   final TextEditingController _zipFilePathController = TextEditingController();
   final TextEditingController _webURLController = TextEditingController();
+  final TextEditingController _prjAssistantController = TextEditingController();
+  final TextEditingController _prjContextController = TextEditingController();
 
   int? _projectId;
   Future<void> Function()? _onSave;
@@ -428,6 +432,212 @@ class _ProjectDetailState extends State<ProjectDetail>
     }
   }
 
+  Widget _buildAssistanForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8.0),
+        TextField(
+          controller: _prjAssistantController,
+          decoration: const InputDecoration(
+            labelText: 'Assistant Name:',
+          ),
+        ),
+        const SizedBox(height: 8.0),
+        TextField(
+          controller: _prjContextController,
+          maxLines: 3,
+          maxLength: 2048,
+          decoration: const InputDecoration(
+            labelText: 'AI Context:',
+          ),
+        ),
+        Row(children: [
+          Column(children: [
+            Row(children: [
+              SizedBox(
+                width: 200,
+                child: TextField(
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Temperature',
+                  ),
+                  onChanged: (value) {
+                    // Handle numeric input if needed
+                  },
+                ),
+              ),
+            ]),
+          ]),
+          const SizedBox(width: 16.0),
+          Column(children: [
+            Row(children: [
+              const SizedBox(width: 8.0),
+              SizedBox(
+                width: 200,
+                child: TextField(
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Max Results',
+                  ),
+                  onChanged: (value) {
+                    // Handle numeric input if needed
+                  },
+                ),
+              ),
+            ]),
+          ]),
+          const SizedBox(width: 16.0),
+          Column(children: [
+            Row(children: [
+              ConstrainedBox(
+                constraints:
+                    BoxConstraints(minWidth: 200), // Set the minimum width
+                child: Row(children: [
+                  Text('Reasoning Effort:',
+                      style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.normal)),
+                  const SizedBox(width: 8.0),
+                  SegmentedButton<Temperature>(
+                    segments: const <ButtonSegment<Temperature>>[
+                      ButtonSegment<Temperature>(
+                          value: Temperature.small, label: Text('Small')),
+                      ButtonSegment<Temperature>(
+                          value: Temperature.medium, label: Text('Medium')),
+                      ButtonSegment<Temperature>(
+                          value: Temperature.large, label: Text('Large')),
+                    ],
+                    selected: selection,
+                    onSelectionChanged: (Set<Temperature> newSelection) {
+                      setState(() {
+                        selection = newSelection;
+                      });
+                    },
+                  ),
+                ]),
+              ),
+            ]),
+          ]),
+          const SizedBox(width: 16.0),
+        ]),
+
+        const SizedBox(height: 48.0),
+        Container(
+          padding: const EdgeInsets.all(8.0),
+          margin: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color:
+                Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1),
+            border: Border.all(color: Colors.orangeAccent),
+            borderRadius: BorderRadius.circular(4.0),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orangeAccent),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: Text(
+                  'Warning: Changing the LLM model may lead to unexpected behavior, performance issues, or incompatibility with existing project configurations. Proceed with caution.',
+                  style: TextStyle(color: Colors.orangeAccent),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16.0),
+        Row(children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(
+                minWidth: MediaQuery.of(context).size.width *
+                    0.3), // Set the minimum width
+            child: Column(children: [
+              Row(children: [
+                Text(
+                  'LLM Model:',
+                  style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.normal),
+                ),
+                SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _selectedModel,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedModel = newValue!;
+                    });
+                  },
+                  items: [
+                    'gpt-4o',
+                    'gpt-4o-mini',
+                    'gpt-3.5-turbo',
+                    'gpt-4',
+                    'gpt-4-turbo',
+                    'gpt-4o-realtime-preview',
+                    'o3-mini',
+                  ].map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                ),
+              ]),
+            ]),
+          ),
+        ]),
+        SizedBox(height: 32.0),
+        Align(
+          alignment: Alignment.bottomRight,
+          child: (_isEditing == true
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _cancelEdit,
+                      style: ElevatedButton.styleFrom(
+                        textStyle: TextStyle(fontSize: 20),
+                      ),
+                      child: Text('Cancel'),
+                    ),
+                    SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _saveChanges,
+                      style: ElevatedButton.styleFrom(
+                        textStyle: TextStyle(fontSize: 20),
+                      ),
+                      child: Text('Save'),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: _cancelEdit,
+                      style: ElevatedButton.styleFrom(
+                        textStyle: TextStyle(fontSize: 20),
+                      ),
+                      child: Text('Cancel'),
+                    ),
+                    SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _createdProject,
+                      style: ElevatedButton.styleFrom(
+                        textStyle: TextStyle(fontSize: 20),
+                      ),
+                      child: Text('Create'),
+                    ),
+                  ],
+                )),
+        ),
+        // Add more admin-specific widgets here if needed
+      ],
+    );
+  }
+
   Widget _buildDataSourceForm() {
     switch (_selectedDataSource) {
       case DataSourceType.github:
@@ -454,6 +664,9 @@ class _ProjectDetailState extends State<ProjectDetail>
     }
   }
 
+  Set<Temperature> selection = <Temperature>{
+    Temperature.medium
+  }; //todo: from settings
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -461,13 +674,15 @@ class _ProjectDetailState extends State<ProjectDetail>
       color: Theme.of(context).colorScheme.surface,
       child: Scaffold(
         appBar: AppBar(
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Project'),
-              Tab(text: 'Admin'),
-            ],
-          ),
+          bottom: (_isEditing)
+              ? TabBar(
+                  controller: _tabController,
+                  tabs: const [
+                    Tab(text: 'Project'),
+                    Tab(text: 'Assistant'),
+                  ],
+                )
+              : null,
           actions: [
             if (_isEditing == true)
               Tooltip(
@@ -530,9 +745,13 @@ class _ProjectDetailState extends State<ProjectDetail>
                           margin:
                               const EdgeInsets.only(bottom: 16.0, top: 16.0),
                           child: Row(children: [
-                            Text('Define Data Source',
+                            Text('Define Data Source:',
                                 style: TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold)),
+                                    fontSize: 16,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                    fontWeight: FontWeight.normal)),
                           ]),
                         ),
                         Container(
@@ -578,7 +797,9 @@ class _ProjectDetailState extends State<ProjectDetail>
                             ],
                           ),
                         ),
+
                         _buildDataSourceForm(),
+                        const SizedBox(width: 16),
                         Align(
                           alignment: Alignment.bottomRight,
                           child: (_isEditing == true
@@ -634,47 +855,7 @@ class _ProjectDetailState extends State<ProjectDetail>
               padding: const EdgeInsets.all(24.0),
               child: Padding(
                 padding: EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Admintrator Actions',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16.0),
-                    Text(
-                      'Select a model:',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 8.0),
-                    DropdownButton<String>(
-                      value: _selectedModel,
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedModel = newValue!;
-                        });
-                      },
-                      items: [
-                        'gpt-4o',
-                        'gpt-4o-mini',
-                        'gpt-3.5-turbo',
-                        'gpt-4',
-                        'gpt-4-turbo',
-                        'gpt-4o-realtime-preview',
-                        'o3-mini',
-                      ].map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                    ),
-                    // Add more admin-specific widgets here if needed
-                  ],
-                ),
+                child: _buildAssistanForm(),
               ),
             ),
           ],

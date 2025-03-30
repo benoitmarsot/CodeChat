@@ -1,3 +1,4 @@
+import 'package:codechatui/src/login_page.dart';
 import 'package:codechatui/src/models/exceptions.dart';
 import 'package:codechatui/src/models/project.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
@@ -115,7 +116,6 @@ class _ProjectPageState extends State<ProjectPage>
                   onSave: _fetchProjects),
             ));
 
-        break;
       case 'refresh':
         showDialog(
           context: context,
@@ -132,7 +132,6 @@ class _ProjectPageState extends State<ProjectPage>
             );
           },
         );
-        break;
       case 'delete':
         int index = _projects.indexOf(project);
         if (index != -1) {
