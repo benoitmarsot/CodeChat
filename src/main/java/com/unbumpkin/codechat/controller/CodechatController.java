@@ -27,6 +27,7 @@ import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
 import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFileType;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
+import com.unbumpkin.codechat.service.openai.ZipContentManager;
 import com.unbumpkin.codechat.util.ExtMimeType;
 import com.unbumpkin.codechat.util.FileUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +35,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.GitHubChangeTracker;
 import com.unbumpkin.codechat.dto.request.AddRepoRequest;
+import com.unbumpkin.codechat.dto.request.AddZipRequest;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 import com.unbumpkin.codechat.model.Project;
@@ -154,8 +156,88 @@ public class CodechatController {
     }
 
     @Transactional
+    @PostMapping("add-project-zip")
+    public ResponseEntity<ProjectResource> addZipResource(
+        @RequestBody AddZipRequest request
+    ) throws Exception {
+        int projectId = request.projectId();
+        ZipContentManager zipManager = null;
+        
+        try {
+            zipManager = new ZipContentManager();
+            String tempDirPath = zipManager.extractZip(request.zipContent());
+            
+            // Create project resource
+            ProjectResource resource = projectResourceRepository.createResource(
+                projectId, request.zipName(), null
+            );
+            
+            // Get vector stores for the project
+            Map<Types, RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
+                vsRepository.getVectorStoresByProjectId(projectId)
+            );
+            
+            // Create maps for different types of vector stores
+            Map<Types, VectorStoreFile> vsfServicesMap = new HashMap<>(3);
+            vsfServicesMap.put(Types.code, new VectorStoreFile(vsMap.get(Types.code).vsid()));
+            vsfServicesMap.put(Types.config, new VectorStoreFile(vsMap.get(Types.config).vsid()));
+            vsfServicesMap.put(Types.markup, new VectorStoreFile(vsMap.get(Types.markup).vsid()));
+            VectorStoreFile vsfServicesAll = new VectorStoreFile(vsMap.get(Types.all).vsid());
+            
+            int tempDirLength = zipManager.getTempDir().length();
+            
+            // Process files
+            for (File file : zipManager.getAllFiles()) {
+                try {
+                    FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+                    OaiFile oaiFile = oaiFileService.uploadFile(
+                        desc.newFile().getAbsolutePath(), 
+                        tempDirLength + 1, 
+                        Purposes.assistants, 
+                        resource.prId()
+                    );
+                    
+                    System.out.println("file " + file.getName() + " uploaded with id " + oaiFile.fileId());
+                    
+                    String oldExt = FileUtils.getFileExtension(desc.oldFileName());
+                    Types fileType = getFileType(desc.oldFileName());
+                    
+                    CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
+                        oaiFile.fileId(), new HashMap<>() {{
+                            put("name", desc.oldFileName());
+                            put("path", desc.oldFilePath().substring(tempDirLength + 1));
+                            put("extension", oldExt);
+                            put("mime-type", ExtMimeType.getMimeType(oldExt));
+                            put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
+                            put("type", fileType.name());
+                        }}
+                    );
+                    
+                    vsfServicesMap.get(fileType).addFile(creaVsRequest);
+                    vsfServicesAll.addFile(creaVsRequest);
+                    oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
+                    
+                    System.out.println("File id " + oaiFile.fileId() + " added to " + fileType.toString() + " vector store ");
+                } catch (Exception e) {
+                    System.out.println("The file " + file.getPath().substring(tempDirLength + 1) + 
+                                    " could not be added: " + e.getMessage());
+                }
+            }
+            
+            System.out.println("Done adding ZIP archive.");
+            return ResponseEntity.ok(resource);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        } finally {
+            if (zipManager != null) {
+                zipManager.cleanUp();
+            }
+        }
+    }
+    @Transactional
     @PostMapping("add-project-repo")
-    public ResponseEntity<ProjectResource> createProjectResource(
+    public ResponseEntity<ProjectResource> addRepoResource(
         @RequestBody AddRepoRequest request
     ) throws Exception {
         int projectId=request.projectId();
