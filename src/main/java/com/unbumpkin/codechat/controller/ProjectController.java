@@ -45,9 +45,6 @@ public class ProjectController {
     @Autowired
     private AssistantService assistantService;
 
-    @Autowired
-    private ProjectResourceRepository projectResourceRepository;
-
     @PostMapping
     public ResponseEntity<Void> createProject(@RequestBody Project project) {
         projectRepository.addProject(project.name(),project.description());

@@ -25,19 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.unbumpkin.codechat.service.openai.AssistantBuilder;
-import com.unbumpkin.codechat.service.openai.AssistantService;
-import com.unbumpkin.codechat.service.openai.OaiFileService;
-import com.unbumpkin.codechat.service.openai.VectorStoreFile;
-import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
-import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
-import com.unbumpkin.codechat.service.openai.GithubRepoContentManager;
-import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
-import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFileType;
-import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
-import com.unbumpkin.codechat.service.openai.VectorStoreService;
-import com.unbumpkin.codechat.util.ExtMimeType;
-import com.unbumpkin.codechat.util.FileUtils;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.microsoft.playwright.Browser;
@@ -69,7 +57,7 @@ import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder;
-import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEffort;
+import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 import com.unbumpkin.codechat.service.openai.AssistantService;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
@@ -273,62 +261,65 @@ public class CodechatController {
         if (url == null) {
             throw new Exception("Source url required");
         }
-        // int projectId = projectRepository.addProject(request.name(), request.description());
-        // if (projectId == 0) {
-        //     throw new Exception("project could not be created.");
-        // }
-        // System.out.println("project created with id: " + projectId);
-        // //Create project resource
-        // Map<Labels,UserSecret> userSecrets = new HashMap<>();
-        // if(request.username()!=null && !request.username().isEmpty()){
-        //     userSecrets.put(Labels.username, new UserSecret(Labels.username, request.username()));
-        //     userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
-        // }
-        // ProjectResource pr=projectResourceRepository.createResource(projectId, request.sourcePath(), userSecrets);
-        // System.out.println("Project resource created with id: " + pr.prId());
+        int projectId = projectRepository.addProject(request.name(), request.description());
+        if (projectId == 0) {
+            throw new Exception("project could not be created.");
+        }
+        System.out.println("project created with id: " + projectId);
+        //Create project resource
+        Map<Labels,UserSecret> userSecrets = new HashMap<>();
+        if(request.username()!=null && !request.username().isEmpty()){
+            userSecrets.put(Labels.username, new UserSecret(Labels.username, request.username()));
+            userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
+        }
+        ProjectResource pr=projectResourceRepository.createResource(projectId, request.sourcePath(), userSecrets);
+        System.out.println("Project resource created with id: " + pr.prId());
 
         Map<String,Integer> vectorStorMap = new LinkedHashMap<>();
         Map<String,CreateVSFileRequest> allFileIds = new HashMap<>();
+        File tempDir = Files.createTempDirectory("website-crawl-").toFile();
 
         System.out.println("Beginning crawl of " + url);
         Integer maxDepth = request.maxSearchDepth();
-        crawlWebsite(url, (maxDepth != null) ? maxDepth : 2, request.urlIncludes(), "vsHtml", 0, 0, vectorStorMap, allFileIds);
+        CCProjectFileManager pfc = crawlWebsite(url, (maxDepth != null) ? maxDepth : 2, request.urlIncludes(), tempDir.getAbsolutePath());
         System.out.println("Done crawling");
 
-        // System.out.println("Create vector store for all files...");
-        // String vsAllOaiId = vsService.createVectorStore(
-        //     new VectorStore("vsAll", "contain all the files in the project.", null, null, null, null)
-        // );
-        // int vsAllId = vsRepository.storeVectorStore(
-        //     new VectorStore(0, vsAllOaiId, projectId, "vsAll", "contain all the files in the project.", null, Types.all)
-        // );
-        // VectorStoreFile vsfService = new VectorStoreFile(vsAllOaiId);
-        // for (String oaiFileId : allFileIds.keySet()) {
-        //     vsfService.addFile(allFileIds.get(oaiFileId));
-        //     System.out.println("File id " + oaiFileId + " added to global vector store " + vsAllOaiId);
-        // }
-        // vectorStorMap.put(vsAllOaiId, vsAllId);
+        System.out.println("Uploading and create vector store for code files...");
+        createVectorStore(pfc, pr.prId(), projectId, "vsMarkup", Types.code, allFileIds, vectorStorMap, tempDir.getAbsolutePath().length());
+        System.out.println("Uploading and create vector store for markup files...");
+        createVectorStore(pfc, pr.prId(), projectId, "vsMarkup", Types.markup, allFileIds, vectorStorMap, tempDir.getAbsolutePath().length());
+        System.out.println("Uploading and create vector store for config files...");
+        createVectorStore(pfc, pr.prId(), projectId, "vsMarkup", Types.config, allFileIds, vectorStorMap, tempDir.getAbsolutePath().length());
+
+        System.out.println("Create vector store for all files...");
+        String vsAllOaiId = vsService.createVectorStore(
+            new VectorStore("vsAll", "contain all the files in the project.", null, null, null, null)
+        );
+        int vsAllId = vsRepository.storeVectorStore(
+            new VectorStore(0, vsAllOaiId, projectId, "vsAll", "contain all the files in the project.", null, Types.all)
+        );
+        VectorStoreFile vsfService = new VectorStoreFile(vsAllOaiId);
+        for (String oaiFileId : allFileIds.keySet()) {
+            vsfService.addFile(allFileIds.get(oaiFileId));
+            System.out.println("File id " + oaiFileId + " added to global vector store " + vsAllOaiId);
+        }
+        vectorStorMap.put(vsAllOaiId, vsAllId);
         
-        // System.out.println("Create assistant...");
-        // int assistantId = createAssistant(request.name(), projectId, vectorStorMap, vsAllOaiId);
-        // System.out.println("Assistant created with id: " + assistantId);
+        System.out.println("Create assistant...");
+        int assistantId = createAssistant(request.name(), projectId, vectorStorMap, vsAllOaiId);
+        System.out.println("Assistant created with id: " + assistantId);
+
+        deleteDirectoryRecursively(tempDir);
         return ResponseEntity.ok("Ok");
     }
-    private void crawlWebsite(
-        String startUrl, int maxDepth, String urlIncludes, String vsName, int projectId, int prId,
-        Map<String,Integer> vectorStorMap, Map<String,CreateVSFileRequest> allFileIds
-    ) {
+    private CCProjectFileManager crawlWebsite(
+        String startUrl, int maxDepth, String urlIncludes, String tempDirPath
+    ) throws IOException {
+        CCProjectFileManager pfc = new CCProjectFileManager();
         try (
             Playwright playwright = Playwright.create(); 
             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
-        ) {        
-            // List<OaiFile> lFiles = new ArrayList<>();
-            // List<String> lFileIds = new ArrayList<>();
-            // String vsOaiId = vsService.createVectorStore(
-            //     new VectorStore("websiteVectorStore", "Contains crawled website files.", null, null, null, null)
-            //     );
-            // VectorStoreFile vsfService = new VectorStoreFile(vsOaiId);
-            // System.out.println("Vector store created with ID: " + vsOaiId);
+        ) {
 
             Page page = browser.newPage();
             Set<String> visited = new HashSet<>();
@@ -351,42 +342,18 @@ public class CodechatController {
                     System.err.println("Error navigating to " + currentUrl + ": " + e.getMessage());
                     continue;
                 }
+                
                 String text = page.innerText("body");
-
                 String safeTitle = page.title().replaceAll("[^a-zA-Z0-9.-]", "_") + "_" + fileNum;
-                String basePath = System.getProperty("user.dir");
-                String filePath = basePath + "/out/" + safeTitle + ".txt";
-                Files.createDirectories(Paths.get(basePath + "/out/"));
+                String filePath = tempDirPath + safeTitle + ".html";
                 try {
                     Files.write(Paths.get(filePath), String.join("\n", text).getBytes());
                     System.out.println("Successfully wrote to " + filePath);
-
-                    // File file = new File(filePath);
-                    // FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
-                    // OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePath.length(), Purposes.assistants, 0);
-                    // System.out.println("File " + safeTitle + " uploaded with id " + oaiFile.fileId());
-
-                    // String oldExt = FileUtils.getFileExtension(desc.oldFile());
-                    // Types fileType = getFileType(desc.oldFile().getName());
-                    // CreateVSFileRequest request = new CreateVSFileRequest(
-                    //     oaiFile.fileId(), new HashMap<>() {{
-                    //         put("name", desc.oldFile().getName());
-                    //         put("path", desc.oldFile().getAbsolutePath());
-                    //         put("extension", oldExt);
-                    //         put("mime-type", ExtMimeType.getMimeType(oldExt));
-                    //         put("nbLines", String.valueOf(FileUtils.countLines(desc.oldFile())));
-                    //         put("type", fileType.name());
-                    //     }}
-                    // );
-                    // vsfService.addFile(request);
-                    // allFileIds.put(oaiFile.fileId(), request);
-                    // lFiles.add(oaiFile);
-                    // lFileIds.add(oaiFile.fileId());
-                    // System.out.println("File id " + oaiFile.fileId() + " added to vector store " + vsOaiId);
-
                 } catch (IOException e) {
                     System.err.println("Error writing to file or uploading to vector store: " + e.getMessage());
                 }
+                pfc.addFile(new File(filePath));
+
                 if (currentPage.depth >= maxDepth-1) {
                     continue;
                 }
@@ -402,15 +369,10 @@ public class CodechatController {
                     }
                 }
             }
-
-            // oaiFileRepository.storeOaiFiles(lFiles, prId);
-            // VectorStore vs = new VectorStore(0, vsOaiId, projectId, vsName, "Contains HTML files", null, Types.html);
-            // int vsId = vsRepository.storeVectorStore(vs);
-            // vsRepository.addFiles(vsOaiId, lFileIds);
-            // vectorStorMap.put(vsOaiId, vsId);
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return pfc;
     }
     static class PageNode {
         String url;
@@ -419,6 +381,19 @@ public class CodechatController {
             this.url = url;
             this.depth = depth;
         }
+    }
+    private void deleteDirectoryRecursively(File directory) {
+        File[] allContents = directory.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                if (file.isDirectory()) {
+                    deleteDirectoryRecursively(file); // Recursively delete subdirectories
+                } else {
+                    file.delete(); // Delete files
+                }
+            }
+        }
+        directory.delete(); // Delete the empty directory
     }
     
     @Transactional
