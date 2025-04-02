@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder;
 import com.unbumpkin.codechat.service.openai.AssistantService;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
+import com.unbumpkin.codechat.service.openai.ResponsesService;
 import com.unbumpkin.codechat.service.openai.VectorStoreFile;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
@@ -38,6 +39,7 @@ import com.unbumpkin.codechat.dto.request.AddRepoRequest;
 import com.unbumpkin.codechat.dto.request.AddZipRequest;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
+import com.unbumpkin.codechat.dto.request.OaiImageDescResponsesRequest;
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.UserSecret;
@@ -61,6 +63,9 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 
 @RestController
@@ -88,6 +93,8 @@ public class CodechatController {
     DiscussionRepository discussionRepository;
     @Autowired
     ProjectResourceRepository projectResourceRepository;
+    @Autowired
+    ResponsesService responsesService;
     
 
     private int getCurrentUserId() {
@@ -126,6 +133,15 @@ public class CodechatController {
         return ResponseEntity.ok("All data deleted");
     }
 
+    @PostMapping("describe-image")
+    public ResponseEntity<String> describeImage(
+        @RequestBody OaiImageDescResponsesRequest imageRequest
+    ) throws IOException {
+        return ResponseEntity.ok( 
+            responsesService.describeImage(imageRequest,true)
+        );
+    }
+    
     @Transactional
     @PostMapping("create-empty-project")
     public ResponseEntity<Project> createEmptyProject(

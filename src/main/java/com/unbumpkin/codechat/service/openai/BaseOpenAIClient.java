@@ -20,9 +20,14 @@ public abstract class BaseOpenAIClient {
         gpt_4o_mini("gpt-4o-mini"),
         gpt_3_5_turbo("gpt-3.5-turbo"),
         gpt_4("gpt-4"),
+        gpt_4_5_preview("gpt-4.5-preview"),
+        gpt_4_vision_preview("gpt-4-vision-preview"),
         gpt_4_turbo("gpt-4-turbo"),
         gpt_4o_realtime_preview("gpt-4o-realtime-preview"),
-        o3_mini("o3-mini");
+        o3_mini("o3-mini"),
+        o1("o1"),
+        o1_pro("o1-pro"); //Carefull very $$$
+
         private String model;
 
         Models(String model) {
@@ -55,8 +60,8 @@ public abstract class BaseOpenAIClient {
     public BaseOpenAIClient() {
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
-                .writeTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
                 .build();
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
