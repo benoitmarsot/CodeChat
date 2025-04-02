@@ -33,7 +33,10 @@ class _GithubFormState extends State<GithubForm> {
               flex: 3,
               child: TextField(
                 controller: widget.prjRepoURLController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor:
+                      Theme.of(context).colorScheme.surfaceContainerLowest,
                   labelText: 'Git Repo URL (HTTPS):',
                 ),
               ),
@@ -43,7 +46,10 @@ class _GithubFormState extends State<GithubForm> {
               flex: 1,
               child: TextField(
                 controller: widget.branchNameController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor:
+                      Theme.of(context).colorScheme.surfaceContainerLowest,
                   labelText: 'Branch name:',
                 ),
               ),
@@ -84,6 +90,7 @@ class _GithubFormState extends State<GithubForm> {
                     child: TextField(
                       controller: widget.userNameController,
                       decoration: const InputDecoration(
+                        filled: true,
                         labelText: 'Git user name (for private repo):',
                       ),
                     ),
@@ -94,6 +101,7 @@ class _GithubFormState extends State<GithubForm> {
                     child: TextField(
                       controller: widget.userPswController,
                       decoration: const InputDecoration(
+                        filled: true,
                         labelText: 'Password:',
                       ),
                     ),
@@ -107,6 +115,7 @@ class _GithubFormState extends State<GithubForm> {
                     child: TextField(
                       controller: widget.patController,
                       decoration: const InputDecoration(
+                        filled: true,
                         labelText: 'Or PAT (for private repo):',
                       ),
                     ),

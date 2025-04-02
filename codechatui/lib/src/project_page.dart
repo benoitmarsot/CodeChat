@@ -3,7 +3,7 @@ import 'package:codechatui/src/models/exceptions.dart';
 import 'package:codechatui/src/models/project.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:codechatui/src/widgets/project_detail.dart';
+import 'package:codechatui/src/widgets/project/project_detail.dart';
 import 'package:provider/provider.dart';
 import 'services/project_service.dart';
 import 'package:codechatui/src/utils/error_handler.dart';
