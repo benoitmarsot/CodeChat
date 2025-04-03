@@ -561,7 +561,6 @@ public class CodechatController {
 
             Markdown is supported in the explanation, code explanation, and reference fields.
             Omit internal citation markers in response.
-            Do not use bullet character in the response.
 
             ### File Metadata Usage
             When analyzing files, use the following attributes from the file metadata to provide insights and context:

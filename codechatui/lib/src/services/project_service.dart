@@ -23,7 +23,7 @@ class ProjectService {
       headers: _headers,
     );
     if (response.statusCode == 200) {
-      List<dynamic> jsonList = json.decode(response.body);
+      List<dynamic> jsonList = json.decode(utf8.decode(response.bodyBytes));
       return jsonList.map((json) => Project.fromJson(json)).toList();
     }
     if (response.statusCode == 403) {
@@ -38,7 +38,7 @@ class ProjectService {
       headers: _headers,
     );
     if (response.statusCode == 200) {
-      return Project.fromJson(json.decode(response.body));
+      return Project.fromJson(json.decode(utf8.decode(response.bodyBytes)));
     }
     throw Exception('Failed to load project');
   }
@@ -52,7 +52,7 @@ class ProjectService {
       headers: _headers,
     );
     if (response.statusCode == 200) {
-      List<dynamic> jsonList = json.decode(response.body);
+      List<dynamic> jsonList = json.decode(utf8.decode(response.bodyBytes));
       return jsonList.map((json) => ProjectResource.fromJson(json)).toList();
     }
     return [];
@@ -97,7 +97,7 @@ class ProjectService {
       headers: _headers,
     );
     if (response.statusCode == 200) {
-      List<dynamic> jsonList = json.decode(response.body);
+      List<dynamic> jsonList = json.decode(utf8.decode(response.bodyBytes));
       return jsonList.map((json) => json as int).toList();
     }
     throw Exception('Failed to load users with access');

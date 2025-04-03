@@ -11,7 +11,7 @@ class CodechatService {
   CodechatService({required this.authProvider});
   Map<String, String> get _headers => {
         'Authorization': 'Bearer ${authProvider.token}',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8',
       };
 
   Future<void> refreshRepo(int projectId) async {
@@ -37,9 +37,9 @@ class CodechatService {
     );
 
     if (response.statusCode == 200) {
-      return Project.fromJson(json.decode(response.body));
+      return Project.fromJson(json.decode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception('Failed to create project: ${response.body}');
+      throw Exception('Failed to create project: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -68,9 +68,9 @@ class CodechatService {
     );
 
     if (response.statusCode == 200) {
-      return Project.fromJson(json.decode(response.body));
+      return Project.fromJson(json.decode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception('Failed to create project: ${response.body}');
+      throw Exception('Failed to create project: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -81,7 +81,7 @@ class CodechatService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to delete all data: ${response.body}');
+      throw Exception('Failed to delete all data: ${utf8.decode(response.bodyBytes)}');
     }
   }
 }

@@ -47,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+        final responseData = jsonDecode(utf8.decode(response.bodyBytes));
         final token = responseData['token'];
         final userId = responseData['userId'];
         print('Login successful:\n  userId: $userId,\n token: $token');
@@ -91,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
       if (refreshToken != null) {
         final response = await _authService.refreshToken(refreshToken);
         if (response.statusCode == 200) {
-          final responseData = jsonDecode(response.body);
+          final responseData = jsonDecode(utf8.decode(response.bodyBytes));
           final newToken = responseData['token'];
           await _secureStorage.storeToken(newToken);
           if (mounted) {
@@ -136,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
       final response = await _authService.googleLogin(accessToken!);
 
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+        final responseData = jsonDecode(utf8.decode(response.bodyBytes));
         final token = responseData['token'];
         final userId = responseData['userId'];
 
@@ -151,7 +151,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         setState(() {
-          _errorMessage = 'Google login failed: ${response.body}';
+          _errorMessage = 'Google login failed: ${utf8.decode(response.bodyBytes)}';
         });
       }
     } catch (error) {

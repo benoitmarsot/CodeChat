@@ -22,7 +22,7 @@ class UserService {
     );
 
     if (response.statusCode == 200) {
-      return User.fromJson(json.decode(response.body));
+      return User.fromJson(json.decode(utf8.decode(response.bodyBytes)));
     } else if (response.statusCode == 401) {
       throw Exception('Unauthorized. Please log in again.');
     } else {

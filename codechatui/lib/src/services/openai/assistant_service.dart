@@ -24,10 +24,10 @@ class AssistantService {
     );
 
     if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
+      final responseData = jsonDecode(utf8.decode(response.bodyBytes));
       return Assistant.fromJson(responseData);
     } else {
-      throw Exception('Failed to update assistant: ${response.body}');
+      throw Exception('Failed to update assistant: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -38,10 +38,10 @@ class AssistantService {
     );
 
     if (response.statusCode == 200) {
-      final res = jsonDecode(response.body);
+      final res = jsonDecode(utf8.decode(response.bodyBytes));
       return Assistant.fromJson(res);
     } else {
-      throw Exception('Failed to fetch assistant: ${response.body}');
+      throw Exception('Failed to fetch assistant: ${utf8.decode(response.bodyBytes)}');
     }
   }
 }

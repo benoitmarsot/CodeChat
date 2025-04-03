@@ -61,7 +61,7 @@ class OaiFileService {
     );
 
     if (response.statusCode == 200) {
-      final List<dynamic> jsonList = json.decode(utf8.decode(response.bodyBytes));
+      final List<dynamic> jsonList = json.decode(utf8.decode(utf8.decode(response.bodyBytes)Bytes));
       return jsonList.map((json) => OaiFile.fromJson(json)).toList();
     }
     throw Exception('Failed to get repo files');
@@ -80,10 +80,10 @@ class OaiFileService {
     print('Response received:');
     print('Status code: ${response.statusCode}');
     print('Response headers: ${response.headers}');
-    print('Response body: ${utf8.decode(response.bodyBytes)}');
+    print('Response body: ${utf8.decode(utf8.decode(response.bodyBytes)Bytes)}');
 
     if (response.statusCode == 200) {
-      final String body = utf8.decode(response.bodyBytes);
+      final String body = utf8.decode(utf8.decode(response.bodyBytes)Bytes);
       return body;
     }
     throw Exception('Failed to get test');
@@ -96,7 +96,7 @@ class OaiFileService {
     );
 
     if (response.statusCode == 200) {
-      final List<dynamic> jsonList = json.decode(utf8.decode(response.bodyBytes));
+      final List<dynamic> jsonList = json.decode(utf8.decode(utf8.decode(response.bodyBytes)Bytes));
       return jsonList.map((json) => OaiFile.fromJson(json)).toList();
     }
     throw Exception('Failed to get all files');
@@ -120,7 +120,7 @@ class OaiFileService {
       );      
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonMap = json.decode(utf8.decode(response.bodyBytes));
+        final Map<String, dynamic> jsonMap = json.decode(utf8.decode(utf8.decode(response.bodyBytes)Bytes));
         return Map.fromEntries(
           jsonMap.entries.map(
             (entry) => MapEntry(
@@ -130,7 +130,7 @@ class OaiFileService {
           ),
         );
       }
-      throw Exception('Failed to upload directory: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}');
+      throw Exception('Failed to upload directory: ${response.statusCode} - ${utf8.decode(utf8.decode(response.bodyBytes)Bytes)}');
     } catch (e, stackTrace) {
       print('Exception type: ${e.runtimeType}');
       print('Exception message: $e');
@@ -151,7 +151,7 @@ class OaiFileService {
     );
 
     if (response.statusCode == 200) {
-      return OaiFile.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+      return OaiFile.fromJson(json.decode(utf8.decode(utf8.decode(response.bodyBytes)Bytes)));
     }
     throw Exception('Failed to upload file');
   }
@@ -163,7 +163,7 @@ class OaiFileService {
     );
 
     if (response.statusCode == 200) {
-      return OaiFile.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+      return OaiFile.fromJson(json.decode(utf8.decode(utf8.decode(response.bodyBytes)Bytes)));
     }
     throw Exception('Failed to get file');
   }
@@ -199,7 +199,7 @@ class OaiFileService {
     );
 
     if (response.statusCode == 200) {
-      final List<dynamic> jsonList = json.decode(utf8.decode(response.bodyBytes));
+      final List<dynamic> jsonList = json.decode(utf8.decode(utf8.decode(response.bodyBytes)Bytes));
       return jsonList.map((json) => OaiFile.fromJson(json)).toList();
     }
     throw Exception('Failed to get files from root directory');
@@ -212,7 +212,7 @@ class OaiFileService {
     );
 
     if (response.statusCode == 200) {
-      return json.decode(utf8.decode(response.bodyBytes));
+      return json.decode(utf8.decode(utf8.decode(response.bodyBytes)Bytes));
     }
     throw Exception('Failed to get file info');
   }
@@ -237,7 +237,7 @@ class OaiFileService {
     );
 
     if (response.statusCode == 200) {
-      return response.bodyBytes;
+      return utf8.decode(response.bodyBytes)Bytes;
     }
     throw Exception('Failed to download file');
   }
