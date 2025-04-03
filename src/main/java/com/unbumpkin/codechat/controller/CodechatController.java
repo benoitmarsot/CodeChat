@@ -554,13 +554,29 @@ public class CodechatController {
     private int createAssistant(
         String name, int projectId, Map<String,Integer> vectorStorMap, String vsAllOaiId
     ) throws IOException {
-        Models model=Models.o3_mini;
+        Models model=Models.gpt_4o;
         AssistantBuilder assistantBuilder = new AssistantBuilder(model);
         String instruction="""
             <Function: You are a code search assistant designed to help users analyze and understand their projects. Your primary role is to provide detailed explanations, code snippets, and actionable suggestions based on the project's files and metadata.>
 
+            Always respond in the following structured JSON format, and do not prefix with ```<language>:
+            {
+                "answers": [
+                    {
+                        "explanation": "<Detailed explanation>",
+                        "language": "<Programming language (if applicable)>",
+                        "code": "<Formatted code snippet (if applicable)>",
+                        "codeExplanation": "<Explanation of the code snippet (if applicable)>",
+                        "references": ["<Relevant sources>"]
+                    }
+                    // Add more answers as needed
+                ],
+                "conversationalGuidance": "<Additional guidance for the user: Intelligent Follow-ups, Actionable Suggestions, Engagement & Clarifications, etc.>"
+            }
+
             Markdown is supported in the explanation, code explanation, and reference fields.
-            Omit internal citation markers in response.
+            Never use the internal citation markers in response.
+            Do not use bullet characters in the response.
 
             ### File Metadata Usage
             When analyzing files, use the following attributes from the file metadata to provide insights and context:
@@ -589,7 +605,7 @@ public class CodechatController {
             - For `config` files, analyze the correctness and adherence to best practices.
 
             ### Referencing Files
-            - Donot use the internal name, always use file metadata such as `name` and `path` when referencing specific files.
+            - Do not use the internal name, always use file metadata such as `name` and `path` when referencing specific files.
             - Use the `nbLines` attribute to provide insights into the file's size or complexity when relevant.
             - Use the `mime-type` attribute to describe the file's format or content type.
             - When retrieving code, always reference the file's `path` and `name` to provide context.
@@ -601,12 +617,35 @@ public class CodechatController {
             ### Handling Non-Code Queries
             - If the query is not related to code, omit the `language` and `code` fields in the response. Focus on providing a clear explanation and actionable suggestions.
 
-            """;
-        
+            ### Example Response
+            {
+                "answers": [
+                    {
+                        "explanation": "The file `MyClass.java` contains the implementation of the main application logic. It is located at `src/main/java/com/example/MyClass.java` and contains 120 lines of Java code. The file's MIME type is `text/x-java-source`.",
+                        "language": "Java",
+                        "code": "public class MyClass { ... }",
+                        "codeExplanation": "This code defines the main class of the application.",
+                        "references": ["[MyClass.java](src/main/java/com/example/MyClass.java \"Java source file\")"]
+                    }
+                ],
+                "conversationalGuidance": "Would you like to see more details about this file or related files?"
+            }
+            ### Example Response with no code
+            {
+                "answers": [
+                    {
+                        "explanation": "The file `MyClass.java` contains the implementation of the main application logic. It is located at `src/main/java/com/example/MyClass.java` and contains 120 lines of Java code. The file's MIME type is `text/x-java-source`.",
+                        "references": ["[MyClass.java](src/main/java/com/example/MyClass.java \"Java source file\")"]
+                    }
+                ],
+                "conversationalGuidance": "Would you like to see more details about this file or related files?"
+            }
+            """;        
         assistantBuilder.setName(name)
             .setDescription("Code search assistant for " + name)
             .setInstructions(instruction).setReasoningEffort(ReasoningEfforts.high)
-            .addOutsideJsonSchemaResponseFormat()
+            // to use the codechat_assistant_response.json schema
+            //.addOutsideJsonSchemaResponseFormat()
             //.setTemperature(.02) //Not suported in o3-mini
             .addFileSearchTool().addFileSearchAssist()
             .setFileSearchMaxNumResults(20) //default
@@ -629,12 +668,16 @@ public class CodechatController {
             ;
         ObjectMapper mapper = new ObjectMapper();
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        String responseTemplate=JsonUtils.loadJson( "json_schema/codechat_assistant_response.json");
-        String assistantJson = mapper.writeValueAsString(assistantBuilder).replace("\"{json_schema}\"", responseTemplate);
-        System.out.println(assistantJson);
+        // String responseTemplate=JsonUtils.loadJson( "json_schema/codechat_assistant_response.json");
+        // String assistantJson = mapper.writeValueAsString(assistantBuilder).replace("\"{json_schema}\"", responseTemplate);
+        // System.out.println(assistantJson);
+        System.out.println(mapper.writeValueAsString(assistantBuilder));
 
-        String assistantOaiId=assistantService.createAssistant(assistantJson);
-        //String assistantOaiId=assistantService.createAssistant(assistantBuilder);
+        // Uses the codechat_assistant_response.json schema for the response
+        // - put back: .addOutsideJsonSchemaResponseFormat()
+        //String assistantOaiId=assistantService.createAssistant(assistantJson);
+        // Uses the json example in the instruction for the response
+        String assistantOaiId=assistantService.createAssistant(assistantBuilder);
         Integer[] vsIds = vectorStorMap.values().toArray(new Integer[0]);
         Assistant assistant = new Assistant(
             0, assistantOaiId, projectId, name, "Code search assistant for " + name,

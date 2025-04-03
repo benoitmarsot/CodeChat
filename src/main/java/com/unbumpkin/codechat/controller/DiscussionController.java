@@ -106,8 +106,8 @@ public class DiscussionController {
         String answer = answerNode.isTextual() 
             ? answerNode.asText()
             : objectMapper.writeValueAsString(answerNode);
-        
         System.out.println("AI Answer: " + answer);
+        answer=answer.replaceAll("```\\w+", "").replace("```", "");
         // If you need to replace references:
         // Set<String> refFiles = AnswerUtils.getReferencesFileIds(answer);
         // List<OaiFile> refFileMap = oaiFileRepository.retrieveFiles(refFiles.toArray(String[]::new));
@@ -122,7 +122,7 @@ public class DiscussionController {
         }
     
         // Clean up special chars
-        answer = answer.replaceAll("[\\p{Cc}&&[^\r\n\t]]", "");
+        //answer = answer.replaceAll("[\\p{Cc}&&[^\r\n\t]]", "");
     
         Message message = messageRepository.addMessage(
             new MessageCreateRequest(did, Roles.assistant.toString(), answer)

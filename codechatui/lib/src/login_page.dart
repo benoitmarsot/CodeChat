@@ -172,11 +172,19 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              'assets/logo-ragtime.png',
-              width: 200,
-              height: 200,
-              fit: BoxFit.contain,
+            // Image.asset(
+            //   'assets/logo-ragtime.png',
+            //   width: 200,
+            //   height: 200,
+            //   fit: BoxFit.contain,
+            // ),
+            SvgPicture.asset(
+              'logo.svg',
+              semanticsLabel: 'My SVG Image',
+              width: 200, // Optional: specify width
+              height: 200, // Optional: specify height
+              fit: BoxFit
+                  .contain, // Optional: specify how the SVG should be scaled
             ),
             RichText(
               text: TextSpan(
@@ -201,14 +209,6 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               ),
             ),
-            // SvgPicture.asset(
-            //   'logo.svg',
-            //   semanticsLabel: 'My SVG Image',
-            //   width: 200, // Optional: specify width
-            //   height: 200, // Optional: specify height
-            //   fit: BoxFit
-            //       .contain, // Optional: specify how the SVG should be scaled
-            // ),
             // Text(
             //   'SAMTAL AI',
             //   style: GoogleFonts.scada(
