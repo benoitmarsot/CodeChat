@@ -28,10 +28,11 @@ class Message {
       msgid: json['msgid'] ?? 0,
       discussionId: json['discussionId'] ?? 0,
       text: json['message'] ?? json['text'] ?? '',
-      role: json['role'] ?? (json['isUserMessage'] == true ? 'user' : 'assistant'),
+      role: json['role'] ??
+          (json['isUserMessage'] == true ? 'user' : 'assistant'),
       authorid: json['authorid'] ?? 0,
-      timestamp: json['timestamp'] != null 
-          ? DateTime.parse(json['timestamp']) 
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'])
           : DateTime.now(),
     );
   }
@@ -51,6 +52,7 @@ class Message {
     if (isUserMessage) return null;
     try {
       // Check if the text is valid JSON
+      if (isLoading) return null;
       final decoded = jsonDecode(text);
       return AIResponse.fromJson(decoded);
     } catch (e) {
@@ -65,7 +67,6 @@ class AIResponse {
   final List<AIAnswerItem> answers;
   final String? conversationalGuidance; // Add this line
 
-
   AIResponse({required this.conversationalGuidance, required this.answers});
 
   factory AIResponse.fromJson(Map<String, dynamic> json) {
@@ -74,7 +75,6 @@ class AIResponse {
           .map((item) => AIAnswerItem.fromJson(item))
           .toList(),
       conversationalGuidance: json['conversationalGuidance'],
-
     );
   }
 }
@@ -86,33 +86,32 @@ class AIAnswerItem {
   final List<String>? references; // Make this field optional
   final String? codeExplanation;
 
-  AIAnswerItem({
-    required this.explanation, 
-    this.language, 
-    this.code, 
-    this.references, // Update constructor
-    this.codeExplanation
-  });
+  AIAnswerItem(
+      {required this.explanation,
+      this.language,
+      this.code,
+      this.references, // Update constructor
+      this.codeExplanation});
 
   factory AIAnswerItem.fromJson(Map<String, dynamic> json) {
     return AIAnswerItem(
       explanation: json['explanation'],
       language: json['language'],
       code: json['code'],
-      references: json['references'] != null 
-          ? (json['references'] as List).map((e) => e.toString()).toList() 
+      references: json['references'] != null
+          ? (json['references'] as List).map((e) => e.toString()).toList()
           : null, // Handle null case
-      codeExplanation: json['codeExplanation'], 
+      codeExplanation: json['codeExplanation'],
     );
   }
-  
+
   // Get the appropriate syntax language for the syntax highlighter
   Syntax getSyntaxLanguage() {
     if (language == null) return Syntax.JAVA;
-    
+
     // Convert language to lowercase for case-insensitive matching
     final lang = language!.toLowerCase();
-    
+
     // Map common languages to their syntax identifier
     switch (lang) {
       case 'javascript':
@@ -176,12 +175,14 @@ class AIAnswerItem {
     }
   }
 }
+
 class MessageCreateRequest {
   final int did;
   final String role;
   final String message;
 
-  MessageCreateRequest({required this.did, required this.role, required this.message});
+  MessageCreateRequest(
+      {required this.did, required this.role, required this.message});
 
   Map<String, dynamic> toJson() {
     return {
