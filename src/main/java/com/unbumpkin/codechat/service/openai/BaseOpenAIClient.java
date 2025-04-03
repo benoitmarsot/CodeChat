@@ -2,6 +2,7 @@ package com.unbumpkin.codechat.service.openai;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -76,7 +77,7 @@ public abstract class BaseOpenAIClient {
         while (retryCount < maxRetries) {
             try {
                 try (Response response = client.newCall(request).execute()) {
-                    String responseBody = response.body().string();
+                    String responseBody = new String(response.body().bytes(), StandardCharsets.UTF_8);
                     if (!response.isSuccessful() && response.code() == 502) {
                         throw new SocketTimeoutException(responseBody);
                     }

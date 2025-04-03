@@ -172,23 +172,52 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset(
-              'logo.svg',
-              semanticsLabel: 'My SVG Image',
-              width: 200, // Optional: specify width
-              height: 200, // Optional: specify height
-              fit: BoxFit
-                  .contain, // Optional: specify how the SVG should be scaled
+            Image.asset(
+              'assets/logo-ragtime.png',
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
             ),
-            Text(
-              'SAMTAL AI',
-              style: GoogleFonts.scada(
-                textStyle: Theme.of(context).textTheme.displayLarge,
-                fontSize: 48,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E4396),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'RAG',
+                    style: GoogleFonts.scada(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1E4396), // Original blue color
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'time',
+                    style: GoogleFonts.scada(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w700,
+                      fontStyle: FontStyle.italic,
+                      color: const Color(0xFFFF9800), // Amber/orange color that complements blue
+                    ),
+                  ),
+                ],
               ),
             ),
+            // SvgPicture.asset(
+            //   'logo.svg',
+            //   semanticsLabel: 'My SVG Image',
+            //   width: 200, // Optional: specify width
+            //   height: 200, // Optional: specify height
+            //   fit: BoxFit
+            //       .contain, // Optional: specify how the SVG should be scaled
+            // ),
+            // Text(
+            //   'SAMTAL AI',
+            //   style: GoogleFonts.scada(
+            //     textStyle: Theme.of(context).textTheme.displayLarge,
+            //     fontSize: 48,
+            //     fontWeight: FontWeight.w700,
+            //     color: const Color(0xFF1E4396),
+            //   ),
+            // ),
             SizedBox(height: 24.0),
             Card(
               shape: RoundedRectangleBorder(

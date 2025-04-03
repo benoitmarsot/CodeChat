@@ -22,11 +22,11 @@ public class ResponsesService extends BaseOpenAIClient {
     public String describeImage(
         OaiImageDescResponsesRequest imageRequest, boolean noJson_schema
     ) throws IOException {
-        String responseTemplate=JsonUtils.loadJson( "json_schema/fast_image_descriptionresponse.json");
         String json;
         if( noJson_schema ) {
             json = imageRequest.toJsonString();
         } else {
+            String responseTemplate=JsonUtils.loadJson( "json_schema/fast_image_descriptionresponse.json");
             json = imageRequest.toJsonString(responseTemplate);
         }
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);

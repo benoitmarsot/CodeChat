@@ -31,6 +31,7 @@ import com.unbumpkin.codechat.service.openai.VectorStoreService;
 import com.unbumpkin.codechat.service.openai.ZipContentManager;
 import com.unbumpkin.codechat.util.ExtMimeType;
 import com.unbumpkin.codechat.util.FileUtils;
+import com.unbumpkin.codechat.util.JsonUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
@@ -558,24 +559,9 @@ public class CodechatController {
         String instruction="""
             <Function: You are a code search assistant designed to help users analyze and understand their projects. Your primary role is to provide detailed explanations, code snippets, and actionable suggestions based on the project's files and metadata.>
 
-            Always respond in the following structured JSON format, and do not prefix with ```<language>:
-            {
-                "answers": [
-                    {
-                        "explanation": "<Detailed explanation>",
-                        "language": "<Programming language (if applicable)>",
-                        "code": "<Formatted code snippet (if applicable)>",
-                        "codeExplanation": "<Explanation of the code snippet (if applicable)>",
-                        "references": ["<Relevant sources>"]
-                    }
-                    // Add more answers as needed
-                ],
-                "conversationalGuidance": "<Additional guidance for the user: Intelligent Follow-ups, Actionable Suggestions, Engagement & Clarifications, etc.>"
-            }
-
-
-            Use plain text in the response.
             Markdown is supported in the explanation, code explanation, and reference fields.
+            Omit internal citation markers in response.
+            Do not use bullet character in the response.
 
             ### File Metadata Usage
             When analyzing files, use the following attributes from the file metadata to provide insights and context:
@@ -616,24 +602,12 @@ public class CodechatController {
             ### Handling Non-Code Queries
             - If the query is not related to code, omit the `language` and `code` fields in the response. Focus on providing a clear explanation and actionable suggestions.
 
-            ### Example Response
-            {
-                "answers": [
-                    {
-                        "explanation": "The file `MyClass.java` contains the implementation of the main application logic. It is located at `src/main/java/com/example/MyClass.java` and contains 120 lines of Java code. The file's MIME type is `text/x-java-source`.",
-                        "language": "Java",
-                        "code": "public class MyClass { ... }",
-                        "codeExplanation": "This code defines the main class of the application.",
-                        "references": ["[MyClass.java](src/main/java/com/example/MyClass.java \"Java source file\")"]
-                    }
-                ],
-                "conversationalGuidance": "Would you like to see more details about this file or related files?"
-            }
             """;
         
         assistantBuilder.setName(name)
             .setDescription("Code search assistant for " + name)
             .setInstructions(instruction).setReasoningEffort(ReasoningEfforts.high)
+            .addOutsideJsonSchemaResponseFormat()
             //.setTemperature(.02) //Not suported in o3-mini
             .addFileSearchTool().addFileSearchAssist()
             .setFileSearchMaxNumResults(20) //default
@@ -656,10 +630,12 @@ public class CodechatController {
             ;
         ObjectMapper mapper = new ObjectMapper();
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        String assistantJson = mapper.writeValueAsString(assistantBuilder);
+        String responseTemplate=JsonUtils.loadJson( "json_schema/codechat_assistant_response.json");
+        String assistantJson = mapper.writeValueAsString(assistantBuilder).replace("\"{json_schema}\"", responseTemplate);
         System.out.println(assistantJson);
-        mapper.writeValueAsString(assistantBuilder);
-        String assistantOaiId=assistantService.createAssistant(assistantBuilder);
+
+        String assistantOaiId=assistantService.createAssistant(assistantJson);
+        //String assistantOaiId=assistantService.createAssistant(assistantBuilder);
         Integer[] vsIds = vectorStorMap.values().toArray(new Integer[0]);
         Assistant assistant = new Assistant(
             0, assistantOaiId, projectId, name, "Code search assistant for " + name,
