@@ -39,7 +39,7 @@ public class AssistantController {
         Assistant assistant= assistantRepository.getAssistantByProjectId(projectId);
 
         System.out.println("Assistant Request:");
-        printAssistant(request.toOaiModifyAssistantRequest(assistant.instruction()));
+        //printAssistant(request.toOaiModifyAssistantRequest(assistant.instruction()));
 
         JsonNode assistantOai =assistantService.modifyAsssistant(
             request, assistant.instruction(), assistant.oaiAid()
@@ -47,8 +47,8 @@ public class AssistantController {
         if(assistantOai.get("error") != null) {
             return ResponseEntity.badRequest().body(assistantOai.get("error").toString());
         }
-        System.out.println("Assistant OAI:");
-        printJsonNode(assistantOai);
+        //System.out.println("Assistant OAI:");
+        //printJsonNode(assistantOai);
         assistantRepository.updateAssistant(assistant);
         return ResponseEntity.ok().body(assistantOai.toString());
     }
