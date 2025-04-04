@@ -81,12 +81,8 @@ public record ModifyAssistantRequest(
             )
         )));
         
-        if(temperature() != null) {
-            oaiMap.put("temperature", temperature());
-        }
-        if(reasoningEffort != null) {
-            oaiMap.put("reasoning_effort", reasoningEffort());
-        }
+        oaiMap.put("temperature", temperature());
+        oaiMap.put("reasoning_effort", reasoningEffort());
         
         return oaiMap;
     }

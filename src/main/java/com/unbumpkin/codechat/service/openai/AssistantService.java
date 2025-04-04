@@ -1,6 +1,7 @@
 package com.unbumpkin.codechat.service.openai;
 
 import java.io.IOException;
+import static java.lang.String.format;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -126,10 +127,10 @@ public class AssistantService extends BaseOpenAIClient {
         ModifyAssistantRequest marRequest, String existingInstruction, String id
     ) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setSerializationInclusion(Include.NON_NULL);
-        String json = new ObjectMapper().writeValueAsString(
+        String json = objectMapper.writeValueAsString(
             marRequest.toOaiModifyAssistantRequest(existingInstruction)
         );
+        System.out.println(format("modify openai request: %s",json));
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()
