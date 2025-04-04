@@ -5,6 +5,10 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,10 +20,6 @@ import com.unbumpkin.codechat.dto.request.ModifyAssistantRequest;
 import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.service.openai.AssistantService;
-
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 
 @RestController
@@ -52,7 +52,19 @@ public class AssistantController {
         assistantRepository.updateAssistant(assistant);
         return ResponseEntity.ok().body(assistantOai.toString());
     }
-
+    @GetMapping("{projectId}")
+    public ResponseEntity<String> getAssistantByProjectId(@PathVariable int projectId) throws JsonProcessingException {
+        Assistant assistant = assistantRepository.getAssistantByProjectId(projectId);
+        if (assistant == null) {
+            return ResponseEntity.notFound().build();
+        }
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule()); // Register JavaTimeModule
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+        String json = mapper.writeValueAsString(assistant);
+        return ResponseEntity.ok().body(json);
+    }
+    
     private void printAssistant(
         Map<String, Object> request
     ) throws JsonProcessingException {
