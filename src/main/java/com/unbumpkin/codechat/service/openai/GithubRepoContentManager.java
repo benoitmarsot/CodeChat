@@ -288,7 +288,7 @@ public class GithubRepoContentManager extends CCProjectFileManager {
             throw new IOException("Error processing GitHub API response: " + e.getMessage(), e);
         }
     }
-
+    @Override
     public String getTempDir() {
         return tempDir.getAbsolutePath();
     }

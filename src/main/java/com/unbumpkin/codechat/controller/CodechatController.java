@@ -1,5 +1,6 @@
 package com.unbumpkin.codechat.controller;
 
+import static java.lang.String.format;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -7,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,12 +28,12 @@ import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.GithubRepoContentManager;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
 import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFileType;
+import static com.unbumpkin.codechat.util.ExtMimeType.getMimeType;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
 import com.unbumpkin.codechat.service.openai.ZipContentManager;
 import com.unbumpkin.codechat.util.ExtMimeType;
 import com.unbumpkin.codechat.util.FileUtils;
-import com.unbumpkin.codechat.util.JsonUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
@@ -41,6 +43,7 @@ import com.unbumpkin.codechat.dto.request.AddZipRequest;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 import com.unbumpkin.codechat.dto.request.OaiImageDescResponsesRequest;
+import com.unbumpkin.codechat.dto.request.OaiImageDescResponsesRequest.Details;
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.UserSecret;
@@ -64,8 +67,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 
@@ -182,7 +183,7 @@ public class CodechatController {
         
         try {
             zipManager = new ZipContentManager();
-            String tempDirPath = zipManager.extractZip(request.zipContent());
+            zipManager.extractZip(request.zipContent());
             
             // Create project resource
             ProjectResource resource = projectResourceRepository.createResource(
@@ -206,7 +207,15 @@ public class CodechatController {
             // Process files
             for (File file : zipManager.getAllFiles()) {
                 try {
-                    FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+                    Types fileType=getFileType(file);
+                    FileRenameDescriptor desc;
+                    try {
+                        desc = getFileRenameDescriptor(file,fileType);
+                    } catch (Exception e) {
+                        System.out.println("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+                        continue;
+                    }
+
                     OaiFile oaiFile = oaiFileService.uploadFile(
                         desc.newFile().getAbsolutePath(), 
                         tempDirLength + 1, 
@@ -217,7 +226,6 @@ public class CodechatController {
                     System.out.println("file " + file.getName() + " uploaded with id " + oaiFile.fileId());
                     
                     String oldExt = FileUtils.getFileExtension(desc.oldFileName());
-                    Types fileType = getFileType(desc.oldFileName());
                     
                     CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
                         oaiFile.fileId(), new HashMap<>() {{
@@ -229,8 +237,9 @@ public class CodechatController {
                             put("type", fileType.name());
                         }}
                     );
-                    
-                    vsfServicesMap.get(fileType).addFile(creaVsRequest);
+                    if(fileType != Types.image){
+                        vsfServicesMap.get(fileType).addFile(creaVsRequest);
+                    }
                     vsfServicesAll.addFile(creaVsRequest);
                     oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
                     
@@ -252,6 +261,42 @@ public class CodechatController {
             }
         }
     }
+    private FileRenameDescriptor getFileRenameDescriptor(File file, Types fileType) throws Exception {
+        if(fileType==Types.image){
+            try {
+                String imgDesc=responsesService.describeImage(
+                    new OaiImageDescResponsesRequest(
+                        Models.gpt_4o_mini, 
+                        "Describe the given image in a short and clear way. List key objects, the overall scene, and provide a lot of relevant tags.", 
+                        file, Details.low
+                    ), true
+                );
+                if(imgDesc==null || imgDesc.isEmpty()){
+                    throw new Exception("The image description is empty.");
+                }
+                String oldFileName= file.getName();
+                String oldFilePath=file.getAbsolutePath();
+                String ext = FileUtils.getFileExtension(file);
+
+                file = new File(file.getAbsolutePath()+".txt");
+                // Write the image description to the text file
+                try (FileWriter writer = new java.io.FileWriter(file)) {
+                    writer.write(imgDesc);
+                }
+                System.out.println(format(
+                    "%s image description: \n\t%s", oldFileName, imgDesc)
+                );
+                return new FileRenameDescriptor(
+                    oldFileName, oldFilePath,file,getMimeType(ext)
+                );
+            } catch (Exception e) {
+                throw new Exception("Error reading or describing the image: " + e.getMessage());
+                
+            }
+        } 
+        return ExtMimeType.oaiRename(file);
+    }
+
     @Transactional
     @PostMapping("add-project-repo")
     public ResponseEntity<ProjectResource> addRepoResource(
@@ -260,10 +305,9 @@ public class CodechatController {
         int projectId=request.projectId();
         GithubRepoContentManager pfc=new GithubRepoContentManager();
         try{ 
-            String sourcePath = "";
             if(request.repoURL()!=null){
                 pfc=new GithubRepoContentManager(request.username(), request.password());
-                sourcePath=pfc.addRepository(request.repoURL(), request.branch());
+                pfc.addRepository(request.repoURL(), request.branch());
             } else {
                 throw new Exception("Repo url is required");
             }
@@ -289,11 +333,17 @@ public class CodechatController {
             int tempDirLength=pfc.getTempDir().length();
             for (File file : pfc.getAllFiles()) {
                 try {
-                    FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+                    Types fileType=getFileType(file);
+                    FileRenameDescriptor desc;
+                    try {
+                        desc = getFileRenameDescriptor(file,fileType);
+                    } catch (Exception e) {
+                        System.out.println("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+                        continue;
+                    }
                     OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, resource.prId());
                     System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
                     String oldExt = FileUtils.getFileExtension(desc.oldFileName());
-                    Types fileType=getFileType(desc.oldFileName());
                     CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
                         oaiFile.fileId(), new HashMap<>() {{
                             put("name", desc.oldFileName());
@@ -305,7 +355,9 @@ public class CodechatController {
                             put("type", fileType.name());
                         }}
                     );
-                    vsfServicesMap.get(fileType).addFile( creaVsRequest);
+                    if(fileType!=Types.image){
+                        vsfServicesMap.get(fileType).addFile( creaVsRequest);
+                    }
                     vsfServicesAll.addFile( creaVsRequest);
                     oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
 
@@ -359,6 +411,9 @@ public class CodechatController {
                             OaiFile oaiFile = oaiFileRepository.getOaiFileByPath(deletedFile, resource.prId());
                             if(oaiFile!=null) {
                                 Types fileType=getFileType(oaiFile.fileName());
+                                if(fileType!=Types.image) {
+                                    vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
+                                }
                                 vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
                                 vsfServicesAll.removeFile(oaiFile.fileId());
                                 oaiFileService.deleteFile(oaiFile.fileId());
@@ -373,11 +428,17 @@ public class CodechatController {
                     for (String addedFile : changes.addedFiles()) {
                         try {
                             File file = new File(pfc.getTempDir()+"/"+addedFile);
-                            FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+                            Types fileType=getFileType(file);
+                            FileRenameDescriptor desc;
+                            try {
+                                desc = getFileRenameDescriptor(file,fileType);
+                            } catch (Exception e) {
+                                System.out.println("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+                                continue;
+                            }
                             OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, resource.prId());
                             System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
                             String oldExt = FileUtils.getFileExtension(desc.oldFileName());
-                            Types fileType=getFileType(desc.oldFileName());
                             CreateVSFileRequest request = new CreateVSFileRequest(
                                 oaiFile.fileId(), new HashMap<>() {{
                                     put("name", desc.oldFileName());
@@ -389,7 +450,9 @@ public class CodechatController {
                                     put("type", fileType.name());
                                 }}
                             );
-                            vsfServicesMap.get(fileType).addFile( request);
+                            if(fileType!=Types.image){
+                                vsfServicesMap.get(fileType).addFile( request);
+                            }
                             vsfServicesAll.addFile( request);
                             oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
 
@@ -453,11 +516,13 @@ public class CodechatController {
             //Here the order is important because the assistant will use the vector stores in this order
             // Code, Markup, then Config
             System.out.println("Uploading and create vector store for code files...");
-            createVectorStore(pfc, pr.prId(), projectId, "vsCode", Types.code, allFileIds, vectorStorMap, basePathLength);
+            createAndFillVectorStore(pfc, pr.prId(), projectId, "vsCode", Types.code, allFileIds, vectorStorMap, basePathLength);
             System.out.println("Uploading and create vector store for markup files...");
-            createVectorStore(pfc, pr.prId(), projectId, "vsMarkup", Types.markup, allFileIds, vectorStorMap, basePathLength);
+            createAndFillVectorStore(pfc, pr.prId(), projectId, "vsMarkup", Types.markup, allFileIds, vectorStorMap, basePathLength);
             System.out.println("Uploading and create vector store for config files...");
-            createVectorStore(pfc, pr.prId(), projectId, "vsConfig", Types.config, allFileIds, vectorStorMap, basePathLength);
+            createAndFillVectorStore(pfc, pr.prId(), projectId, "vsConfig", Types.config, allFileIds, vectorStorMap, basePathLength);
+            System.out.println("Uploading and put image in allFileIds...");
+            uploadImage(pfc, pr.prId(), projectId, allFileIds, basePathLength);
             System.out.println("Create vector store for all files...");
             String vsAllOaiId=vsService.createVectorStore(
                 new VectorStore("vsAll","contain all the files in the project.", 
@@ -488,6 +553,38 @@ public class CodechatController {
             pfc.deleteRepository();
         }
     }
+    private void uploadImage(
+        CCProjectFileManager pfc, int prId, int projectId, 
+        Map<String,CreateVSFileRequest> allFileIds, int basePathLength
+
+    ) throws IOException {
+        for (File file : pfc.getFileSetMap(Types.image)) {
+            Types fileType=getFileType(file);
+            FileRenameDescriptor desc;
+            try {
+                desc = getFileRenameDescriptor(file,fileType);
+            } catch (Exception e) {
+                System.out.println("The file "+file.getPath().substring(basePathLength+1)+" could not be added: "+e.getMessage());
+                continue;
+            }
+            OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength+1, Purposes.assistants, prId);
+            System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
+            String oldExt = FileUtils.getFileExtension(desc.oldFileName());
+            String oldFilePath=desc.oldFilePath().substring(basePathLength+1);
+            CreateVSFileRequest request = new CreateVSFileRequest(
+                oaiFile.fileId(), new HashMap<>() {{
+                    put("name", desc.oldFileName());
+                    put("path", oldFilePath);
+                    put("extension", oldExt);
+                    // Should I put the "."? If so put it in the assistant instructions
+                    put("mime-type", ExtMimeType.getMimeType(oldExt));
+                    put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
+                    put("type", fileType.name());
+                }}
+            );
+            allFileIds.put(oaiFile.fileId(), request);
+        }
+    }
     private String createEmptyVectorStore(
         int projectId, String vsName, Types type, Map<String,Integer> vectorStorMap
     ) throws IOException {
@@ -503,7 +600,7 @@ public class CodechatController {
         vectorStorMap.put(vsOaiId, vsId);
         return vsOaiId;
     }
-    private void createVectorStore(
+    private void createAndFillVectorStore(
         CCProjectFileManager pfc, int prId, int projectId, String vsName, Types type,
         Map<String,CreateVSFileRequest> allFileIds, Map<String,Integer> vectorStorMap,
         int basePathLength
@@ -517,7 +614,14 @@ public class CodechatController {
         System.out.println("Vector store "+type.name()+" created with id: "+vsOaiId);
         VectorStoreFile vsfService = new VectorStoreFile(vsOaiId);
         for (File file : pfc.getFileSetMap(type)) {
-            FileRenameDescriptor desc = ExtMimeType.oaiRename(file);
+            Types fileType=getFileType(file);
+            FileRenameDescriptor desc;
+            try {
+                desc = getFileRenameDescriptor(file,fileType);
+            } catch (Exception e) {
+                System.out.println("The file "+file.getPath().substring(pfc.getTempDir().length()+1)+" could not be added: "+e.getMessage());
+                continue;
+            }
             OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), basePathLength+1, Purposes.assistants, prId);
             System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
             lFileIds.add(oaiFile.fileId());
