@@ -55,9 +55,13 @@ public class OaiFileRepository {
         jdbcTemplate.update(sql, json, prId);
     }
     public OaiFile getOaiFileByPath(String path,int prId) {
-        String sql = "SELECT * FROM oaifile WHERE filepath = ? AND prid = ?";
-        return jdbcTemplate
-            .queryForObject(sql, (rs, rowNum) -> OaiFileFrom(rs), path, prId);
+        try {
+            String sql = "SELECT * FROM oaifile WHERE filepath = ? AND prid = ?";
+            return jdbcTemplate
+                .queryForObject(sql, (rs, rowNum) -> OaiFileFrom(rs), path, prId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     /**

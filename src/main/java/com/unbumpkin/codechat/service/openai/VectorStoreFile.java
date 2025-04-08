@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
+import com.unbumpkin.codechat.util.JsonUtils;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -37,8 +38,12 @@ public class VectorStoreFile extends BaseOpenAIClient {
                 .addHeader("Content-Type", "application/json")
                 .addHeader("OpenAI-Beta", "assistants=v2")
                 .build();
-
-        return this.executeRequest(request).get("id").asText();
+        JsonNode jsonNode = executeRequest(request);
+        String error = JsonUtils.getOpenAiError(jsonNode);
+        if (error != null) {
+            throw new IOException("Error from OpenAI API: " + error);
+        }
+        return jsonNode.get("id").asText();
     }
 
     public List<String> listFiles() throws IOException {

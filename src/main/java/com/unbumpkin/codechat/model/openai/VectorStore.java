@@ -85,7 +85,10 @@ public class VectorStore {
     }
 
     // Repository constructor
-    public VectorStore(int vsId, String oaiVsId, int projectId, String vsname, String vsdesc, Integer dayskeep, Types type) {
+    public VectorStore(
+        int vsId, String oaiVsId, int projectId, String vsname, 
+        String vsdesc, Integer dayskeep, Types type
+    ) {
         this.vsid = vsId;
         this.oaiVsId = oaiVsId;
         this.projectId = projectId;

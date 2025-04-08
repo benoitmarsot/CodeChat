@@ -35,7 +35,7 @@ public class ProjectResourceRepository {
         } else {
             // Only for development - use a proper key management solution in production
             this.encryptionKey = "dev-key-1234567890abcdefghijklmn";
-            System.out.println("WARNING: Using default encryption key. Set SECRET_ENCRYPTION_KEY for production.");
+            System.out.println("WARNING: Using default encryption key. Set USER_SECRET_KEY for production.");
         }
     }
 
@@ -105,6 +105,23 @@ public class ProjectResourceRepository {
             (rs, rowNum) -> rs.getString("uri"),
             projectId
         );
+    }
+    /**
+     * Get the ID of a resource by its URI
+     * @param projectId The project ID
+     * @param uri The resource URI
+     * @return The resource ID, or null if not found
+     */
+    public Integer getResourceId(int projectId, String uri) {
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT prid FROM projectresource WHERE projectid = ? AND uri = ?",
+                Integer.class,
+                projectId, uri
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     /**
