@@ -54,13 +54,19 @@ public class OaiFileRepository {
         String sql = "call createoaifile(?::json,?)";
         jdbcTemplate.update(sql, json, prId);
     }
-    public OaiFile getOaiFileByPath(String path,int prId) {
+    public List<OaiFile> getOaiFileByPath(String path, int projectId) {
+        String sql = "SELECT o.* FROM oaifile o " +
+                     "JOIN projectresource pr ON o.prid = pr.prid " +
+                     "WHERE o.filepath = ? AND pr.projectid = ?";
         try {
-            String sql = "SELECT * FROM oaifile WHERE filepath = ? AND prid = ?";
-            return jdbcTemplate
-                .queryForObject(sql, (rs, rowNum) -> OaiFileFrom(rs), path, prId);
-        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
-            return null;
+            return jdbcTemplate.query(
+                sql, 
+                (rs, rowNum) -> OaiFileFrom(rs), 
+                path, 
+                projectId
+            );
+        } catch (org.springframework.dao.DataAccessException e) {
+            return List.of(); // Return empty list instead of null
         }
     }
 
@@ -172,7 +178,7 @@ public class OaiFileRepository {
      */
     public List<OaiFile> retrieveFiles(String rootDir, int projectId) {
         String sql = "SELECT o.* FROM oaifile o " +
-            "JOIN projectressource pr ON o.prid = pr.prid " +
+            "JOIN projectresource pr ON o.prid = pr.prid " +
             "WHERE o.rootdir = ? AND pr.projectid = ?";
         return jdbcTemplate.query(sql, ps -> {
             ps.setString(1, rootDir);
@@ -187,7 +193,7 @@ public class OaiFileRepository {
      */
     public List<OaiFile> listAllFiles(int projectId) {
         String sql = "SELECT o.* FROM oaifile o " +
-            "JOIN projectressource pr ON o.prid = pr.prid " +
+            "JOIN projectresource pr ON o.prid = pr.prid " +
             "WHERE pr.projectid = ?";
         return jdbcTemplate.query(sql, (rs, rowNum) -> OaiFileFrom(rs), projectId);
     }

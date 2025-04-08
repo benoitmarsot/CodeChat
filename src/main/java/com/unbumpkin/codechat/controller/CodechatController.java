@@ -1,7 +1,6 @@
 package com.unbumpkin.codechat.controller;
 
 import static java.lang.String.format;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -191,7 +190,8 @@ public class CodechatController {
             // Process files
             for (File file : zipManager.getAllFiles()) {
                 try {
-                    if(deleteIfExists(file.getPath(), tempDirLength, vsfServicesMap,tempDirLength)) {
+                    //TODO: test again
+                    if(deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap,tempDirLength)) {
                         System.out.println("The file " + file.getPath().substring(tempDirLength + 1) + 
                             " already exists it will be refreshed.");
                     }
@@ -293,7 +293,7 @@ public class CodechatController {
                     );
                     for (String deletedFile : changes.deletedFiles()) {
                         try {
-                            deleteIfExists( deletedFile, resource.prId(), vsfServicesMap, pfc.getTempDir().length());
+                            deleteIfExists( deletedFile, resource.projectId(), vsfServicesMap, pfc.getTempDir().length());
                         } catch (Exception e) {
                             System.out.println("This file is ignored or could not be retrieved: "+deletedFile);
                         }
@@ -573,11 +573,12 @@ public class CodechatController {
      * @return true if the file was deleted, false otherwise
      * @throws IOException
      */
-    private boolean deleteIfExists( String filePath, int prId, 
+    private boolean deleteIfExists( String filePath, int projectId, 
         Map<Types,VectorStoreFile> vsfServicesMap, int rootPathLength
     ) throws IOException {        
-        OaiFile oaiFile = oaiFileRepository.getOaiFileByPath(filePath.substring(rootPathLength + 1), prId);
-        if (oaiFile != null) {
+        List<OaiFile> files = oaiFileRepository.getOaiFileByPath(filePath, projectId);
+        boolean wasDeleted=false;
+        for (OaiFile oaiFile : files) {
             Types fileType = getFileType(filePath);
             if(fileType!=Types.image){
                 vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
@@ -586,9 +587,9 @@ public class CodechatController {
             oaiFileService.deleteFile(oaiFile.fileId());
             oaiFileRepository.deleteFile(oaiFile.fileId());
             System.out.println(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from all and "+fileType.toString()+" vector stores and deleted.");
-            return true;
+            wasDeleted=true;
         }
-        return false;
+        return wasDeleted;
     }
     private void addFile(String tempDirPath, String filePath, int prId,
         Map<Types,VectorStoreFile> vsfServicesMap

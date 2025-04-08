@@ -37,7 +37,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @param rootDir: the root directory to start the search
      * @param basePathLen: the length of the base path to remove from the file path
      * @param extension: the extension of the files to upload
-     * @param prId: the project ressource id
+     * @param prId: the project resource id
      * @return a map of the file id and the OaiFile object
      * @throws IOException
      */
@@ -51,7 +51,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @param rootDir: the root directory to start the search
      * @param basePathLen: the length of the base path to remove from the file path
      * @param extension: the extension of the files to upload
-     * @param prId: the project ressource id
+     * @param prId: the project resource id
      * @param purpose: the purpose of the file upload
      * @return a map of the file id and the OaiFile object
      * @throws IOException

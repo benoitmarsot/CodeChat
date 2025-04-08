@@ -249,7 +249,7 @@ public class ProjectResourceRepository {
         );
     }
 
-    public void removeProjectRessourceSecrets(int prId) {
+    public void removeProjectResourceSecrets(int prId) {
         jdbcTemplate.update(
             "DELETE FROM usersecret WHERE prid = ?",
             prId
