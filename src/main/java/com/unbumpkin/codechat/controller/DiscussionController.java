@@ -1,8 +1,19 @@
 package com.unbumpkin.codechat.controller;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,17 +31,13 @@ import com.unbumpkin.codechat.repository.MessageRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
+import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
+import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Roles;
+import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 import com.unbumpkin.codechat.service.openai.ChatService;
 import com.unbumpkin.codechat.service.openai.OaiMessageService;
 import com.unbumpkin.codechat.service.openai.OaiRunService;
 import com.unbumpkin.codechat.service.openai.OaiThreadService;
-import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
-import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
-import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Roles;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/discussions")
@@ -77,7 +84,9 @@ public class DiscussionController {
             Map<Types,OaiThread> threadMap=threadRepository.getAllThreadsByDiscussionId(discussion.did());
             OaiThread thread=threadMap.get(Types.code);
             OaiMessageService messageService=new OaiMessageService(thread.oaiThreadId());
-            String oaiMsgId=messageService.createMessage(Roles.user,returnedMessage.message());
+            //strip out linebreakes 
+            String cleanedMessage = String.join(" ", returnedMessage.message().split("\n"));
+            String oaiMsgId=messageService.createMessage(Roles.user,cleanedMessage);
             System.out.println("OpenAi message " + oaiMsgId+" created...");
             return ResponseEntity.ok(returnedMessage);
         } catch (Exception e) {
