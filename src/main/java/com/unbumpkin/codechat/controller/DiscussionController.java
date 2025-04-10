@@ -70,7 +70,7 @@ public class DiscussionController {
         Assistant assistant=assistantRepository.getAssistantByProjectId(discussion.projectId());
         String oaiThreadId=threadService.createThread();
         System.out.println("OpenAi thread " + oaiThreadId+" created...");
-        threadRepository.addThread(new AddOaiThreadRequest(oaiThreadId, assistant.codevsid(),discussion.did(), "code"));
+        threadRepository.addThread(new AddOaiThreadRequest(oaiThreadId, assistant.fullvsid(),discussion.did(), "all"));
 
         return ResponseEntity.ok(discussion);
     }
@@ -82,11 +82,9 @@ public class DiscussionController {
             Message returnedMessage=messageRepository.addMessage(request);
             Discussion discussion=discussionRepository.getDiscussionById(returnedMessage.discussionId());
             Map<Types,OaiThread> threadMap=threadRepository.getAllThreadsByDiscussionId(discussion.did());
-            OaiThread thread=threadMap.get(Types.code);
+            OaiThread thread=threadMap.get(Types.all);
             OaiMessageService messageService=new OaiMessageService(thread.oaiThreadId());
-            //strip out linebreakes 
-            String cleanedMessage = String.join(" ", returnedMessage.message().split("\n"));
-            String oaiMsgId=messageService.createMessage(Roles.user,cleanedMessage);
+            String oaiMsgId=messageService.createMessage(Roles.user,returnedMessage.message());
             System.out.println("OpenAi message " + oaiMsgId+" created...");
             return ResponseEntity.ok(returnedMessage);
         } catch (Exception e) {
@@ -100,7 +98,7 @@ public class DiscussionController {
         Discussion discussion = discussionRepository.getDiscussionById(did);
         Assistant assistant = assistantRepository.getAssistantByProjectId(discussion.projectId());
         Map<Types, OaiThread> threadMap = threadRepository.getAllThreadsByDiscussionId(did);
-        OaiThread thread = threadMap.get(Types.code);
+        OaiThread thread = threadMap.get(Types.all);
         OaiRunService runService = new OaiRunService(assistant.oaiAid(), thread.oaiThreadId());
         OaiMessageService msgService = new OaiMessageService(thread.oaiThreadId());
         String OaiRunId = runService.create();

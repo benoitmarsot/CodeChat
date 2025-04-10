@@ -4,10 +4,11 @@ import java.lang.Thread;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -30,7 +31,12 @@ public class OaiRunService extends BaseOpenAIClient {
 
     public String create() throws IOException {
         String url = String.format(API_URL, threadId);
-        String json = String.format("{\"assistant_id\": \"%s\"}", assistantId);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode()
+            .put("assistant_id", assistantId);
+        String json = mapper.writeValueAsString(jsonNode);
+
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()
@@ -45,20 +51,28 @@ public class OaiRunService extends BaseOpenAIClient {
     }
 
     public JsonNode createThreadAndRun(OaiMessageService.Roles role, List<OaiMessageService> messages) throws IOException {
-        String url = "https://api.openai.com/v1/threads/runs";
-        String msgJson = new ObjectMapper().writeValueAsString(messages);
-        String json = String.format("{\"assistant_id\": \"%s\", \"thread\": {\"messages\": %s}}, \"parallel_tool_calls\": false", assistantId, role.name(), msgJson);
-        RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
+        throw new UnsupportedOperationException("Not implemented yet");
+        // String url = "https://api.openai.com/v1/threads/runs";
+        // String msgJson = new ObjectMapper().writeValueAsString(messages);
+        // Map<String, Object> map = Map.of(
+        //     "assistant_id", role.toString(),
+        //     "thread", Map.of(
+        //         "messages", messages
+                
+        //     )
+        // );
+        // String json = String.format("{\"assistant_id\": \"%s\", \"thread\": {\"messages\": %s}}, \"parallel_tool_calls\": false", assistantId, msgJson);
+        // RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
-        Request request = new Request.Builder()
-                .url(url)
-                .post(body)
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .addHeader("Content-Type", "application/json")
-                .addHeader("OpenAI-Beta", "assistants=v2")
-                .build();
+        // Request request = new Request.Builder()
+        //         .url(url)
+        //         .post(body)
+        //         .addHeader("Authorization", "Bearer " + API_KEY)
+        //         .addHeader("Content-Type", "application/json")
+        //         .addHeader("OpenAI-Beta", "assistants=v2")
+        //         .build();
 
-        return this.executeRequest(request);
+        // return this.executeRequest(request);
     }
 
     public List<String> list() throws IOException {

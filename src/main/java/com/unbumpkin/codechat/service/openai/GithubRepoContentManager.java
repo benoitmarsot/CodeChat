@@ -74,8 +74,12 @@ public class GithubRepoContentManager extends CCProjectFileManager {
         String repoUrl, String branch
     ) throws GitAPIException, IOException, RateLimitExceededException {
         checkRateLimit(true); // Check rate limit before cloning
+        // set the repository URL and branch for getRootUrl.
+        this.repoUrl = repoUrl;
+        this.branch = branch; 
         // Create a temporary directory to clone the repository
         tempDir = Files.createTempDirectory("github-repo-").toFile();
+
         // Clone the repository using JGit
         CloneCommand cloneCmd=Git.cloneRepository()
             .setURI(repoUrl)
@@ -101,6 +105,24 @@ public class GithubRepoContentManager extends CCProjectFileManager {
         }
         return tempDir.getAbsolutePath();
     }
+    private String repoUrl; // Add this field to store the repository URL
+    private String branch;
+    /**
+     * Get the root directory url in github
+     */
+    public String getRootUrl() {
+        if (repoUrl == null) {
+            return null;
+        }
+        
+        // Transform Git URL to GitHub web URL
+        String webUrl = repoUrl
+            .replace("git@github.com:", "https://github.com/")
+            .replace(".git", "");
+            
+        return webUrl+"/blob/"+this.branch+"/";
+    }
+        
 
     public void deleteRepository() {
         if (tempDir != null && tempDir.exists()) {

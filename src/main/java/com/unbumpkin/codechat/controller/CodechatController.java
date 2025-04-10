@@ -190,12 +190,11 @@ public class CodechatController {
             // Process files
             for (File file : zipManager.getAllFiles()) {
                 try {
-                    //TODO: test again
                     if(deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap,tempDirLength)) {
                         System.out.println("The file " + file.getPath().substring(tempDirLength + 1) + 
                             " already exists it will be refreshed.");
                     }
-                    addFile(zipManager.getTempDir(), file.getPath(), resource.prId(), 
+                    addFile(zipManager.getTempDir(), "",file.getPath(), resource.prId(), 
                         vsfServicesMap
                     );  
                 } catch (Exception e) {
@@ -250,7 +249,7 @@ public class CodechatController {
             int tempDirLength=pfc.getTempDir().length();
             for (File file : pfc.getAllFiles()) {
                 try {
-                    addFile(pfc.getTempDir(),file.getPath(), resource.prId(), vsfServicesMap);
+                    addFile(pfc.getTempDir(),pfc.getRootUrl(),file.getPath(), resource.prId(), vsfServicesMap);
                 } catch (Exception e) {
                     System.out.println("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
                 }   
@@ -301,7 +300,7 @@ public class CodechatController {
 
                     for (String addedFile : changes.addedFiles()) {
                         try {
-                            addFile(pfc.getTempDir(), pfc.getTempDir()+"/"+addedFile, resource.prId(), vsfServicesMap);
+                            addFile(pfc.getTempDir(), pfc.getRootUrl(), pfc.getTempDir()+"/"+addedFile, resource.prId(), vsfServicesMap);
                         } catch (Exception e) {
                             System.out.println("The file "+addedFile+" could not be added: "+e.getMessage());
                         }   
@@ -357,7 +356,7 @@ public class CodechatController {
             Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMapFormVsMap(vsMap);
             for(File file : pfc.getAllFiles()) {
                 try {
-                    addFile(pfc.getTempDir(), file.getPath(), pr.prId(), vsfServicesMap);
+                    addFile(pfc.getTempDir(), pfc.getRootUrl(), file.getPath(), pr.prId(), vsfServicesMap);
                 } catch (Exception e) {
                     System.out.println("The file "+file.getPath()+" could not be added: "+e.getMessage());
                 }   
@@ -412,7 +411,7 @@ public class CodechatController {
             ### File Metadata Usage
             When analyzing files, use the following attributes from the file metadata to provide insights and context:
             - **`name`**: Use the file name to identify the file and provide context in your response.
-            - **`path`**: Use the file's relative path to locate it within the project and reference it in your response.
+            - **`fileUrl`**: Use the file's fileUrl to locate it within the project and reference it in your response.
             - **`extension`**: Use the file extension to determine the programming language or file type (e.g., `java` for Java, `py` for Python).
             - **`mime-type`**: Use the MIME type to understand the file's format or content type (e.g., `text/plain`, `application/json`).
             - **`nbLines`**: Use the number of lines in the file to assess its size or complexity. For example:
@@ -436,10 +435,10 @@ public class CodechatController {
             - For `config` files, analyze the correctness and adherence to best practices.
 
             ### Referencing Files
-            - Do not use the internal name, always use file metadata such as `name` and `path` when referencing specific files.
+            - Do not use the internal name or path, always use file vector attributes such as `name` and `fileUrl` when referencing specific files.
             - Use the `nbLines` attribute to provide insights into the file's size or complexity when relevant.
             - Use the `mime-type` attribute to describe the file's format or content type.
-            - When retrieving code, always reference the file's `path` and `name` to provide context.
+            - When retrieving code, always reference the file's attributes `fileUrl` and `name` to provide context.
 
             #### Markdown Links for References
             - Use Markdown links with a title attribute to reference files. For example:
@@ -456,7 +455,7 @@ public class CodechatController {
                         "language": "Java",
                         "code": "public class MyClass { ... }",
                         "codeExplanation": "This code defines the main class of the application.",
-                        "references": ["[MyClass.java](src/main/java/com/example/MyClass.java \"Java source file\")"]
+                        "references": ["[MyClass.java](https://github.com/benoitmarsot/junktest/blob/main/src/main/java//MyClass.java \"Java source file\")"]
                     }
                 ],
                 "conversationalGuidance": "Would you like to see more details about this file or related files?"
@@ -466,7 +465,7 @@ public class CodechatController {
                 "answers": [
                     {
                         "explanation": "The file `MyClass.java` contains the implementation of the main application logic. It is located at `src/main/java/com/example/MyClass.java` and contains 120 lines of Java code. The file's MIME type is `text/x-java-source`.",
-                        "references": ["[MyClass.java](src/main/java/com/example/MyClass.java \"Java source file\")"]
+                        "references": ["[MyClass.java](https://github.com/benoitmarsot/junktest/blob/main/src/main/java/MyClass.java \"Java source file\")"]
                     }
                 ],
                 "conversationalGuidance": "Would you like to see more details about this file or related files?"
@@ -591,7 +590,7 @@ public class CodechatController {
         }
         return wasDeleted;
     }
-    private void addFile(String tempDirPath, String filePath, int prId,
+    private void addFile(String tempDirPath, String rootDirUrl, String filePath, int prId,
         Map<Types,VectorStoreFile> vsfServicesMap
     ) throws IOException {
         File file = new File(filePath);
@@ -607,29 +606,31 @@ public class CodechatController {
         }
         OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, prId);
         System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
-        CreateVSFileRequest request = getCreateVSFileRequest( desc, oaiFile, tempDirLength);
+        CreateVSFileRequest request = getCreateVSFileRequest( desc, rootDirUrl, oaiFile, tempDirLength);
         if(fileType!=Types.image){
             vsfServicesMap.get(fileType).addFile( request);
         }
 
         vsfServicesMap.get(Types.all).addFile( request);
+        String relFilePath=oaiFile.rootdir()+(oaiFile.rootdir().isEmpty()?"":"/")+desc.oldFileName();
         oaiFile= new OaiFile(
-            oaiFile.fId(), oaiFile.prId(), oaiFile.fileId(), request.attributes().get("name"), oaiFile.rootdir(), 
-            request.attributes().get("path"),oaiFile.purpose(), oaiFile.linecount()
+            oaiFile.fId(), oaiFile.prId(), oaiFile.fileId(), request.attributes().get("name"), rootDirUrl, 
+            relFilePath,oaiFile.purpose(), oaiFile.linecount()
         );
         oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
 
        System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
     }
     private CreateVSFileRequest getCreateVSFileRequest( 
-        FileRenameDescriptor desc, OaiFile oaiFile, int tempDirLength
+        FileRenameDescriptor desc, String rootUrl, OaiFile oaiFile, int tempDirLength
     ) throws IOException {
         String oldExt = FileUtils.getFileExtension(desc.oldFileName());
         Types fileType=getFileType(desc.oldFileName());
+        String fileUrl=rootUrl+desc.oldFilePath().substring(tempDirLength + 1);
         CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
             oaiFile.fileId(), new HashMap<>() {{
                 put("name", desc.oldFileName());
-                put("path", desc.oldFilePath().substring(tempDirLength + 1));
+                put("fileUrl", fileUrl);
                 put("extension", oldExt);
                 put("mime-type", ExtMimeType.getMimeType(oldExt));
                 put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
