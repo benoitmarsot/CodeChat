@@ -45,8 +45,16 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'usersecret_pkey') THEN
         ALTER TABLE usersecret ADD CONSTRAINT usersecret_pkey PRIMARY KEY (userid,prid,label);
     END IF;
-
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'projectresource_pkey') THEN
         ALTER TABLE projectresource ADD CONSTRAINT projectresource_pkey PRIMARY KEY (prid);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'socialuser_pkey') THEN
+        ALTER TABLE socialuser ADD CONSTRAINT socialuser_pkey PRIMARY KEY (userid,prid);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'socialassistant_pkey') THEN
+        ALTER TABLE socialassistant ADD CONSTRAINT socialassistant_pkey PRIMARY KEY (aid);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'socialchannel_pkey') THEN
+        ALTER TABLE socialchannel ADD CONSTRAINT socialchannel_pkey PRIMARY KEY (channelid,prid);
     END IF;
 END $$;

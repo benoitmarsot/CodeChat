@@ -441,8 +441,8 @@ public class CodechatController {
             - When retrieving code, always reference the file's attributes `fileUrl` and `name` to provide context.
 
             #### Markdown Links for References
-            - Use Markdown links with a title attribute to reference files. For example:
-            `[MyClass.java](src/main/java/com/example/MyClass.java "Java source file")`.
+            - Use Markdown links with a title attribute to reference files. For example example with attributes (name=CodechatController.java, fileUrl=https://github.com/benoitmarsot/codechat/blob/main/src/main/java/com/unbumpkin/codechat/controller/CodechatController.java):
+            `[CodechatController.java](https://github.com/benoitmarsot/codechat/blob/main/src/main/java/com/unbumpkin/codechat/controller/CodechatController.java "Java source file")`.
 
             ### Handling Non-Code Queries
             - If the query is not related to code, omit the `language` and `code` fields in the response. Focus on providing a clear explanation and actionable suggestions.
@@ -455,7 +455,7 @@ public class CodechatController {
                         "language": "Java",
                         "code": "public class MyClass { ... }",
                         "codeExplanation": "This code defines the main class of the application.",
-                        "references": ["[MyClass.java](https://github.com/benoitmarsot/junktest/blob/main/src/main/java//MyClass.java \"Java source file\")"]
+                        "references": ["[CodechatController.java](https://github.com/benoitmarsot/codechat/blob/main/src/main/java/com/unbumpkin/codechat/controller/CodechatController.java \"Java source file\")"]
                     }
                 ],
                 "conversationalGuidance": "Would you like to see more details about this file or related files?"
@@ -465,7 +465,7 @@ public class CodechatController {
                 "answers": [
                     {
                         "explanation": "The file `MyClass.java` contains the implementation of the main application logic. It is located at `src/main/java/com/example/MyClass.java` and contains 120 lines of Java code. The file's MIME type is `text/x-java-source`.",
-                        "references": ["[MyClass.java](https://github.com/benoitmarsot/junktest/blob/main/src/main/java/MyClass.java \"Java source file\")"]
+                        "references": ["[CodechatController.java](https://github.com/benoitmarsot/codechat/blob/main/src/main/java/com/unbumpkin/codechat/controller/CodechatController.java \"Java source file\")"]
                     }
                 ],
                 "conversationalGuidance": "Would you like to see more details about this file or related files?"
@@ -520,7 +520,6 @@ public class CodechatController {
         int projectId
     ) throws IOException {
         Map<Types,VectorStore> vectorStoreMap = new LinkedHashMap<>(4);
-        VectorStoreFile vsId = null;
         for(Types type : Types.values()) {
             if(type==Types.image){
                 continue;
@@ -607,7 +606,7 @@ public class CodechatController {
         OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, prId);
         System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
         CreateVSFileRequest request = getCreateVSFileRequest( desc, rootDirUrl, oaiFile, tempDirLength);
-        if(fileType!=Types.image){
+        if(fileType!=Types.image) {
             vsfServicesMap.get(fileType).addFile( request);
         }
 
