@@ -51,21 +51,26 @@ class _ProjectPageState extends State<ProjectPage>
     }
   }
 
-  // void _handleForbiddenError(String message) {
-  //   // Log the user out and redirect to the login page
-  //   final authProvider = Provider.of<AuthProvider>(context, listen: false);
-  //   authProvider.clearAll();
-
-  //   // Show a snackbar with the error message
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(content: Text(message), backgroundColor: Colors.red),
-  //   );
-
-  //   // Redirect to the login page
-  //   Navigator.of(context).pushReplacement(
-  //     MaterialPageRoute(builder: (context) => const LoginPage()),
-  //   );
-  // }
+  Future<void> _handleDelete(Project project, int index) async {
+    final confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Deletion'),
+        content: Text(
+            'Are you sure you want to delete the project "${project.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => _deleteProject(project, index),
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _deleteProject(Project project, int index) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -78,6 +83,7 @@ class _ProjectPageState extends State<ProjectPage>
         _projects.removeAt(index);
       });
       await _fetchProjects();
+      Navigator.of(context).pop();
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to delete project: $e';
@@ -102,19 +108,24 @@ class _ProjectPageState extends State<ProjectPage>
     //_redirectToChat(project);
   }
 
+  void gotoSettings(Project project) {
+    _selectProject(project);
+
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProjectDetail(
+              projectId: project.projectId,
+              isEditing: true,
+              onSave: _fetchProjects),
+        ));
+  }
+
   void _handleProjectAction(String action, Project project) {
     switch (action) {
       case 'edit':
-        _selectProject(project);
-
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProjectDetail(
-                  projectId: project.projectId,
-                  isEditing: true,
-                  onSave: _fetchProjects),
-            ));
+        gotoSettings(project);
+        break;
 
       case 'refresh':
         showDialog(
@@ -135,10 +146,22 @@ class _ProjectPageState extends State<ProjectPage>
       case 'delete':
         int index = _projects.indexOf(project);
         if (index != -1) {
-          _deleteProject(project, index);
+          _handleDelete(project, index);
         }
         break;
     }
+  }
+
+  Future<void> _onSave() async {
+    setState(() {
+      _isEditing = false; // Exit editing mode after saving
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Project created!'),
+          backgroundColor: Colors.greenAccent));
+    }
+    _fetchProjects();
   }
 
   @override
@@ -155,7 +178,7 @@ class _ProjectPageState extends State<ProjectPage>
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        ProjectDetail(isEditing: false, onSave: _fetchProjects),
+                        ProjectDetail(isEditing: false, onSave: _onSave),
                   ));
             },
           ),
@@ -188,46 +211,54 @@ class _ProjectPageState extends State<ProjectPage>
                           _selectProject(project);
                           _redirectToChat(project);
                         },
-                        trailing: PopupMenuButton<String>(
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            Icons.more_vert,
-                            size: 16,
+                        trailing:
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                            icon: Icon(Icons.settings),
+                            onPressed: () => gotoSettings(project),
                           ),
-                          iconSize: 16,
-                          tooltip: 'Project options',
-                          onSelected: (value) =>
-                              _handleProjectAction(value, project),
-                          itemBuilder: (BuildContext context) =>
-                              <PopupMenuEntry<String>>[
-                            const PopupMenuItem<String>(
-                              value: 'edit',
-                              child: ListTile(
-                                leading: Icon(Icons.edit),
-                                title: Text('Edit'),
-                                dense: true,
-                              ),
+                          PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(
+                              Icons.more_vert,
+                              size: 16,
                             ),
-                            const PopupMenuItem<String>(
-                              value: 'refresh',
-                              child: ListTile(
-                                leading: Icon(Icons.refresh),
-                                title: Text('Refresh'),
-                                dense: true,
+                            iconSize: 16,
+                            tooltip: 'Project options',
+                            onSelected: (value) =>
+                                _handleProjectAction(value, project),
+                            itemBuilder: (BuildContext context) =>
+                                <PopupMenuEntry<String>>[
+                              // const PopupMenuItem<String>(
+                              //   value: 'edit',
+                              //   child: ListTile(
+                              //     leading: Icon(Icons.edit),
+                              //     title: Text('Edit'),
+                              //     dense: true,
+                              //   ),
+                              // ),
+                              const PopupMenuItem<String>(
+                                value: 'refresh',
+                                child: ListTile(
+                                  leading: Icon(Icons.refresh),
+                                  title: Text('Refresh'),
+                                  dense: true,
+                                ),
                               ),
-                            ),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem<String>(
-                              value: 'delete',
-                              child: ListTile(
-                                leading: Icon(Icons.delete, color: Colors.red),
-                                title: Text('Delete',
-                                    style: TextStyle(color: Colors.red)),
-                                dense: true,
+                              const PopupMenuDivider(),
+                              const PopupMenuItem<String>(
+                                value: 'delete',
+                                child: ListTile(
+                                  leading:
+                                      Icon(Icons.delete, color: Colors.red),
+                                  title: Text('Delete',
+                                      style: TextStyle(color: Colors.red)),
+                                  dense: true,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ]),
                       ),
                     ),
                   );

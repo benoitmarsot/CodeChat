@@ -122,18 +122,16 @@ class _ProjectDetailState extends State<ProjectDetail>
 
       if (hasDataSource == false) {
         try {
+          Navigator.of(context).pop(); //optimistic post
           final project = await codechatService.createEmtptyProject(
               _prjNameController.text, _prjDesctController.text);
 
-          setState(() {
-            _createdMessage = 'Emtpy Project created';
-          });
           _prjNameController.clear();
           _prjDesctController.clear();
 
           _selectedProject = project;
+
           _onSave!();
-          Navigator.of(context).pop();
         } on ForbiddenException catch (e) {
           // Handle 403 error
           ErrorHandler.handleForbiddenError(context, e.message);
@@ -142,6 +140,10 @@ class _ProjectDetailState extends State<ProjectDetail>
             _errorMessage = 'Failed to create empty project: $e';
           });
           print('Failed to create project: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(_errorMessage!), backgroundColor: Colors.red));
+          }
         }
       } else {
         final uri = '${AppConfig.openaiBaseUrl}/files/uploadDir?projectId=1';
@@ -261,7 +263,8 @@ class _ProjectDetailState extends State<ProjectDetail>
           Navigator.pop(context);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(_createdMessage), backgroundColor: Colors.green));
+                content: Text(_createdMessage),
+                backgroundColor: Colors.greenAccent));
           }
         });
         _onSave!();
@@ -416,13 +419,13 @@ class _ProjectDetailState extends State<ProjectDetail>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Refreshed project data source'),
-            backgroundColor: Colors.green));
+            backgroundColor: Colors.greenAccent));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Failed to refresh data source: $e'),
-            backgroundColor: Colors.red));
+            backgroundColor: Colors.redAccent));
       }
     } finally {
       if (mounted) {
@@ -498,7 +501,7 @@ class _ProjectDetailState extends State<ProjectDetail>
                 ),
                 const SizedBox(width: 16),
                 ChoiceButton(
-                  text: 'Zip File',
+                  text: 'File(s)',
                   icon: Icons.archive,
                   isSelected: _selectedDataSource == DataSourceType.zip,
                   onPressed: () {
@@ -521,9 +524,9 @@ class _ProjectDetailState extends State<ProjectDetail>
               ],
             ),
           ),
-
+          const SizedBox(height: 32),
           _buildDataSourceForm(),
-          const SizedBox(width: 16),
+          const SizedBox(height: 32),
           Align(
             alignment: Alignment.bottomRight,
             child: (_isEditing == true
@@ -586,8 +589,21 @@ class _ProjectDetailState extends State<ProjectDetail>
       case DataSourceType.zip:
         return (_projectId != null && _projectId! > 0)
             ? ZipForm(projectId: _projectId!, onFileSelected: _handleFileAPI)
-            : Text(
-                'You need to create a project before you can add a zip datasource');
+            : Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.cloud_upload,
+                        size: 40, color: Colors.orangeAccent),
+                    const SizedBox(height: 8),
+                    Text(
+                      'You need to create a project before you can add files to project',
+                      style: TextStyle(color: Colors.orangeAccent),
+                    ),
+                  ],
+                ),
+              );
+
       case DataSourceType.web:
         return TextField(
           controller: _webURLController,
@@ -694,7 +710,7 @@ class _ProjectDetailState extends State<ProjectDetail>
               children: [
                 CircularProgressIndicator(),
                 SizedBox(width: 16),
-                Text("Adding zipped files...\nIt will take a while..."),
+                Text("Adding files...\nIt will take a while..."),
               ],
             ),
           ),
@@ -708,6 +724,11 @@ class _ProjectDetailState extends State<ProjectDetail>
       if (mounted) {
         Navigator.of(context).pop();
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('File(s) uploaded successfully!'),
+            backgroundColor: Colors.greenAccent),
+      );
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to fetch project details: $e';
