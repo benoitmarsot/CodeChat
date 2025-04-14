@@ -1,12 +1,24 @@
-import 'package:codechatui/src/login_page.dart';
 import 'package:codechatui/src/models/exceptions.dart';
+import 'package:codechatui/src/models/openai/assistant.dart';
 import 'package:codechatui/src/models/project.dart';
+import 'package:codechatui/src/services/openai/assistant_service.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
+import 'package:codechatui/src/widgets/status_tag.dart';
 import 'package:flutter/material.dart';
 import 'package:codechatui/src/widgets/project/project_detail.dart';
 import 'package:provider/provider.dart';
 import 'services/project_service.dart';
 import 'package:codechatui/src/utils/error_handler.dart';
+
+const Map<String, Color> languageModelColorMap = {
+  'gpt_4o': Colors.blueGrey,
+  'gpt_4o_mini': Colors.teal,
+  'gpt_3.5_turbo': Colors.deepPurple,
+  'gpt_4': Colors.grey,
+  'gpt_4_turbo': Colors.deepOrange,
+  'gpt_4o_realtime_preview': Colors.indigo,
+  'o3_mini': Colors.brown,
+};
 
 class ProjectPage extends StatefulWidget {
   @override
@@ -15,11 +27,10 @@ class ProjectPage extends StatefulWidget {
 
 class _ProjectPageState extends State<ProjectPage>
     with SingleTickerProviderStateMixin {
-  String _createdMessage = '';
   List<Project> _projects = [];
   int? _hoveredIndex;
   String? _errorMessage;
-  bool _isEditing = false; // Track editing state
+
   Project? _selectedProject; // Store the selected project
 
   @override
@@ -33,7 +44,18 @@ class _ProjectPageState extends State<ProjectPage>
     final projectService = ProjectService(authProvider: authProvider);
 
     try {
-      final projects = await projectService.getAllProjects();
+      var projects = await projectService.getAllProjects();
+
+      for (var project in projects) {
+        try {
+          final assistant = await _fetchProjectAssistant(project.projectId);
+          project.assistant = assistant.name;
+          project.model = assistant.model;
+        } catch (e) {
+          project.assistant = '';
+          project.model = '';
+        }
+      }
 
       setState(() {
         _projects = projects;
@@ -41,6 +63,19 @@ class _ProjectPageState extends State<ProjectPage>
       if (projects.length == 1) {
         _selectProject(projects[0]);
       }
+      for (var project in projects) {
+        try {
+          final assistant = await _fetchProjectAssistant(project.projectId);
+          project.assistant = assistant.name;
+          project.model = assistant.model;
+        } catch (e) {
+          project.assistant = '';
+          project.model = '';
+        }
+      }
+      setState(() {
+        _projects = projects;
+      });
     } on ForbiddenException catch (e) {
       // Handle 403 error
       ErrorHandler.handleForbiddenError(context, e.message);
@@ -48,6 +83,24 @@ class _ProjectPageState extends State<ProjectPage>
       setState(() {
         _errorMessage = 'Failed to load projects: $e';
       });
+    }
+  }
+
+  Future<Assistant> _fetchProjectAssistant(int projectId) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final assistantService = AssistantService(authProvider: authProvider);
+
+    try {
+      return await assistantService.getAssistant(projectId);
+    } on ForbiddenException catch (e) {
+      // Handle 403 error
+      ErrorHandler.handleForbiddenError(context, e.message);
+      rethrow;
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load project assistant: $e';
+      });
+      rethrow;
     }
   }
 
@@ -102,8 +155,6 @@ class _ProjectPageState extends State<ProjectPage>
   void _selectProject(Project project) {
     setState(() {
       _selectedProject = project;
-      _isEditing = false; // Exit editing mode when selecting a new project
-      // Populate the text controllers with the selected project's data
     });
     //_redirectToChat(project);
   }
@@ -153,9 +204,6 @@ class _ProjectPageState extends State<ProjectPage>
   }
 
   Future<void> _onSave() async {
-    setState(() {
-      _isEditing = false; // Exit editing mode after saving
-    });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Project created!'),
@@ -205,7 +253,18 @@ class _ProjectPageState extends State<ProjectPage>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ListTile(
-                        title: Text(project.name),
+                        title: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Text(project.name),
+                            SizedBox(width: 10),
+                            StatusTag(
+                                label: project.model ?? 'No Model',
+                                color: languageModelColorMap[project.model] ??
+                                    Colors.grey)
+                          ],
+                        ),
                         subtitle: Text(project.description),
                         onTap: () {
                           _selectProject(project);

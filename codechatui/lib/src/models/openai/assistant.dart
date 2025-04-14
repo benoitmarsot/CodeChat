@@ -101,5 +101,6 @@ final Map<String, Set<String>> unsupportedModelAttributes = {
   'o3_mini': {'temperature'},
   'gpt_4': {'reasoningEffort'},
   'gpt_4o': {'reasoningEffort'},
+  'gpt_4o_turbo': {'reasoningEffort'},
   'gpt_4o_mini': {'reasoningEffort'}
 };

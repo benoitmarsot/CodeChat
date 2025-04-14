@@ -9,6 +9,16 @@ import 'package:provider/provider.dart';
 
 enum Reasoning { low, medium, high }
 
+const List<String> languageModel = [
+  'gpt_4o',
+  'gpt_4o_mini',
+  'gpt_3.5_turbo',
+  'gpt_4',
+  'gpt_4_turbo',
+  'gpt_4o_realtime_preview',
+  'o3_mini'
+];
+
 class AssistantForm extends StatefulWidget {
   final VoidCallback? onSave;
   final VoidCallback? onCancel;
@@ -328,15 +338,7 @@ class _AssistantFormState extends State<AssistantForm> {
                   _selectedModel = newValue!;
                 });
               },
-              items: [
-                'gpt_4o',
-                'gpt_4o_mini',
-                'gpt_3.5_turbo',
-                'gpt_4',
-                'gpt_4_turbo',
-                'gpt_4o_realtime_preview',
-                'o3_mini',
-              ]
+              items: languageModel
                   .toSet() // Ensure unique values
                   .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(

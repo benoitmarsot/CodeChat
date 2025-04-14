@@ -4,13 +4,17 @@ class Project {
   final String description;
   final int authorId;
   final int assistantId;
-  Project({
-    required this.projectId,
-    required this.name,
-    required this.description,
-    required this.authorId,
-    required this.assistantId,
-  });
+  String? assistant;
+  String? model;
+
+  Project(
+      {required this.projectId,
+      required this.name,
+      required this.description,
+      required this.authorId,
+      required this.assistantId,
+      this.assistant = '',
+      this.model = 'gpt_4o'});
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(
