@@ -171,7 +171,7 @@ public class ProjectResourceRepository {
                 resource.prId(),
                 resource.projectId(),
                 resource.uri(),
-                resource.restType(),
+                resource.resType(),
                 secretsMap
             ));
         }
@@ -216,7 +216,7 @@ public class ProjectResourceRepository {
                 resource.prId(),
                 resource.projectId(),
                 resource.uri(),
-                resource.restType(),
+                resource.resType(),
                 secretsMap
             );
         }
