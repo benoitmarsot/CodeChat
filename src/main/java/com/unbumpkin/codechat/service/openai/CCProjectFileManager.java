@@ -15,7 +15,7 @@ import com.unbumpkin.codechat.util.FileUtils;
 
 public class CCProjectFileManager {
     public enum Types {
-        code, markup, config, image, all
+        code, markup, config, image, all, social
     }
 
     public static final Set<String> CodeExtensions = Set.of(
@@ -102,7 +102,9 @@ public class CCProjectFileManager {
     }
     public Set<File> getAllFiles() {
         return Stream.of(Types.values())
-            .filter(type -> type != Types.all)
+            .filter(type -> type != Types.all )
+            .filter(type -> type != Types.social )
+            .filter(type -> fileSetMap.get(type) != null)
             .flatMap(type -> fileSetMap.get(type).stream())
             .collect(Collectors.toSet());
     }

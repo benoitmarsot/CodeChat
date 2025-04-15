@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.GitHubChangeTracker;
+import com.unbumpkin.codechat.dto.openai.Assistant;
 import com.unbumpkin.codechat.dto.request.AddRepoRequest;
 import com.unbumpkin.codechat.dto.request.AddZipRequest;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
@@ -46,8 +47,8 @@ import com.unbumpkin.codechat.dto.request.OaiImageDescResponsesRequest.Details;
 import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.UserSecret;
+import com.unbumpkin.codechat.model.ProjectResource.ResTypes;
 import com.unbumpkin.codechat.model.UserSecret.Labels;
-import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
@@ -60,6 +61,8 @@ import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
+import com.unbumpkin.codechat.repository.social.SocialChannelRepository;
+import com.unbumpkin.codechat.repository.social.SocialUserRepository;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -96,6 +99,10 @@ public class CodechatController {
     ProjectResourceRepository projectResourceRepository;
     @Autowired
     ResponsesService responsesService;
+    @Autowired
+    private SocialUserRepository socialUserRepository;
+    @Autowired
+    private SocialChannelRepository socialChannelRepository;
     
 
     private int getCurrentUserId() {
@@ -131,7 +138,12 @@ public class CodechatController {
         discussionRepository.deleteAll();
         // Delete all records in the project table
         projectRepository.deleteAll();
+        // Delete all records in the socialuser table
+        socialUserRepository.deleteAll();
+        // Delete all records in the socialchannel table
+        socialChannelRepository.deleteAll();
         return ResponseEntity.ok("All data deleted");
+
     }
 
     @PostMapping("describe-image")
@@ -175,7 +187,7 @@ public class CodechatController {
             
             // Create project resource
             ProjectResource resource = projectResourceRepository.createResource(
-                projectId, request.zipName(), null
+                projectId, request.zipName(), ResTypes.zip, null
             );
             
             // Get vector stores for the project
@@ -240,7 +252,7 @@ public class CodechatController {
             userSecrets.put(Labels.branch, new UserSecret(Labels.branch, request.branch()));
             userSecrets.put(Labels.commitHash, new UserSecret(Labels.commitHash, pfc.getCommitHash()));
             ProjectResource resource=projectResourceRepository.createResource(
-                request.projectId(), request.repoURL(), userSecrets
+                request.projectId(), request.repoURL(), ResTypes.git, userSecrets
             );
             Map<Types,RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
                 vsRepository.getVectorStoresByProjectId(projectId)
@@ -351,7 +363,7 @@ public class CodechatController {
             }
             userSecrets.put(Labels.branch, new UserSecret(Labels.branch, request.branch()));
             userSecrets.put(Labels.commitHash, new UserSecret(Labels.commitHash, pfc.getCommitHash()));
-            ProjectResource pr=projectResourceRepository.createResource(projectId, request.repoURL(), userSecrets);
+            ProjectResource pr=projectResourceRepository.createResource(projectId, request.repoURL(), ResTypes.git, userSecrets);
             Map<Types,VectorStore> vsMap = createEmptyVectorStores(projectId);
             Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMapFormVsMap(vsMap);
             for(File file : pfc.getAllFiles()) {
@@ -521,7 +533,7 @@ public class CodechatController {
     ) throws IOException {
         Map<Types,VectorStore> vectorStoreMap = new LinkedHashMap<>(4);
         for(Types type : Types.values()) {
-            if(type==Types.image){
+            if(type==Types.image||type==Types.social){
                 continue;
             }
             String vsName = "vs"+type.name();
@@ -545,7 +557,7 @@ public class CodechatController {
     private Map<Types, VectorStoreFile> getVsfServicesMap( Map<Types, RepoVectorStoreResponse> vsMap) {
         Map<Types, VectorStoreFile> vsfServicesMap = new HashMap<>(4);
         for(Types type:Types.values()){
-            if(type!=Types.image){
+            if(type!=Types.image&&type!=Types.social){
                 vsfServicesMap.put(type, new VectorStoreFile(vsMap.get(type).vsid()));
             }
         }
@@ -554,7 +566,7 @@ public class CodechatController {
     private Map<Types, VectorStoreFile> getVsfServicesMapFormVsMap( Map<Types, VectorStore> vsMap) {
         Map<Types, VectorStoreFile> vsfServicesMap = new HashMap<>(4);
         for(Types type:Types.values()){
-            if(type==Types.image){
+            if(type==Types.image||type==Types.social){
                 continue;
             }
             vsfServicesMap.put(type, new VectorStoreFile(vsMap.get(type).getOaiVsid()));
@@ -578,7 +590,7 @@ public class CodechatController {
         boolean wasDeleted=false;
         for (OaiFile oaiFile : files) {
             Types fileType = getFileType(filePath);
-            if(fileType!=Types.image){
+            if(fileType!=Types.image&&fileType!=Types.social){
                 vsfServicesMap.get(fileType).removeFile(oaiFile.fileId());
             }
             vsfServicesMap.get(Types.all).removeFile(oaiFile.fileId());
@@ -606,7 +618,7 @@ public class CodechatController {
         OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, prId);
         System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
         CreateVSFileRequest request = getCreateVSFileRequest( desc, rootDirUrl, oaiFile, tempDirLength);
-        if(fileType!=Types.image) {
+        if(fileType!=Types.image&&fileType!=Types.social){
             vsfServicesMap.get(fileType).addFile( request);
         }
 

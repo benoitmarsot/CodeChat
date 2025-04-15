@@ -2,6 +2,7 @@ package com.unbumpkin.codechat.repository;
 
 import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.UserSecret;
+import com.unbumpkin.codechat.model.ProjectResource.ResTypes;
 import com.unbumpkin.codechat.model.UserSecret.Labels;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
@@ -47,17 +48,18 @@ public class ProjectResourceRepository {
         throw new IllegalStateException("No authenticated user found");
     }
     
-    public ProjectResource createResource(int projectId, String uri, Map<Labels, UserSecret> secrets) {
+    public ProjectResource createResource(int projectId, String uri, ResTypes resType, Map<Labels, UserSecret> secrets) {
         // Insert the project resource
         KeyHolder keyHolder = new GeneratedKeyHolder();
         
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                "INSERT INTO projectresource (projectid, uri) VALUES (?, ?)",
+                "INSERT INTO projectresource (projectid, uri, restype) VALUES (?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS
             );
             ps.setInt(1, projectId);
             ps.setString(2, uri);
+            ps.setString(3, resType.toString());
             return ps;
         }, keyHolder);
         
@@ -74,13 +76,13 @@ public class ProjectResourceRepository {
             }
         }
         
-        return new ProjectResource(prId, projectId, uri, secrets != null ? secrets : new HashMap<>());
+        return new ProjectResource(prId, projectId, uri, resType, secrets != null ? secrets : new HashMap<>());
     }
     
-    public ProjectResource updateResource(int prId, String uri) {
+    public ProjectResource updateResource(int prId, String uri, ResTypes resType) {
         jdbcTemplate.update(
-            "UPDATE projectresource SET uri = ? WHERE prid = ?",
-            uri, prId
+            "UPDATE projectresource SET uri = ?, restype=? WHERE prid = ?",
+            uri, resType.toString(), prId
         );
         
         // Get the updated resource with its secrets
@@ -132,11 +134,12 @@ public class ProjectResourceRepository {
     public List<ProjectResource> getResources(int projectId) {
         // First get all resources
         List<ProjectResource> resources = jdbcTemplate.query(
-            "SELECT prid, projectid, uri FROM projectresource WHERE projectid = ?",
+            "SELECT prid, projectid, uri, restype FROM projectresource WHERE projectid = ?",
             (rs, rowNum) -> new ProjectResource(
                 rs.getInt("prid"),
                 rs.getInt("projectid"),
                 rs.getString("uri"),
+                ResTypes.valueOf(rs.getString("restype")),
                 new HashMap<>()
             ),
             projectId
@@ -168,6 +171,7 @@ public class ProjectResourceRepository {
                 resource.prId(),
                 resource.projectId(),
                 resource.uri(),
+                resource.restType(),
                 secretsMap
             ));
         }
@@ -183,6 +187,7 @@ public class ProjectResourceRepository {
                 rs.getInt("prid"),
                 rs.getInt("projectid"),
                 rs.getString("uri"),
+                ResTypes.valueOf(rs.getString("restype")),
                 new HashMap<>()
             ),
             prId
@@ -211,6 +216,7 @@ public class ProjectResourceRepository {
                 resource.prId(),
                 resource.projectId(),
                 resource.uri(),
+                resource.restType(),
                 secretsMap
             );
         }

@@ -18,7 +18,8 @@ create table if not exists usersecret (
 create table projectresource (
     prid serial,
     projectid int not null,
-    uri varchar(512) not null
+    uri varchar(512) not null,
+    restype varchar(20) not null -- git, file, zip, slack, web, etc, ...
 );
 
 create table if not exists oaifile (
@@ -52,7 +53,7 @@ create table if not exists socialuser (
     userid varchar(32) not null,
     prid int not null,
     fname varchar(50) not null,
-    email varchar(320) not null
+    email varchar(320) null
 );
 
 create table if not exists socialchannel (

@@ -11,13 +11,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
-import com.unbumpkin.codechat.dto.openai.Assistant;
+import com.unbumpkin.codechat.dto.openai.SocialAssistant;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 
 @Repository
-public class AssistantRepository {
+public class SocialAssistantRepository {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -29,7 +29,7 @@ public class AssistantRepository {
         }
         throw new IllegalStateException("No authenticated user found");
     }
-    private final RowMapper<Assistant> rowMapper = (rs, rowNum) -> new Assistant(
+    private final RowMapper<SocialAssistant> rowMapper = (rs, rowNum) -> new SocialAssistant(
         rs.getInt("aid"),
         rs.getString("oai_aid"),
         rs.getInt("projectid"),
@@ -40,10 +40,7 @@ public class AssistantRepository {
         Models.fromString(rs.getString("model")),
         rs.getFloat("temperature"),
         rs.getInt("maxresults"),
-        rs.getInt("codevsid"),
-        rs.getInt("markupvsid"),
-        rs.getInt("configvsid"),
-        rs.getInt("fullvsid"),
+        rs.getInt("vsid"),
         rs.getTimestamp("created") != null ? rs.getTimestamp("created").toLocalDateTime() : null
     );
     
@@ -51,12 +48,12 @@ public class AssistantRepository {
      * Add an assistant to the database.
      * @param assistant The assistant to add.
      */
-    public int addAssistant(Assistant assistant) {
+    public int addAssistant(SocialAssistant assistant) {
         String sql = """
-            INSERT INTO assistant (
+            INSERT INTO socialassistant (
                 oai_aid, projectid, name, description, instruction, reasoningeffort, 
-                model, temperature, maxresults, codevsid, markupvsid, configvsid, fullvsid
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                model, temperature, maxresults, vsid
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -70,10 +67,7 @@ public class AssistantRepository {
             ps.setString(7, assistant.model().toString());
             ps.setFloat(8, assistant.temperature());
             ps.setInt(9, assistant.maxResults());
-            ps.setInt(10, assistant.codevsid());
-            ps.setInt(11, assistant.markupvsid());
-            ps.setInt(12, assistant.configvsid());
-            ps.setInt(13, assistant.fullvsid());
+            ps.setInt(10, assistant.vsid());
             return ps;
         }, keyHolder);
         Number key = keyHolder.getKey();
@@ -84,12 +78,12 @@ public class AssistantRepository {
      * Update an assistant.
      * @param assistant The assistant to update.
      */
-    public void updateAssistant(Assistant assistant) {
+    public void updateAssistant(SocialAssistant assistant) {
         String sql = """
-            UPDATE assistant
+            UPDATE socialassistant
             SET oai_aid = ?, projectid = ?, name = ?, description = ?, instruction = ?, 
                 reasoningeffort = ?, model = ?, temperature = ?, maxresults = ?,
-                codevsid = ?, markupvsid = ?, configvsid = ?, fullvsid = ?
+                vsid = ?
             WHERE aid = ?
         """;
         jdbcTemplate.update(
@@ -103,10 +97,7 @@ public class AssistantRepository {
             assistant.model().toString(),
             assistant.temperature(),
             assistant.maxResults(),
-            assistant.codevsid(),
-            assistant.markupvsid(),
-            assistant.configvsid(),
-            assistant.fullvsid(),
+            assistant.vsid(),
             assistant.aid()
         );
     }
@@ -115,10 +106,10 @@ public class AssistantRepository {
      * @param aid The assistant ID.
      * @return The assistant.
      */
-    public Assistant getAssistantById(int aid) {
+    public SocialAssistant getAssistantById(int aid) {
         String sql = """
             SELECT a.*
-            FROM assistant a
+            FROM socialassistant a
             WHERE a.aid = ?
         """;
         return jdbcTemplate.queryForObject(sql, rowMapper, aid);
@@ -128,10 +119,10 @@ public class AssistantRepository {
      * @param projectId The project ID.
      * @return The assistant.
      */
-    public Assistant getAssistantByProjectId(int projectId) {
+    public SocialAssistant getAssistantByProjectId(int projectId) {
         String sql = """
             SELECT a.*
-            FROM assistant a
+            FROM socialassistant a
             WHERE a.projectid = ?
         """;
         return jdbcTemplate.queryForObject(sql, rowMapper, projectId);
@@ -141,10 +132,10 @@ public class AssistantRepository {
      * Retrieve all assistants.
      * @return A list of assistants.
      */
-    public List<Assistant> getAllAssistants() {
+    public List<SocialAssistant> getAllAssistants() {
         String sql = """
             SELECT a.*
-            FROM assistant a
+            FROM socialassistant a
         """;
         return jdbcTemplate.query(sql, rowMapper);
     }
@@ -155,7 +146,7 @@ public class AssistantRepository {
      */
     public void deleteAssistant(int aid) {
         String sql = """
-            DELETE FROM assistant
+            DELETE FROM socialassistant
             WHERE aid = ?
         """;
         jdbcTemplate.update(sql, aid);
@@ -164,10 +155,10 @@ public class AssistantRepository {
     public void deleteAll() {
         CustomAuthentication user = getCurrentUser();
         if (user == null || !user.isAdmin()) {
-            throw new IllegalStateException("Only admins can delete all messages");
+            throw new IllegalStateException("Only admins can delete all social assistants!");
         }
         // Delete all records in the assistant table
-        String deleteAssistantsSql = "DELETE FROM assistant";
+        String deleteAssistantsSql = "DELETE FROM socialassistant";
         jdbcTemplate.update(deleteAssistantsSql);
     }
 }

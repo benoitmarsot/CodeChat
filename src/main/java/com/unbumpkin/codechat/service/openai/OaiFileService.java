@@ -2,6 +2,8 @@ package com.unbumpkin.codechat.service.openai;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -14,10 +16,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.unbumpkin.codechat.dto.social.SocialMessage;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
 import com.unbumpkin.codechat.util.FileUtils;
 
+import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -75,6 +79,7 @@ public class OaiFileService  extends BaseOpenAIClient {
         }
         return fileIdMap; 
     }
+
     /**
      * Remove all files uploaded to OpenAI
      * Warning this will delete all files uploaded to OpenAI
@@ -99,7 +104,61 @@ public class OaiFileService  extends BaseOpenAIClient {
         System.out.println("there is "+fileIds.size()+" file left.");
         return deletedFileIds;
     }
+    /**
+     * Upload a SocialMessage as a file to OpenAI.
+     * The message content is uploaded as a text file.
+     * 
+     * @param message the SocialMessage whose content to upload
+     * @param purpose the purpose of the file upload
+     * @param prId the project resource id
+     * @return the OaiFile object representing the uploaded file
+     * @throws IOException
+     */
+    public OaiFile uploadMessage( SocialMessage message, String msgUrl, Purposes purpose, int prId) throws IOException {
+        String url = API_URL;
+        // Use the SocialMessage text as file content
+        String messageContent = message.message();
+        if(messageContent == null || messageContent.isEmpty()) {
+            throw new IllegalArgumentException("Message text content cannot be null or empty. This assistant is not able to upload message other than text.");
+        }
+        // Create a RequestBody from the social message content
+        RequestBody fileBody = RequestBody.create(
+            messageContent.getBytes(StandardCharsets.UTF_8),
+            MediaType.parse("text/plain; charset=utf-8")
+        );
+        // Use a default name for the uploaded "file"
+        String fileName = URLEncoder.encode(msgUrl, StandardCharsets.UTF_8)+".json";
+        
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("purpose", purpose.toString())
+                .addFormDataPart("file", fileName, fileBody)
+                .build();
 
+        Request request = new Request.Builder()
+                .url(url)
+                .post(requestBody)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .build();
+
+        JsonNode responseJson = this.executeRequest(request);
+        // Count number of lines in the message as a substitute for file line count
+        int linecount = messageContent.split("\n").length;
+
+        // Create an OaiFile representing the uploaded social message.
+        // Here the parentPath and relative file path are left empty since there is no actual file path.
+        OaiFile oaiFile = new OaiFile(
+            0,
+            prId,
+            responseJson.get("id").asText(),
+            fileName,
+            "",  // parentPath
+            "",  // relative file path
+            purpose,
+            linecount
+        );
+        return oaiFile;
+    }
     /**
      * Upload a file to OpenAI
      * @param filePath: the path of the file to upload
@@ -107,7 +166,7 @@ public class OaiFileService  extends BaseOpenAIClient {
      * @return the OaiFile object
      * @throws IOException
      */
-    public OaiFile uploadFile(String filePath, int basePathLen, Purposes purpose, int prId) throws IOException {
+    public OaiFile uploadFile( String filePath, int basePathLen, Purposes purpose, int prId) throws IOException {
         String url = API_URL;
 
         File file=new java.io.File(filePath);

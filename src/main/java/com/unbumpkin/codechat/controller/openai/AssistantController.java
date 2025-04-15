@@ -16,8 +16,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.unbumpkin.codechat.dto.openai.Assistant;
 import com.unbumpkin.codechat.dto.request.ModifyAssistantRequest;
-import com.unbumpkin.codechat.model.openai.Assistant;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.service.openai.AssistantService;
 
@@ -65,6 +65,7 @@ public class AssistantController {
         return ResponseEntity.ok().body(json);
     }
     
+    @SuppressWarnings("unused")
     private void printAssistant(
         Map<String, Object> request
     ) throws JsonProcessingException {
@@ -73,6 +74,7 @@ public class AssistantController {
         String assistantJson = mapper.writeValueAsString(request);
         System.out.println(assistantJson);
     }
+    @SuppressWarnings("unused")
     private void printJsonNode(JsonNode jsonNode) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         mapper.enable(SerializationFeature.INDENT_OUTPUT);

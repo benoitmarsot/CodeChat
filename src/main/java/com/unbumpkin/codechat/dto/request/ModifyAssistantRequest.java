@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.unbumpkin.codechat.model.openai.Assistant;
+import com.unbumpkin.codechat.dto.openai.Assistant;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 

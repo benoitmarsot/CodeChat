@@ -1,4 +1,4 @@
-package com.unbumpkin.codechat.model.openai;
+package com.unbumpkin.codechat.dto.openai;
 
 import java.time.LocalDateTime;
 
