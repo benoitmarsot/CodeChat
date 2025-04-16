@@ -23,6 +23,7 @@ class DiscussionService {
       body: json.encode({
         'projectId': projectId,
         'name': title ?? 'Discussion',
+        'assistantType': 'codechat',
       }),
     );
     
@@ -30,6 +31,7 @@ class DiscussionService {
       Discussion discussion = Discussion.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
       return discussion;
     } else {
+      print(utf8.decode(response.bodyBytes));
       throw Exception('Failed to create Discussion: ${utf8.decode(response.bodyBytes)}');
     }
   }

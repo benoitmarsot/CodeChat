@@ -128,6 +128,7 @@ public class OaiFileService  extends BaseOpenAIClient {
         );
         // Use a default name for the uploaded "file"
         String fileName = URLEncoder.encode(msgUrl, StandardCharsets.UTF_8)+".json";
+        //String fileName = msgUrl;
         
         RequestBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)

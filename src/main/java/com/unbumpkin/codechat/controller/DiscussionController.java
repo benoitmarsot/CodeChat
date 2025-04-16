@@ -67,7 +67,8 @@ public class DiscussionController {
         @RequestBody Discussion discussionRequest
     ) throws IOException {
         Discussion discussion=discussionRepository.addDiscussion(discussionRequest);
-        Assistant assistant=assistantRepository.getAssistantByProjectId(discussion.projectId());
+        Assistant assistant=assistantRepository.getAssistantByProjectId(
+            discussion.projectId(), discussionRequest.assistantType());
         String oaiThreadId=threadService.createThread();
         System.out.println("OpenAi thread " + oaiThreadId+" created...");
         threadRepository.addThread(new AddOaiThreadRequest(oaiThreadId, assistant.fullvsid(),discussion.did(), "all"));
@@ -96,7 +97,8 @@ public class DiscussionController {
     @PostMapping("/{did}/answer-question")
     public ResponseEntity<Message> answerQuestion(@PathVariable int did) throws IOException {
         Discussion discussion = discussionRepository.getDiscussionById(did);
-        Assistant assistant = assistantRepository.getAssistantByProjectId(discussion.projectId());
+        Assistant assistant = assistantRepository.getAssistantByProjectId(
+            discussion.projectId(), discussion.assistantType());
         Map<Types, OaiThread> threadMap = threadRepository.getAllThreadsByDiscussionId(did);
         OaiThread thread = threadMap.get(Types.all);
         OaiRunService runService = new OaiRunService(assistant.oaiAid(), thread.oaiThreadId());

@@ -19,15 +19,18 @@ import com.slack.api.methods.response.users.UsersListResponse;
 import com.unbumpkin.codechat.dto.social.SocialChannel;
 import com.unbumpkin.codechat.dto.social.SocialMessage;
 import com.unbumpkin.codechat.dto.social.SocialUser;
+import com.unbumpkin.codechat.model.ProjectResource.ResTypes;
 
 
-public class SlackService extends SocialServiceBase {
+public class SlackService extends SocialService {
     public static final String SLACK_API_URL = "https://slack.com/api/";
     
     private final String apiToken;
     private final String workspaceId;
+    private final SocialPlatforms platform;;
 
     public SlackService(String apiToken, String workspaceId) {
+        this.platform = SocialPlatforms.slack;
         this.apiToken = apiToken;
         this.workspaceId = workspaceId;
     }
@@ -136,5 +139,13 @@ public class SlackService extends SocialServiceBase {
             throw new RuntimeException("Error getting Slack discussions: " + e.getMessage(), e);
         }
     }
-    
+    @Override
+    public SocialPlatforms platform() {
+        return SocialPlatforms.slack;
+    }
+    @Override
+    public ResTypes resType() {
+        return ResTypes.slack;
+    }
+
 }

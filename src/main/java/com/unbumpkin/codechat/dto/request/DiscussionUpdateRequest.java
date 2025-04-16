@@ -1,3 +1,11 @@
 package com.unbumpkin.codechat.dto.request;
 
-public record DiscussionUpdateRequest(int did, String name, String description, Boolean isFavorite) {}
+import com.unbumpkin.codechat.dto.openai.AssistantTypes;
+
+public record DiscussionUpdateRequest(
+    int did,
+    String name,
+    String description,
+    boolean isFavorite,
+    AssistantTypes assistantType
+) {}

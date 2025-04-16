@@ -27,7 +27,7 @@ import com.slack.api.methods.response.conversations.ConversationsListResponse;
 import com.slack.api.methods.response.users.UsersListResponse;
 import com.unbumpkin.codechat.dto.openai.SocialAssistant;
 import com.unbumpkin.codechat.dto.request.CreateVSSocialMessageRequest;
-import com.unbumpkin.codechat.dto.social.AddSlackRequest;
+import com.unbumpkin.codechat.dto.social.AddSocialRequest;
 import com.unbumpkin.codechat.dto.social.SocialChannel;
 import com.unbumpkin.codechat.dto.social.SocialMessage;
 import com.unbumpkin.codechat.dto.social.SocialUser;
@@ -54,9 +54,8 @@ import com.unbumpkin.codechat.service.openai.VectorStoreFile;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
 
 import static com.unbumpkin.codechat.service.social.SlackService.SLACK_API_URL;
-import com.unbumpkin.codechat.service.social.SlackService;
-import com.unbumpkin.codechat.service.social.SocialServiceBase;
-import com.unbumpkin.codechat.service.social.SocialServiceBase.SocialPlatforms;
+import com.unbumpkin.codechat.service.social.SocialService;
+import com.unbumpkin.codechat.service.social.SocialService.SocialPlatforms;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -85,20 +84,20 @@ public class SocialController {
 
 
     @Transactional
-    @PostMapping("add-slack")
-    public ResponseEntity<ProjectResource> addRepoResource(
-        @RequestBody AddSlackRequest request
+    @PostMapping("add-social-platform")
+    public ResponseEntity<ProjectResource> addSocialResource(
+        @RequestBody AddSocialRequest request
     ) throws Exception {
         int projectId=request.projectId();
         // create the slack service
-        SlackService slackService = new SlackService(request.pat(), request.workspaceId());
-        // Get the project
-        Integer prId=projectResourceRepository.getResourceId(projectId, slackService.getRessourceUrl());
+        SocialService socialService = SocialService.getInstance(request);
+        // Get the project resource
+        Integer prId=projectResourceRepository.getResourceId(projectId, socialService.getRessourceUrl());
 
         if(prId!=null){
-            throw new Exception("The project already has the slack resource "+slackService.getRessourceUrl()+", use refresh to update it");
+            throw new Exception("The project already has the slack resource "+socialService.getRessourceUrl()+", use refresh to update it");
         }
-        // Create a new project resource for SLACK_API_URL
+        // Create a new project resource 
         Map<Labels,UserSecret> userSecrets = new HashMap<>();
         if(request.pat()!=null && !request.pat().isEmpty()){
             userSecrets.put(Labels.pat, new UserSecret(Labels.pat, request.pat()));
@@ -106,22 +105,22 @@ public class SocialController {
             throw new Exception("A personal access token is required");
         }
 
-        ProjectResource pr=projectResourceRepository.createResource(projectId, SLACK_API_URL, ResTypes.slack, userSecrets);
+        ProjectResource pr=projectResourceRepository.createResource(projectId, socialService.getRessourceUrl(), socialService.resType(), userSecrets);
         prId=pr.prId();
         VectorStore vs=getOrCreateVectorStore(projectId);
         VectorStoreFile vsf=new VectorStoreFile(vs.getOaiVsid());
 
-        Map<String,SocialUser> mUsers=slackService.getUsersMap();
+        Map<String,SocialUser> mUsers=socialService.getUsersMap();
         socialUserRepository.addMissingSocialUsers(mUsers.values(),prId);
         // add the slack channels
-        List<SocialChannel> sChannels=slackService.getDiscussions();
+        List<SocialChannel> sChannels=socialService.getDiscussions();
         List<SocialChannel> sChannelsDb=new ArrayList<>(sChannels.size());
         // add the slack messages
         for(SocialChannel sChannel:sChannels) {
             try{ 
                 System.out.println("Getting messages for channel "+sChannel.channelName());
-                List<SocialMessage> sMessages=slackService.getMessages(sChannel.channelId(), sChannel.lastMessageTs());
-                addMessages( slackService,sMessages,sChannel,mUsers,pr.prId(),vsf);
+                List<SocialMessage> sMessages=socialService.getMessages(sChannel.channelId(), sChannel.lastMessageTs());
+                addMessages( socialService,sMessages,sChannel,mUsers,pr.prId(),vsf);
                 sChannelsDb.add(new SocialChannel(sChannel.channelId(),sChannel.channelName(),sMessages.get(0).ts()));
             } catch (Exception e) {
                 System.out.println("Error getting messages for channel "+sChannel.channelName()+": "+e.getMessage());
@@ -129,10 +128,11 @@ public class SocialController {
             }
         }
         // add the channel to the vector store
-        socialChannelRepository.addMissingSocialChannels(sChannels,prId);
+        socialChannelRepository.addMissingSocialChannels(sChannelsDb,prId);
 
         //Create a new social assistant
-        int assistantId=createAssistant("Social Assisant",projectId,vs);
+
+        int assistantId=retrieveCreateAssistant("Social Assisant",projectId,vs);
         System.out.println("Assistant created with id: "+assistantId);
         return ResponseEntity.ok(pr);
     }
@@ -156,7 +156,7 @@ public class SocialController {
 
     private static final Pattern NAME_REGEXP = java.util.regex.Pattern.compile("<@([A-Z0-9]+)>");
     private void addMessages(
-        SocialServiceBase socialService, List<SocialMessage> sMessages, SocialChannel sChannel, Map<String,SocialUser> mUsers, int prId, VectorStoreFile vsf
+        SocialService socialService, List<SocialMessage> sMessages, SocialChannel sChannel, Map<String,SocialUser> mUsers, int prId, VectorStoreFile vsf
     ) throws IOException {
 
         for(SocialMessage sMessage:sMessages){
@@ -168,9 +168,8 @@ public class SocialController {
                     continue;
                 }
                 // Replace user mentions with real names
-                if (message.contains("<@")) {
+                if (message.contains("<@") && socialService.platform() == SocialPlatforms.slack) {
                     // Find user mentions pattern <@USERID>
-
                     java.util.regex.Matcher matcher = NAME_REGEXP.matcher(message);
                     StringBuffer sb = new StringBuffer();
                     
@@ -185,7 +184,7 @@ public class SocialController {
                 }
                 String msgUrl=socialService.getMessageUrl(sMessage, sChannel);
                 CreateVSSocialMessageRequest creaVsRequest=new CreateVSSocialMessageRequest(
-                    "", SocialPlatforms.slack, sChannel.channelName(),mUsers.get(sMessage.userId()).fullName(), 
+                    "", socialService.platform(), sChannel.channelName(),mUsers.get(sMessage.userId()).fullName(), 
                     msgUrl,socialService.getTSIso8601(sMessage)
                 );
                 ObjectMapper objectMapper = new ObjectMapper();
@@ -197,7 +196,7 @@ public class SocialController {
                 OaiFile oaiFile=oaiFileService.uploadMessage(sMessage, msgUrl, Purposes.assistants, prId);
                 creaVsRequest= new CreateVSSocialMessageRequest(oaiFile.fileId(),creaVsRequest.attributes());
                 vsf.addFile( creaVsRequest);
-                System.out.println("Slack message "+msgUrl+" added to social vector store.");
+                System.out.println(socialService.platform().toString()+" message "+msgUrl+" added to social vector store.");
             } catch (Exception e) {
                 System.out.println("Error adding message "+sMessage.message()+": "+e.getMessage());
             }
@@ -209,7 +208,12 @@ public class SocialController {
         map.put("message", message);
         return map;
     }
-    int createAssistant(String name, int projectId, VectorStore vectorStore) throws IOException {
+    private int retrieveCreateAssistant(String name, int projectId, VectorStore vectorStore) throws IOException {
+        //Check if the assistant already exists
+        SocialAssistant assistant=socialAssistantRepository.getAssistantByProjectId(projectId);
+        if(assistant!=null) {
+            return assistant.aid();
+        }
         //Create a new social assistant
         Models model=Models.gpt_4o;
         AssistantBuilder assistantBuilder = new AssistantBuilder(model);
@@ -272,7 +276,7 @@ public class SocialController {
         System.out.println(mapper.writeValueAsString(assistantBuilder));
 
         String assistantOaiId=assistantService.createAssistant(assistantBuilder);
-        SocialAssistant assistant = new SocialAssistant(
+        assistant = new SocialAssistant(
             0, assistantOaiId, projectId, name, "Social search assistant for " + name,
             instruction, ReasoningEfforts.high, model, .7f, 10, 
             vectorStore.getVsid()

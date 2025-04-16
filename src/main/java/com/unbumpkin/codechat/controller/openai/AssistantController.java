@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.openai.Assistant;
+import com.unbumpkin.codechat.dto.openai.AssistantTypes;
 import com.unbumpkin.codechat.dto.request.ModifyAssistantRequest;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.service.openai.AssistantService;
@@ -36,9 +38,9 @@ public class AssistantController {
         @PathVariable int projectId,
         @RequestBody ModifyAssistantRequest request
     ) throws IOException {
-        Assistant assistant= assistantRepository.getAssistantByProjectId(projectId);
+        Assistant assistant= assistantRepository.getAssistantByProjectId(projectId,request.assistantType());
 
-        System.out.println("Assistant Request:");
+        System.out.println(request.assistantType().toString()+" assistant Request:");
         //printAssistant(request.toOaiModifyAssistantRequest(assistant.instruction()));
 
         JsonNode assistantOai =assistantService.modifyAsssistant(
@@ -53,8 +55,11 @@ public class AssistantController {
         return ResponseEntity.ok().body(assistantOai.toString());
     }
     @GetMapping("{projectId}")
-    public ResponseEntity<String> getAssistantByProjectId(@PathVariable int projectId) throws JsonProcessingException {
-        Assistant assistant = assistantRepository.getAssistantByProjectId(projectId);
+    public ResponseEntity<String> getAssistantByProjectId(
+        @PathVariable int projectId,
+        @RequestParam(required = false, defaultValue = "codechat") AssistantTypes assistantType
+    ) throws JsonProcessingException {
+        Assistant assistant = assistantRepository.getAssistantByProjectId(projectId, assistantType);
         if (assistant == null) {
             return ResponseEntity.notFound().build();
         }

@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
 import com.unbumpkin.codechat.dto.openai.Assistant;
+import com.unbumpkin.codechat.dto.openai.AssistantTypes;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
@@ -128,12 +129,11 @@ public class AssistantRepository {
      * @param projectId The project ID.
      * @return The assistant.
      */
-    public Assistant getAssistantByProjectId(int projectId) {
-        String sql = """
-            SELECT a.*
-            FROM assistant a
-            WHERE a.projectid = ?
-        """;
+    public Assistant getAssistantByProjectId(int projectId, AssistantTypes assistantType) {
+        String tableName=assistantType==AssistantTypes.codechat
+            ? "assistant"
+            : "socialassistant";
+        String sql = "SELECT a.* FROM "+tableName+" a WHERE a.projectid = ?";
         return jdbcTemplate.queryForObject(sql, rowMapper, projectId);
     }
 

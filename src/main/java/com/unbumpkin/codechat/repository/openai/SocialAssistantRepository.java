@@ -3,6 +3,7 @@ package com.unbumpkin.codechat.repository.openai;
 import java.sql.PreparedStatement;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -117,7 +118,7 @@ public class SocialAssistantRepository {
     /*
      * Get the assistant by project ID.
      * @param projectId The project ID.
-     * @return The assistant.
+     * @return The assistant or null if not found.
      */
     public SocialAssistant getAssistantByProjectId(int projectId) {
         String sql = """
@@ -125,7 +126,11 @@ public class SocialAssistantRepository {
             FROM socialassistant a
             WHERE a.projectid = ?
         """;
-        return jdbcTemplate.queryForObject(sql, rowMapper, projectId);
+        try {
+            return jdbcTemplate.queryForObject(sql, rowMapper, projectId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     /**

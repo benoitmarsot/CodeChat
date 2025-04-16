@@ -147,6 +147,18 @@
 			<artifactId>slack-api-client</artifactId>
 			<version>1.45.3</version>
 		</dependency>
+		<dependency>
+			<groupId>net.dv8tion</groupId>
+			<artifactId>JDA</artifactId>
+			<version>5.3.2</version> <!-- replace $version with the latest version -->
+			<!-- Optionally disable audio natives to reduce jar size by excluding `opus-java` -->
+			<exclusions>
+				<exclusion>
+					<groupId>club.minnced</groupId>
+					<artifactId>opus-java</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>

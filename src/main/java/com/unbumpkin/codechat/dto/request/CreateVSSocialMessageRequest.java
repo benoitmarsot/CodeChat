@@ -2,7 +2,7 @@ package com.unbumpkin.codechat.dto.request;
 
 import java.util.Map;
 
-import com.unbumpkin.codechat.service.social.SocialServiceBase.SocialPlatforms;
+import com.unbumpkin.codechat.service.social.SocialService.SocialPlatforms;
 
 public record CreateVSSocialMessageRequest(
     String file_id, Map<String,String> attributes

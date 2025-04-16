@@ -60,9 +60,8 @@ create table if not exists socialchannel (
     channelid varchar(20) not null,
     prid int not null,
     channelname varchar(50) not null,
-    lastmessagets varchar(17) not null
+    lastmessagets varchar(30) not null
 );
-
 create table if not exists socialassistant (
     aid serial,
     oai_aid varchar(30) not null,
@@ -132,6 +131,7 @@ create table if not exists discussion (
     name varchar(256) null,
     description varchar(512) null,
     isfavorite boolean default false,
+    assistanttype varchar(20) not null, -- codechat, social
     created timestamp DEFAULT now()
 );
 
