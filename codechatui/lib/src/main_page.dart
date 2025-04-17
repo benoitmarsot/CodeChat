@@ -36,7 +36,9 @@ class _MainPage extends State<MainPage> {
   @override
   void initState() {
     super.initState();
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
     _checkAuth();
+    //});
   }
 
   Future<void> _checkAuth() async {

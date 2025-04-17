@@ -44,7 +44,13 @@ class _AssistantFormState extends State<AssistantForm> {
   String _createdMessage = "Assistant changed successfully!";
   String? _errorMessage;
   String _selectedModel = 'gpt_4o';
-  late Assistant _selectedAssistant;
+  late Assistant _selectedAssistant = Assistant(
+    name: '',
+    primaryFunction: '',
+    model: 'gpt_4o',
+    temperature: 1.0,
+    reasoningEffort: 'medium',
+  );
   late Set<Reasoning> _selectedReasoning = {Reasoning.medium};
   late int _projectId;
   late User? _currentUser = null;
@@ -83,8 +89,7 @@ class _AssistantFormState extends State<AssistantForm> {
           (e) =>
               e.toString().split('.').last ==
               _selectedAssistant.reasoningEffort,
-          orElse: () =>
-              Reasoning.medium, // Default to Reasoning.medium if no match
+          orElse: () => Reasoning.medium,
         );
         setState(() => _selectedReasoning = {reasoning});
       }
@@ -100,9 +105,11 @@ class _AssistantFormState extends State<AssistantForm> {
 
     try {
       final user = await userService.getCurrentUser();
-      setState(() {
-        _currentUser = user;
-      });
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to fetch user details: $e';
@@ -123,16 +130,21 @@ class _AssistantFormState extends State<AssistantForm> {
     try {
       final currentAssistant =
           await assistantService.getAssistant(widget.projectId);
-      currentAssistant.validatedAssistant();
-      setState(() {
-        _selectedAssistant = currentAssistant;
-        //_createdMessage = 'Project details updated successfully!';
-      });
+      if (mounted) {
+        currentAssistant.validatedAssistant();
+
+        setState(() {
+          _selectedAssistant = currentAssistant;
+        });
+      }
+
       _loadAssistantData();
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to fetch project details: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to fetch project details: $e';
+        });
+      }
     } finally {
       if (mounted && _errorMessage != null && _errorMessage!.isNotEmpty) {
         ScaffoldMessenger.of(context)
