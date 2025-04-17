@@ -2,10 +2,14 @@ import 'dart:convert';
 //import 'dart:io';
 //import 'package:path/path.dart';
 import 'package:codechatui/src/config/app_config.dart';
+import 'package:codechatui/src/client/sse.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
+// import 'package:flutter_client_sse/flutter_client_sse.dart';
 import 'package:http/http.dart' as http;
 import '../models/project.dart';
-import 'package:file_picker/file_picker.dart';
+// import 'package:file_picker/file_picker.dart';
+import 'dart:async';
+//import 'package:eventsource/eventsource.dart';
 
 class CodechatService {
   static final String baseUrl = '${AppConfig.apiVersionBaseUrl}/codechat';
@@ -24,6 +28,47 @@ class CodechatService {
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to refresh repository for project $projectId');
+    }
+  }
+
+  Future<void> subscribeToMessages(
+      String route, onEvent, onError, onDone) async {
+    final client = StreamingClient(
+        url: '$baseUrl/$route',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer ${authProvider.token}'
+        },
+        onEvent: onEvent,
+        onError: onError,
+        onDone: onDone);
+    try {
+      client.connect();
+      print('Connecting to SSE...');
+    } catch (e) {
+      print('Request failed: $e');
+    }
+  }
+
+  Future<void> unSubscribeToMessages() async {
+    try {
+      print('Stopping SSE subscription...');
+      final response = await http.get(
+        Uri.parse('$baseUrl/debug/stop'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        print('SSE subscription stopped successfully.');
+      } else {
+        throw Exception(
+            'Failed to stop SSE subscription: ${utf8.decode(response.bodyBytes)}');
+      }
+    } catch (e) {
+      print('Error stopping SSE subscription: $e');
+      throw Exception('Error stopping SSE subscription: $e');
     }
   }
 
