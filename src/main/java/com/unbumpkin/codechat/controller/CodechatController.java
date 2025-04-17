@@ -30,6 +30,7 @@ import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFile
 import static com.unbumpkin.codechat.util.ExtMimeType.getMimeType;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
+import com.unbumpkin.codechat.service.openai.WebCrawlerContentManager;
 import com.unbumpkin.codechat.service.openai.ZipContentManager;
 import com.unbumpkin.codechat.util.ExtMimeType;
 import com.unbumpkin.codechat.util.FileUtils;
@@ -39,6 +40,7 @@ import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.GitHubChangeTracker;
 import com.unbumpkin.codechat.dto.openai.Assistant;
 import com.unbumpkin.codechat.dto.request.AddRepoRequest;
+import com.unbumpkin.codechat.dto.request.AddWebRequest;
 import com.unbumpkin.codechat.dto.request.AddZipRequest;
 import com.unbumpkin.codechat.dto.request.CreateProjectRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
@@ -173,6 +175,86 @@ public class CodechatController {
         Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
         return ResponseEntity.ok(project);
     }
+    // ...existing code...
+
+    @Transactional
+    @PostMapping("add-project-web")
+    public ResponseEntity<ProjectResource> addWebResource(
+        @RequestBody AddWebRequest request
+    ) throws Exception {
+        int projectId = request.projectId();
+        WebCrawlerContentManager webManager = null;
+        
+        try {
+            // Create the web crawler with custom settings if provided
+            if (request.maxPages() > 0 || request.maxDepth() > 0 || request.requestsPerMinute() > 0) {
+                int maxPages = request.maxPages() > 0 ? request.maxPages() : 100;
+                int maxDepth = request.maxDepth() > 0 ? request.maxDepth() : 2;
+                int reqPerMin = request.requestsPerMinute() > 0 ? request.requestsPerMinute() : 30;
+                webManager = new WebCrawlerContentManager(
+                    maxPages, maxDepth, 4, reqPerMin, true, true
+                );
+            } else {
+                webManager = new WebCrawlerContentManager(); // Use defaults
+            }
+            
+            // Start crawling
+            System.out.println("Starting web crawl from URL: " + request.seedUrl());
+            String crawlResult = request.allowedDomains() != null && !request.allowedDomains().isEmpty() ?
+                webManager.crawlWebsite(request.seedUrl(), request.allowedDomains()) :
+                webManager.crawlWebsite(request.seedUrl());
+            
+            // Create secret map to store credentials if provided
+            Map<Labels,UserSecret> userSecrets = new HashMap<>();
+            if(request.userName() != null && !request.userName().isEmpty()){
+                userSecrets.put(Labels.username, new UserSecret(Labels.username, request.userName()));
+                if(request.password() != null) {
+                    userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
+                }
+            }
+                
+            // Create project resource
+            ProjectResource resource = projectResourceRepository.createResource(
+                projectId, request.seedUrl(), ResTypes.web, userSecrets
+            );
+            
+            // Get vector stores for the project
+            Map<Types, RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
+                vsRepository.getVectorStoresByProjectId(projectId)
+            );
+            
+            // Create vector store file services map for different types of vector stores
+            Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMap(vsMap);
+            int tempDirLength = webManager.getTempDir().length();
+            
+            // Process files
+            for (File file : webManager.getAllFiles()) {
+                try {
+                    if (deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap, tempDirLength)) {
+                        System.out.println("The file " + file.getPath().substring(tempDirLength + 1) + 
+                            " already exists it will be refreshed.");
+                    }
+                    addFile(webManager.getTempDir(), request.seedUrl(), file.getPath(), resource.prId(), 
+                        vsfServicesMap
+                    );  
+                } catch (Exception e) {
+                    System.out.println("The file " + file.getPath().substring(tempDirLength + 1) + 
+                                    " could not be added: " + e.getMessage());
+                }
+            }
+            
+            System.out.println("Done crawling website. Crawled " + webManager.getCrawledUrls().size() + " URLs.");
+            return ResponseEntity.ok(resource);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        } finally {
+            if (webManager != null) {
+                webManager.cleanup();
+            }
+        }
+    }
+
     @Transactional
     @PostMapping("add-project-zip")
     public ResponseEntity<ProjectResource> addZipResource(

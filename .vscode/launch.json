@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch Java Application",
+            "request": "launch",
+            "mainClass": "com.unbumpkin.codechat.CodechatApplication",
+            "projectName": "codechat",
+            // Fixes Berkeley DB Java Edition (used by crawler4j) trying to access internal Java classes.
+            "vmArgs": "--add-opens java.management/sun.management=ALL-UNNAMED"
+        },
+        {
+            "type": "node",
+            "name": "Launch JavaScript",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main/javascript/index.js"
+        },
+        {
+            "type": "chrome",
+            "name": "Launch Chrome against localhost",
+            "request": "launch",
+            "url": "http://localhost:8080",
+            "webRoot": "${workspaceFolder}/src/main/resources/static"
+        }
+    ]
+}

@@ -141,12 +141,18 @@
 			<version>7.1.0.202411261347-r</version>
 			<scope>compile</scope>
 		</dependency>
-		<!-- Slack API Client -->
+		<dependency>
+			<groupId>edu.uci.ics</groupId>
+			<artifactId>crawler4j</artifactId>
+			<version>4.4.0</version>
+		</dependency>
+		<!-- Slack API -->
 		<dependency>
 			<groupId>com.slack.api</groupId>
 			<artifactId>slack-api-client</artifactId>
 			<version>1.45.3</version>
 		</dependency>
+		<!-- Discord API -->
 		<dependency>
 			<groupId>net.dv8tion</groupId>
 			<artifactId>JDA</artifactId>
