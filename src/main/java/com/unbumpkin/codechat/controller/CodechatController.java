@@ -73,12 +73,19 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import com.unbumpkin.codechat.model.DebugMessage;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 
 
 @RestController
 @RequestMapping("/api/v1/codechat")
 public class CodechatController {
+    private static final int PRIORITY_MESSAGE_LIMIT = 1; // Define the constant
+    private static final long TIME_OUT_SSL = 900_000L; // Set timeout to 15 minutes
     @Autowired
     private AssistantRepository assistantRepository;
     @Autowired
@@ -107,7 +114,7 @@ public class CodechatController {
     private SocialUserRepository socialUserRepository;
     @Autowired
     private SocialChannelRepository socialChannelRepository;
-    
+    private SseEmitter emitter;
 
     private int getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -168,12 +175,12 @@ public class CodechatController {
         if(projectId==0){
             throw new Exception("project could not be created.");
         }
-        System.out.println("project created with id: "+projectId);
+        writeMessage("project created with id: "+projectId);
 
         Map<Types,VectorStore> vectorStoreMap = createEmptyVectorStores(projectId);
-        System.out.println("Create assistant...");
+        writeMessage("Create assistant...");
         int assistantId=createAssistant(request.name(), projectId, vectorStoreMap);
-        System.out.println("Assistant created with id: "+assistantId);
+        writeMessage("Assistant created with id: "+assistantId);
         Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
         return ResponseEntity.ok(project);
     }
@@ -294,19 +301,20 @@ public class CodechatController {
                 try {
                     String relFilePath=file.getPath().substring(tempDirLength + 1);
                     if(deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap,tempDirLength)) {
-                        System.out.println("The file " + relFilePath + " already exists it will be refreshed.");
+                        writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
+                            " already exists it will be refreshed.");
                     }
                     addFile(zipManager.getTempDir(), "",relFilePath,file.getPath(), resource.prId(), 
                         vsfServicesMap
                     );  
                 } catch (Exception e) {
-                    System.out.println("The file " + file.getPath().substring(tempDirLength + 1) + 
+                    writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
                                     " could not be added: " + e.getMessage());
                 }
                 System.out.println("Processed file " + (++processedFiles) + " of " + files.size() );
             }
             
-            System.out.println("Done adding ZIP archive.");
+            writeMessage("Done adding ZIP archive.");
             return ResponseEntity.ok(resource);
         } catch (Exception e) {
             e.printStackTrace();
@@ -358,10 +366,10 @@ public class CodechatController {
                         pfc.getRootUrl()+file.getPath().substring(tempDirLength + 1),
                         file.getPath(), resource.prId(), vsfServicesMap);
                 } catch (Exception e) {
-                    System.out.println("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+                    writeMessage("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
                 }   
             }
-            System.out.println("Done adding new repo.");
+            writeMessage("Done adding new repo.");
             return ResponseEntity.ok(resource);
         } catch (Exception e) {
             e.printStackTrace();
@@ -391,7 +399,7 @@ public class CodechatController {
                     String oldCommitHash=resource.secrets().get(Labels.commitHash).value();
                     String commitHash=pfc.getLatestCommitHash(resource.uri(), branch);
                     if(commitHash.equals(oldCommitHash)){
-                        System.out.println("No changes in the repo "+resource.uri());
+                        writeMessage("No changes in the repo "+resource.uri());
                         continue;
                     }
                     GitHubChangeTracker changes=pfc.getChangesSinceCommitViaGitHubAPI( 
@@ -403,7 +411,7 @@ public class CodechatController {
                         try {
                             deleteIfExists( deletedFile, resource.projectId(), vsfServicesMap, pfc.getTempDir().length());
                         } catch (Exception e) {
-                            System.out.println("This file is ignored or could not be retrieved: "+deletedFile);
+                            writeMessage("This file is ignored or could not be retrieved: "+deletedFile);
                         }
                         System.out.println("Deleted file " + (++deletedFiles) + " of " + changes.deletedFiles().size() );
                     }
@@ -417,13 +425,13 @@ public class CodechatController {
                                 pfc.getTempDir()+"/"+addedFile, resource.prId(), vsfServicesMap
                             );
                         } catch (Exception e) {
-                            System.out.println("The file "+addedFile+" could not be added: "+e.getMessage());
+                            writeMessage("The file "+addedFile+" could not be added: "+e.getMessage());
                         }   
                         System.out.println("Added file " + (++addedFiles) + " of " + changes.addedFiles().size() );
                     }
-                    System.out.println("Updating commit hash...");
+                    writeMessage("Updating commit hash...");
                     projectResourceRepository.updateSecret(resource.prId(), Labels.commitHash, commitHash);
-                    System.out.println("Done refreshing repo.");
+                    writeMessage("Done refreshing repo.");
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -452,7 +460,7 @@ public class CodechatController {
             if(projectId==0){
                 throw new Exception("project could not be created.");
             }
-            System.out.println("project created with id: "+projectId);
+            writeMessage("project created with id: "+projectId);
             if(request.repoURL()!=null){
                 pfc=new GithubRepoContentManager(request.username(), request.password());
                 pfc.addRepository(request.repoURL(), request.branch());
@@ -479,13 +487,13 @@ public class CodechatController {
                         pfc.getRootUrl()+file.getPath().substring(pfc.getTempDir().length()+1), 
                         file.getPath(), pr.prId(), vsfServicesMap);
                 } catch (Exception e) {
-                    System.out.println("The file "+file.getPath()+" could not be added: "+e.getMessage());
+                    writeMessage("The file "+file.getPath()+" could not be added: "+e.getMessage());
                 }   
                 System.out.println("Processed file " + (++processedFiles) + " of " + files.size() );
             }
-            System.out.println("Create assistant...");
+            writeMessage("Create assistant...");
             int assistantId=createAssistant(request.name(), projectId, vsMap);
-            System.out.println("Assistant created with id: "+assistantId);
+            writeMessage("Assistant created with id: "+assistantId);
             Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
             return ResponseEntity.ok(project);
         } catch (Exception e) {
@@ -706,7 +714,7 @@ public class CodechatController {
             vsfServicesMap.get(Types.all).removeFile(oaiFile.fileId());
             oaiFileService.deleteFile(oaiFile.fileId());
             oaiFileRepository.deleteFile(oaiFile.fileId());
-            System.out.println(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from all and "+fileType.toString()+" vector stores and deleted.");
+           writeMessage(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from all and "+fileType.toString()+" vector stores and deleted.");
             wasDeleted=true;
         }
         return wasDeleted;
@@ -722,12 +730,12 @@ public class CodechatController {
         try {
             desc = getFileRenameDescriptor(file,fileType);
         } catch (Exception e) {
-            System.out.println("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+           writeMessage("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
             return;
         }
         OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, prId);
-        System.out.println("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
-        CreateVSFileRequest request = getCreateVSFileRequest( desc, fileUrl, oaiFile, tempDirLength);
+       writeMessage("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
+        CreateVSFileRequest request = getCreateVSFileRequest( desc, rootDirUrl, oaiFile, tempDirLength);
         if(fileType!=Types.image&&fileType!=Types.social){
             vsfServicesMap.get(fileType).addFile( request);
         }
@@ -740,7 +748,7 @@ public class CodechatController {
         );
         oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
 
-       System.out.println("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
+      writeMessage("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
     }
     private CreateVSFileRequest getCreateVSFileRequest( 
         FileRenameDescriptor desc, String fileUrl, OaiFile oaiFile, int tempDirLength
@@ -783,7 +791,7 @@ public class CodechatController {
                 try (FileWriter writer = new java.io.FileWriter(file)) {
                     writer.write(imgDesc);
                 }
-                System.out.println(format(
+               writeMessage(format(
                     "%s image description: \n\t%s", oldFileName, imgDesc)
                 );
                 return new FileRenameDescriptor(
@@ -795,5 +803,97 @@ public class CodechatController {
             }
         } 
         return ExtMimeType.oaiRename(file);
+    }
+    
+    @GetMapping("/debug")
+    public SseEmitter streamDebugMessages(HttpServletResponse response) {
+        // Set custom headers for the response
+        response.setHeader("Connection", "keep-alive");
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("Content-Type", "text/event-stream");
+  
+        emitter = new SseEmitter(TIME_OUT_SSL); 
+
+        emitter.onCompletion(() -> {
+            System.out.println("SSE stream completed.");
+            emitter = null; // Reset emitter when completed
+        });
+    
+        emitter.onTimeout(() -> {
+            System.out.println("SSE stream timed out.");
+            emitter.complete();
+            emitter = null; // Reset emitter on timeout
+        });
+    
+        emitter.onError((e) -> {
+            System.out.println("SSE stream error: " + e.getMessage());
+            emitter.completeWithError(e);
+            emitter = null; // Reset emitter on error
+        });
+        writeMessage("Starting server communication...");
+        return emitter;
+    }
+
+    private void writeMessage(String message) {
+        writeMessage(message, 1);
+    }
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    
+    //todo @PreDestroy
+    //public void shutdownExecutor() {
+    //  executorService.shutdown();}
+    
+    private void writeMessage(String message, int priority) {
+        if (emitter != null) {
+            executorService.submit(() -> {
+                try {
+                    if (priority <= PRIORITY_MESSAGE_LIMIT) {
+                        emitter.send(SseEmitter.event()
+                                .name("debug")
+                                .data(message));
+                    }
+                } catch (IllegalStateException e) {
+                    System.out.println("Emitter is already completed: " + e.getMessage());
+                    emitter = null; // Reset emitter to avoid further errors
+                } catch (IOException e) {
+                    System.out.println("Error sending SSE message: " + e.getMessage());
+                    emitter.completeWithError(e);
+                    emitter = null; // Reset emitter on error
+                }
+            });
+        } else {
+            System.out.println(message);
+        }
+    }
+
+    @GetMapping("/debug/stop")
+    public ResponseEntity<String> stopDebugMessages() {
+        emitter = null;
+        return ResponseEntity.ok("Debug message stream stopped.");
+    }
+   
+
+    @GetMapping("/testdebug")
+    public SseEmitter streamTestMessages(HttpServletResponse response) {
+        if(emitter == null)
+            streamDebugMessages(response);
+
+        // Start a new thread to send debug messages to the client
+        executorService.submit(() -> {
+            try {
+                while (emitter != null) {
+                    DebugMessage debugMessage = new DebugMessage("This is a debug message from CodechatController", java.sql.Timestamp.valueOf(LocalDateTime.now()), 1);
+                    emitter.send(SseEmitter.event()
+                            .name("debug")
+                            .data(debugMessage));
+                    // Sleep for 1 second
+                    Thread.sleep(1000);
+                }
+            } catch (IOException | InterruptedException e) {
+                emitter.completeWithError(e);
+            }
+        });
+
+        return emitter;
     }
 }
