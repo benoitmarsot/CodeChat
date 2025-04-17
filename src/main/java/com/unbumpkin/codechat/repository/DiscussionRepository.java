@@ -16,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
+import com.unbumpkin.codechat.dto.openai.AssistantTypes;
 import com.unbumpkin.codechat.dto.request.DiscussionUpdateRequest;
 import com.unbumpkin.codechat.model.Discussion;
 import com.unbumpkin.codechat.security.CustomAuthentication;
@@ -32,6 +33,7 @@ public class DiscussionRepository {
         rs.getString("name"),
         rs.getString("description"),
         rs.getBoolean("isfavorite"),
+        AssistantTypes.valueOf(rs.getString("assistanttype")),
         rs.getTimestamp("created")
     );
 
@@ -50,36 +52,36 @@ public class DiscussionRepository {
      */
     public Discussion addDiscussion(Discussion discussion) {
         String sql = """
-            INSERT INTO discussion (projectid, name, description)
-            SELECT ?, ?, ?
+            INSERT INTO discussion (projectid, name, description, assistanttype)
+            SELECT ?, ?, ?, ?
             FROM project p
             LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
-            RETURNING did, projectid, name, description, isfavorite, created
+            RETURNING did, projectid, name, description, isfavorite, assistanttype, created
             """;
-
+    
         int userId = getCurrentUserId();
         KeyHolder keyHolder = new GeneratedKeyHolder();
-
+    
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, discussion.projectId());
             ps.setString(2, discussion.name());
             ps.setString(3, discussion.description());
-            ps.setInt(4, discussion.projectId());
-            ps.setInt(5, userId);
+            ps.setString(4, discussion.assistantType().toString());
+            ps.setInt(5, discussion.projectId());
             ps.setInt(6, userId);
+            ps.setInt(7, userId);
             return ps;
         }, keyHolder);
-
+    
         // Extract the generated keys
         Map<String, Object> keys = Objects.requireNonNull(keyHolder.getKeys(), "Failed to retrieve generated key for discussion");
         int newId = (int) keys.get("did");
         Timestamp created = (Timestamp) keys.get("created");
-
+        
         return new Discussion(newId, discussion.projectId(), discussion.name(), discussion.description(),
-                discussion.isFavorite(), created);
-
+                discussion.isFavorite(), discussion.assistantType(), created);
     }
 
     /**
@@ -132,15 +134,17 @@ public class DiscussionRepository {
     public Discussion updateDiscussion(DiscussionUpdateRequest updateRequest) {
         String sql = """
             UPDATE discussion d
-            SET name = ?, description = ?, isfavorite = ?
+            SET name = ?, description = ?, isfavorite = ?, assistanttype = ?
             FROM project p
             LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND d.projectid = p.projectid AND (p.authorid = ? OR sp.userid = ?)
-            RETURNING d.did, d.projectid, d.name, d.description, d.isfavorite, d.created
+            RETURNING d.did, d.projectid, d.name, d.description, d.isfavorite, d.assistanttype, d.created
         """;
         int userId = getCurrentUserId();
         return jdbcTemplate.queryForObject(
-            sql, rowMapper, updateRequest.name(), updateRequest.description(), updateRequest.isFavorite(), updateRequest.did(), userId, userId
+            sql, rowMapper, updateRequest.name(), updateRequest.description(), 
+            updateRequest.isFavorite(), updateRequest.assistantType().toString(), 
+            updateRequest.did(), userId, userId
         );
     }
 

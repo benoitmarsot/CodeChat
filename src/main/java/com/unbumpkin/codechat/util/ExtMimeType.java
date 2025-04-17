@@ -115,7 +115,14 @@ public class ExtMimeType {
         Map.entry("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
         Map.entry("pdf", "application/pdf"),
         Map.entry("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
-        Map.entry("tex", "application/x-tex")
+        Map.entry("tex", "application/x-tex"),
+
+        // Image files
+        Map.entry("png", "image/png"),
+        Map.entry("jpg", "image/jpeg"),
+        Map.entry("jpeg", "image/jpeg"),
+        Map.entry("webp", "image/webp"),
+        Map.entry("gif", "image/gif")
     );
     public static String getMimeType(String ext) {
         return MIME_TYPES.get(ext);

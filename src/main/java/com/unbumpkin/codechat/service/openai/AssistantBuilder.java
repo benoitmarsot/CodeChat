@@ -237,6 +237,10 @@ public class AssistantBuilder {
         this.response_format = "auto";
         return this;
     }
+    public AssistantBuilder addOutsideJsonSchemaResponseFormat() {
+        this.response_format = "{json_schema}";
+        return this;
+    }
     public AssistantBuilder addTextResponseFormat() {
         this.response_format = new TextResponseFormat();
         return this;

@@ -1,12 +1,24 @@
-import 'package:codechatui/src/login_page.dart';
 import 'package:codechatui/src/models/exceptions.dart';
+import 'package:codechatui/src/models/openai/assistant.dart';
 import 'package:codechatui/src/models/project.dart';
+import 'package:codechatui/src/services/openai/assistant_service.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
+import 'package:codechatui/src/widgets/status_tag.dart';
 import 'package:flutter/material.dart';
-import 'package:codechatui/src/widgets/project_detail.dart';
+import 'package:codechatui/src/widgets/project/project_detail.dart';
 import 'package:provider/provider.dart';
 import 'services/project_service.dart';
 import 'package:codechatui/src/utils/error_handler.dart';
+
+const Map<String, Color> languageModelColorMap = {
+  'gpt_4o': Colors.blueGrey,
+  'gpt_4o_mini': Colors.teal,
+  'gpt_3.5_turbo': Colors.deepPurple,
+  'gpt_4': Colors.grey,
+  'gpt_4_turbo': Colors.deepOrange,
+  'gpt_4o_realtime_preview': Colors.indigo,
+  'o3_mini': Colors.brown,
+};
 
 class ProjectPage extends StatefulWidget {
   @override
@@ -15,11 +27,10 @@ class ProjectPage extends StatefulWidget {
 
 class _ProjectPageState extends State<ProjectPage>
     with SingleTickerProviderStateMixin {
-  String _createdMessage = '';
   List<Project> _projects = [];
   int? _hoveredIndex;
   String? _errorMessage;
-  bool _isEditing = false; // Track editing state
+
   Project? _selectedProject; // Store the selected project
 
   @override
@@ -33,7 +44,18 @@ class _ProjectPageState extends State<ProjectPage>
     final projectService = ProjectService(authProvider: authProvider);
 
     try {
-      final projects = await projectService.getAllProjects();
+      var projects = await projectService.getAllProjects();
+
+      for (var project in projects) {
+        try {
+          final assistant = await _fetchProjectAssistant(project.projectId);
+          project.assistant = assistant.name;
+          project.model = assistant.model;
+        } catch (e) {
+          project.assistant = '';
+          project.model = '';
+        }
+      }
 
       setState(() {
         _projects = projects;
@@ -41,6 +63,19 @@ class _ProjectPageState extends State<ProjectPage>
       if (projects.length == 1) {
         _selectProject(projects[0]);
       }
+      for (var project in projects) {
+        try {
+          final assistant = await _fetchProjectAssistant(project.projectId);
+          project.assistant = assistant.name;
+          project.model = assistant.model;
+        } catch (e) {
+          project.assistant = '';
+          project.model = '';
+        }
+      }
+      setState(() {
+        _projects = projects;
+      });
     } on ForbiddenException catch (e) {
       // Handle 403 error
       ErrorHandler.handleForbiddenError(context, e.message);
@@ -51,21 +86,44 @@ class _ProjectPageState extends State<ProjectPage>
     }
   }
 
-  // void _handleForbiddenError(String message) {
-  //   // Log the user out and redirect to the login page
-  //   final authProvider = Provider.of<AuthProvider>(context, listen: false);
-  //   authProvider.clearAll();
+  Future<Assistant> _fetchProjectAssistant(int projectId) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final assistantService = AssistantService(authProvider: authProvider);
 
-  //   // Show a snackbar with the error message
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(content: Text(message), backgroundColor: Colors.red),
-  //   );
+    try {
+      return await assistantService.getAssistant(projectId);
+    } on ForbiddenException catch (e) {
+      // Handle 403 error
+      ErrorHandler.handleForbiddenError(context, e.message);
+      rethrow;
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load project assistant: $e';
+      });
+      rethrow;
+    }
+  }
 
-  //   // Redirect to the login page
-  //   Navigator.of(context).pushReplacement(
-  //     MaterialPageRoute(builder: (context) => const LoginPage()),
-  //   );
-  // }
+  Future<void> _handleDelete(Project project, int index) async {
+    final confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Deletion'),
+        content: Text(
+            'Are you sure you want to delete the project "${project.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => _deleteProject(project, index),
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _deleteProject(Project project, int index) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -78,6 +136,7 @@ class _ProjectPageState extends State<ProjectPage>
         _projects.removeAt(index);
       });
       await _fetchProjects();
+      Navigator.of(context).pop();
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to delete project: $e';
@@ -96,27 +155,29 @@ class _ProjectPageState extends State<ProjectPage>
   void _selectProject(Project project) {
     setState(() {
       _selectedProject = project;
-      _isEditing = false; // Exit editing mode when selecting a new project
-      // Populate the text controllers with the selected project's data
     });
     //_redirectToChat(project);
+  }
+
+  void gotoSettings(Project project) {
+    _selectProject(project);
+
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProjectDetail(
+              projectId: project.projectId,
+              isEditing: true,
+              onSave: _fetchProjects),
+        ));
   }
 
   void _handleProjectAction(String action, Project project) {
     switch (action) {
       case 'edit':
-        _selectProject(project);
-
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProjectDetail(
-                  projectId: project.projectId,
-                  isEditing: true,
-                  onSave: _fetchProjects),
-            ));
-
+        gotoSettings(project);
         break;
+
       case 'refresh':
         showDialog(
           context: context,
@@ -133,14 +194,22 @@ class _ProjectPageState extends State<ProjectPage>
             );
           },
         );
-        break;
       case 'delete':
         int index = _projects.indexOf(project);
         if (index != -1) {
-          _deleteProject(project, index);
+          _handleDelete(project, index);
         }
         break;
     }
+  }
+
+  Future<void> _onSave() async {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Project created!'),
+          backgroundColor: Colors.greenAccent));
+    }
+    _fetchProjects();
   }
 
   @override
@@ -157,7 +226,7 @@ class _ProjectPageState extends State<ProjectPage>
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        ProjectDetail(isEditing: false, onSave: _fetchProjects),
+                        ProjectDetail(isEditing: false, onSave: _onSave),
                   ));
             },
           ),
@@ -184,52 +253,71 @@ class _ProjectPageState extends State<ProjectPage>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ListTile(
-                        title: Text(project.name),
+                        title: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Text(project.name),
+                            SizedBox(width: 10),
+                            StatusTag(
+                                label: project.model ?? 'No Model',
+                                color: languageModelColorMap[project.model] ??
+                                    Colors.grey)
+                          ],
+                        ),
                         subtitle: Text(project.description),
                         onTap: () {
                           _selectProject(project);
                           _redirectToChat(project);
                         },
-                        trailing: PopupMenuButton<String>(
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            Icons.more_vert,
-                            size: 16,
+                        trailing:
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                            icon: Icon(Icons.settings),
+                            onPressed: () => gotoSettings(project),
                           ),
-                          iconSize: 16,
-                          tooltip: 'Project options',
-                          onSelected: (value) =>
-                              _handleProjectAction(value, project),
-                          itemBuilder: (BuildContext context) =>
-                              <PopupMenuEntry<String>>[
-                            const PopupMenuItem<String>(
-                              value: 'edit',
-                              child: ListTile(
-                                leading: Icon(Icons.edit),
-                                title: Text('Edit'),
-                                dense: true,
-                              ),
+                          PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(
+                              Icons.more_vert,
+                              size: 16,
                             ),
-                            const PopupMenuItem<String>(
-                              value: 'refresh',
-                              child: ListTile(
-                                leading: Icon(Icons.refresh),
-                                title: Text('Refresh'),
-                                dense: true,
+                            iconSize: 16,
+                            tooltip: 'Project options',
+                            onSelected: (value) =>
+                                _handleProjectAction(value, project),
+                            itemBuilder: (BuildContext context) =>
+                                <PopupMenuEntry<String>>[
+                              // const PopupMenuItem<String>(
+                              //   value: 'edit',
+                              //   child: ListTile(
+                              //     leading: Icon(Icons.edit),
+                              //     title: Text('Edit'),
+                              //     dense: true,
+                              //   ),
+                              // ),
+                              const PopupMenuItem<String>(
+                                value: 'refresh',
+                                child: ListTile(
+                                  leading: Icon(Icons.refresh),
+                                  title: Text('Refresh'),
+                                  dense: true,
+                                ),
                               ),
-                            ),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem<String>(
-                              value: 'delete',
-                              child: ListTile(
-                                leading: Icon(Icons.delete, color: Colors.red),
-                                title: Text('Delete',
-                                    style: TextStyle(color: Colors.red)),
-                                dense: true,
+                              const PopupMenuDivider(),
+                              const PopupMenuItem<String>(
+                                value: 'delete',
+                                child: ListTile(
+                                  leading:
+                                      Icon(Icons.delete, color: Colors.red),
+                                  title: Text('Delete',
+                                      style: TextStyle(color: Colors.red)),
+                                  dense: true,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ]),
                       ),
                     ),
                   );

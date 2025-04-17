@@ -1,3 +1,8 @@
+-- todo
+alter table core.socialuser
+    alter column email drop not null 
+alter table projectresource
+    add column restype varchar(20) null -- git, file, zip, slack, web, etc, ...
 -- select * from core.user;
 -- select * from core.oaifile;
 -- select * from core.vectorstore;

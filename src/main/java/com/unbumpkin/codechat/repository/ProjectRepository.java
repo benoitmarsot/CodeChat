@@ -72,7 +72,7 @@ public class ProjectRepository {
      * @param projectId The project ID.
      * @return The project with resource information.
      */
-    public ProjectWithResource getProjectById(int projectId) {
+    public ProjectWithResource getProjectWithResById(int projectId) {
         String sql = """
             SELECT 
                 p.projectid, p.name, p.description, p.authorid, 
@@ -119,6 +119,30 @@ public class ProjectRepository {
                     resourceUris
                 );
             }, projectId, userId, userId);
+        } catch (EmptyResultDataAccessException e) {
+            return null; // Project not found or user doesn't have access
+        }
+    }
+    /**
+     * Retrieve a project by ID with associated resources.
+     * @param projectId The project ID.
+     * @return The project with resource information.
+     */
+    public Project getProjectById(int projectId) {
+        String sql = """
+            SELECT 
+                p.projectid, p.name, p.description, p.authorid, 
+                a.aid
+            FROM project p
+            INNER JOIN assistant a ON a.projectid = p.projectid
+            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+            WHERE p.isdeleted=false AND p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
+            """;
+        
+        int userId = getCurrentUserId();
+        
+        try {
+            return jdbcTemplate.queryForObject(sql, rowMapper, projectId, userId, userId);
         } catch (EmptyResultDataAccessException e) {
             return null; // Project not found or user doesn't have access
         }

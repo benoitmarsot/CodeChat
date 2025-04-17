@@ -1,6 +1,7 @@
 package com.unbumpkin.codechat.service.openai;
 
 import java.io.IOException;
+import static java.lang.String.format;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.dto.request.ModifyAssistantRequest;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
+import com.unbumpkin.codechat.util.JsonUtils;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -24,10 +26,9 @@ public class AssistantService extends BaseOpenAIClient {
         file_search,
         function
     }
-    public String createAssistant(AssistantBuilder helper) throws IOException {
-        String json = objectMapper.writeValueAsString(helper);
-        //System.out.println(json);
-        RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
+    public String createAssistant(String assistantJson) throws IOException {
+        //System.out.println(assistantJson);
+        RequestBody body = RequestBody.create(assistantJson, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()
             .url(API_URL)
@@ -36,8 +37,16 @@ public class AssistantService extends BaseOpenAIClient {
             .addHeader("OpenAI-Beta", "assistants=v2")
             .addHeader("Content-Type", "application/json")
             .build();
-            JsonNode jsonNode = this.executeRequest(request);
-            return jsonNode.get("id").asText();
+        JsonNode jsonNode = this.executeRequest(request);
+        String error=JsonUtils.getOpenAiError(jsonNode);
+        if (error != null) {
+            throw new IOException("Error from OpenAI API: " + error);
+        }
+        return jsonNode.get("id").asText();
+    }
+
+    public String createAssistant(AssistantBuilder helper) throws IOException {
+        return this.createAssistant(objectMapper.writeValueAsString(helper));
     }
     public String createAssistant(
         Models model, String name, List<AssistantTools> tools, String instructions
@@ -118,10 +127,10 @@ public class AssistantService extends BaseOpenAIClient {
         ModifyAssistantRequest marRequest, String existingInstruction, String id
     ) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setSerializationInclusion(Include.NON_NULL);
-        String json = new ObjectMapper().writeValueAsString(
+        String json = objectMapper.writeValueAsString(
             marRequest.toOaiModifyAssistantRequest(existingInstruction)
         );
+        System.out.println(format("modify openai request: %s",json));
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()

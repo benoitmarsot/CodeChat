@@ -1,0 +1,61 @@
+    {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "code_search_assistant",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "answers": {
+              "type": "array",
+              "description": "List of answer objects providing explanations, code snippets, and references.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "explanation": {
+                    "type": "string",
+                    "description": "Detailed explanation of the file or code."
+                  },
+                  "language": {
+                    "type": "string",
+                    "description": "Programming language of the code snippet, if applicable."
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "Formatted code snippet related to the explanation."
+                  },
+                  "codeExplanation": {
+                    "type": "string",
+                    "description": "Explanation of the provided code snippet."
+                  },
+                  "references": {
+                    "type": "array",
+                    "description": "List of relevant sources or file references.",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "explanation",
+                  "language", 
+                  "code", 
+                  "codeExplanation",
+                  "references"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "conversationalGuidance": {
+              "type": "string",
+              "description": "Additional guidance for the user."
+            }
+          },
+          "required": [
+            "answers",
+            "conversationalGuidance"
+          ],
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    }

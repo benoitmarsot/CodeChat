@@ -1,0 +1,117 @@
+{
+  "format": {
+    "type": "json_schema",
+    "name": "image_description_response",
+    "strict": true,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "general_descriptions": {
+          "type": "string",
+          "description": "Look at the given image and describe it in a highly detailed manner. Identify all visible objects, their colors, materials, and spatial arrangement. Mention any human or animal actions, their expressions, and interactions. Describe the background, lighting, and overall mood of the scene."
+        },
+        "story": {
+          "type": "string",
+          "description": "Imagine you are writing a vivid description of an image for a novel. Explain the scene as if the reader cannot see it, describing every object, person, action, and detail. Include how the environment feels—textures, colors, and atmosphere."
+        },
+        "technical_analysis": {
+          "type": "string",
+          "description": "Provide a structured breakdown of the image. List all objects with their attributes (color, shape, size, texture). Identify relationships between them (e.g., object A is on top of object B). Describe the background, lighting conditions, and any motion or actions taking place."
+        },
+        "object_based_descriptions": {
+          "type": "object",
+          "properties": {
+            "objects": {
+              "type": "array",
+              "description": "List of identified objects in the image.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "colors": {
+              "type": "array",
+              "description": "List of colors found in the image.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "scene": {
+              "type": "string",
+              "description": "A brief description of the scene."
+            },
+            "actions": {
+              "type": "string",
+              "description": "Actions performed by objects in the scene."
+            }
+          },
+          "required": [
+            "objects",
+            "colors",
+            "scene",
+            "actions"
+          ],
+          "additionalProperties": false
+        },
+        "tags": {
+          "type": "string",
+          "description": "Collection of tags describing the picture."
+        },
+        "metadata": {
+          "type": "string",
+          "description": "Map of camera metadata attributes."
+        },
+        "relationship_based_descriptions": {
+          "type": "object",
+          "description": "Collections of objects in the picture with for each: subject, action, location, and relations.",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "description": "The object or person acting in the image."
+                  },
+                  "action": {
+                    "type": "string",
+                    "description": "The action performed by the subject."
+                  },
+                  "location": {
+                    "type": "string",
+                    "description": "The location of the subject in the scene."
+                  },
+                  "relations": {
+                    "type": "string",
+                    "description": "Relationships between subjects and objects."
+                  }
+                },
+                "required": [
+                  "subject",
+                  "action",
+                  "location",
+                  "relations"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "general_descriptions",
+        "story",
+        "technical_analysis",
+        "object_based_descriptions",
+        "tags",
+        "metadata",
+        "relationship_based_descriptions"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

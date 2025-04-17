@@ -47,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+        final responseData = jsonDecode(utf8.decode(response.bodyBytes));
         final token = responseData['token'];
         final userId = responseData['userId'];
         print('Login successful:\n  userId: $userId,\n token: $token');
@@ -91,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
       if (refreshToken != null) {
         final response = await _authService.refreshToken(refreshToken);
         if (response.statusCode == 200) {
-          final responseData = jsonDecode(response.body);
+          final responseData = jsonDecode(utf8.decode(response.bodyBytes));
           final newToken = responseData['token'];
           await _secureStorage.storeToken(newToken);
           if (mounted) {
@@ -136,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
       final response = await _authService.googleLogin(accessToken!);
 
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+        final responseData = jsonDecode(utf8.decode(response.bodyBytes));
         final token = responseData['token'];
         final userId = responseData['userId'];
 
@@ -151,7 +151,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         setState(() {
-          _errorMessage = 'Google login failed: ${response.body}';
+          _errorMessage = 'Google login failed: ${utf8.decode(response.bodyBytes)}';
         });
       }
     } catch (error) {
@@ -172,6 +172,12 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Image.asset(
+            //   'assets/logo-ragtime.png',
+            //   width: 200,
+            //   height: 200,
+            //   fit: BoxFit.contain,
+            // ),
             SvgPicture.asset(
               'logo.svg',
               semanticsLabel: 'My SVG Image',
@@ -180,15 +186,38 @@ class _LoginPageState extends State<LoginPage> {
               fit: BoxFit
                   .contain, // Optional: specify how the SVG should be scaled
             ),
-            Text(
-              'SAMTAL AI',
-              style: GoogleFonts.scada(
-                textStyle: Theme.of(context).textTheme.displayLarge,
-                fontSize: 48,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E4396),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'RAG',
+                    style: GoogleFonts.scada(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1E4396), // Original blue color
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'time',
+                    style: GoogleFonts.scada(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w700,
+                      fontStyle: FontStyle.italic,
+                      color: const Color(0xFFFF9800), // Amber/orange color that complements blue
+                    ),
+                  ),
+                ],
               ),
             ),
+            // Text(
+            //   'SAMTAL AI',
+            //   style: GoogleFonts.scada(
+            //     textStyle: Theme.of(context).textTheme.displayLarge,
+            //     fontSize: 48,
+            //     fontWeight: FontWeight.w700,
+            //     color: const Color(0xFF1E4396),
+            //   ),
+            // ),
             SizedBox(height: 24.0),
             Card(
               shape: RoundedRectangleBorder(

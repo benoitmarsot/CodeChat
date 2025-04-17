@@ -11,7 +11,7 @@ class DiscussionService {
   DiscussionService({required this.authProvider});
   Map<String, String> get _headers => {
         'Authorization': 'Bearer ${authProvider.token}',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8',
       };
 
   
@@ -23,14 +23,16 @@ class DiscussionService {
       body: json.encode({
         'projectId': projectId,
         'name': title ?? 'Discussion',
+        'assistantType': 'codechat',
       }),
     );
     
     if (response.statusCode == 200) {
-      Discussion discussion = Discussion.fromJson(jsonDecode(response.body));
+      Discussion discussion = Discussion.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
       return discussion;
     } else {
-      throw Exception('Failed to create Discussion: ${response.body}');
+      print(utf8.decode(response.bodyBytes));
+      throw Exception('Failed to create Discussion: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -44,9 +46,9 @@ class DiscussionService {
     );
     
     if (response.statusCode == 200) {
-      return Message.fromJson(jsonDecode(response.body));
+      return Message.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception('Failed to ask question: ${response.body}');
+      throw Exception('Failed to ask question: ${utf8.decode(response.bodyBytes)}');
     }
   }
   // Create an openAI run 
@@ -58,9 +60,9 @@ class DiscussionService {
     );
     
     if (response.statusCode == 200) {
-      return Message.fromJson(jsonDecode(response.body));
+      return Message.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception('Failed to answer question: ${response.body}');
+      throw Exception('Failed to answer question: ${utf8.decode(response.bodyBytes)}');
     }
   }
   // Update an existing discussion
@@ -72,9 +74,9 @@ class DiscussionService {
     );
     
     if (response.statusCode != 200) {
-      throw Exception('Failed to update discussion: ${response.body}');
+      throw Exception('Failed to update discussion: ${utf8.decode(response.bodyBytes)}');
     }
-    return Discussion.fromJson(jsonDecode(response.body));
+    return Discussion.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
   }
 
   // Get all discussions for a project
@@ -85,7 +87,7 @@ class DiscussionService {
     );
     
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
       return data.map((json) => Discussion.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load discussions');
@@ -100,7 +102,7 @@ class DiscussionService {
   );
     
     if (response.statusCode == 200) {
-      return Discussion.fromJson(jsonDecode(response.body));
+      return Discussion.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       throw Exception('Failed to load discussion');
     }
@@ -114,7 +116,7 @@ class DiscussionService {
     );
     
     if (response.statusCode == 200) {
-      final String answer = response.body;
+      final String answer = utf8.decode(response.bodyBytes);
       final List<dynamic> data = jsonDecode(answer);
       return data.map((json) => DiscussionNameSuggestion.fromJson(json)).toList();
     } else {
@@ -132,7 +134,7 @@ class DiscussionService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to delete discussion: ${response.body}');
+      throw Exception('Failed to delete discussion: ${utf8.decode(response.bodyBytes)}');
     }
   }
 

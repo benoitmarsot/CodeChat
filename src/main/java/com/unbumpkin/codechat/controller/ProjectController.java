@@ -3,7 +3,6 @@ package com.unbumpkin.codechat.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +24,8 @@ import com.unbumpkin.codechat.service.openai.AssistantService;
 import com.unbumpkin.codechat.service.openai.OaiFileService;
 
 
-
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -53,7 +53,7 @@ public class ProjectController {
 
     @GetMapping("/{projectId}")
     public ResponseEntity<ProjectWithResource> getProject(@PathVariable int projectId) {
-        return ResponseEntity.ok(projectRepository.getProjectById(projectId));
+        return ResponseEntity.ok(projectRepository.getProjectWithResById(projectId));
     }
 
     @GetMapping
@@ -132,18 +132,9 @@ public class ProjectController {
         projectRepository.revokeUserAccessFromProject(projectId, userId);
         return ResponseEntity.ok().build();
     }
-    //consider moving this to the project resource controller
-
-    @PostMapping("/{projectId}/resources")
-    public ResponseEntity<ProjectResource> addResource(@PathVariable int projectId, @RequestBody ProjectResource resource) {
-        ProjectResource createdResource = projectResourceRepository.createResource(projectId, resource.uri(), resource.secrets());
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdResource);
-    }
-    
     @GetMapping("/{projectId}/resources")
-    public ResponseEntity<List<ProjectResource>> getResources(@PathVariable int projectId) {
+    public ResponseEntity<List<ProjectResource>> getProjectResources(@PathVariable int projectId) {
         List<ProjectResource> resources = projectResourceRepository.getResources(projectId);
         return ResponseEntity.ok(resources);
     }
-    
 }

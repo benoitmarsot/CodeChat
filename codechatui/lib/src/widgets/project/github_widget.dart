@@ -22,8 +22,10 @@ class GithubForm extends StatefulWidget {
 
 class _GithubFormState extends State<GithubForm> {
   bool _showCredentials = false;
+
   @override
   Widget build(BuildContext context) {
+    final filledColor = Theme.of(context).colorScheme.surfaceContainerLowest;
     return Column(
       children: [
         Row(
@@ -33,7 +35,9 @@ class _GithubFormState extends State<GithubForm> {
               flex: 3,
               child: TextField(
                 controller: widget.prjRepoURLController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: filledColor,
                   labelText: 'Git Repo URL (HTTPS):',
                 ),
               ),
@@ -43,7 +47,9 @@ class _GithubFormState extends State<GithubForm> {
               flex: 1,
               child: TextField(
                 controller: widget.branchNameController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: filledColor,
                   labelText: 'Branch name:',
                 ),
               ),
@@ -83,8 +89,10 @@ class _GithubFormState extends State<GithubForm> {
                     flex: 2,
                     child: TextField(
                       controller: widget.userNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Git user name (for private repo):',
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: filledColor,
+                        labelText: 'Git user name:',
                       ),
                     ),
                   ),
@@ -93,7 +101,9 @@ class _GithubFormState extends State<GithubForm> {
                     flex: 2,
                     child: TextField(
                       controller: widget.userPswController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: filledColor,
                         labelText: 'Password:',
                       ),
                     ),
@@ -106,7 +116,9 @@ class _GithubFormState extends State<GithubForm> {
                     flex: 4,
                     child: TextField(
                       controller: widget.patController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: filledColor,
                         labelText: 'Or PAT (for private repo):',
                       ),
                     ),

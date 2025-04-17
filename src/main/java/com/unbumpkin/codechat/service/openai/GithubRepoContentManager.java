@@ -73,9 +73,13 @@ public class GithubRepoContentManager extends CCProjectFileManager {
     public String addRepository(
         String repoUrl, String branch
     ) throws GitAPIException, IOException, RateLimitExceededException {
-        checkRateLimit(true); // Check rate limit before cloning
+        //checkRateLimit(true); // Check rate limit before cloning
+        // set the repository URL and branch for getRootUrl.
+        this.repoUrl = repoUrl;
+        this.branch = branch; 
         // Create a temporary directory to clone the repository
         tempDir = Files.createTempDirectory("github-repo-").toFile();
+
         // Clone the repository using JGit
         CloneCommand cloneCmd=Git.cloneRepository()
             .setURI(repoUrl)
@@ -101,6 +105,24 @@ public class GithubRepoContentManager extends CCProjectFileManager {
         }
         return tempDir.getAbsolutePath();
     }
+    private String repoUrl; // Add this field to store the repository URL
+    private String branch;
+    /**
+     * Get the root directory url in github
+     */
+    public String getRootUrl() {
+        if (repoUrl == null) {
+            return null;
+        }
+        
+        // Transform Git URL to GitHub web URL
+        String webUrl = repoUrl
+            .replace("git@github.com:", "https://github.com/")
+            .replace(".git", "");
+            
+        return webUrl+"/blob/"+this.branch+"/";
+    }
+        
 
     public void deleteRepository() {
         if (tempDir != null && tempDir.exists()) {
@@ -288,7 +310,7 @@ public class GithubRepoContentManager extends CCProjectFileManager {
             throw new IOException("Error processing GitHub API response: " + e.getMessage(), e);
         }
     }
-
+    @Override
     public String getTempDir() {
         return tempDir.getAbsolutePath();
     }
@@ -340,65 +362,71 @@ public class GithubRepoContentManager extends CCProjectFileManager {
             Files.write(destFile.toPath(), contentBytes);
         }
     }
-/**
- * Checks the current GitHub API rate limit status.
- * 
- * @param throwOnLow if true, throws an exception when rate limit is critically low
- * @return a map containing rate limit information
- * @throws IOException if an error occurs during the API request
- * @throws RateLimitExceededException if the rate limit is critically low and throwOnLow is true
- */
-public GitHubRateLimit checkRateLimit(boolean throwOnLow) throws IOException, RateLimitExceededException {
-    URL url = new URL("https://api.github.com/rate_limit");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-    connection.setRequestProperty("Accept", "application/vnd.github.v3+json");
-    
-    // Add authentication if available (strongly recommended to get higher rate limits)
-    if (username != null && !username.isEmpty()) {
-        String auth = username + ":" + (password == null ? "" : password);
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
-        connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
+    /**
+     * Checks the current GitHub API rate limit status.
+     * 
+     * @param throwOnLow if true, throws an exception when rate limit is critically low
+     * @return a map containing rate limit information
+     * @throws IOException if an error occurs during the API request
+     * @throws RateLimitExceededException if the rate limit is critically low and throwOnLow is true
+     */
+    public GitHubRateLimit checkRateLimit(boolean throwOnLow) throws IOException, RateLimitExceededException {
+        URL url = new URL("https://api.github.com/rate_limit");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Accept", "application/vnd.github.v3+json");
+        
+        // Add authentication if available (strongly recommended to get higher rate limits)
+        if (username != null && !username.isEmpty()) {
+            if (password != null && password.startsWith("ghp_")) {
+                // This is a PAT token, use token authentication
+                connection.setRequestProperty("Authorization", "token " + password);
+            } else {
+                // Fall back to basic auth
+                String auth = username + ":" + (password == null ? "" : password);
+                String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+                connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
+            }
+        }
+        
+        int responseCode = connection.getResponseCode();
+        if (responseCode != 200) {
+            throw new IOException("Failed to check GitHub rate limit: HTTP " + responseCode);
+        }
+        
+        // Parse response
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode json = mapper.readTree(connection.getInputStream());
+        JsonNode coreLimit = json.get("resources").get("core");
+        
+        int limit = coreLimit.get("limit").asInt();
+        int remaining = coreLimit.get("remaining").asInt();
+        long resetTimestamp = coreLimit.get("reset").asLong();
+        
+        // Calculate time until reset
+        long currentTime = System.currentTimeMillis() / 1000;
+        long waitSeconds = Math.max(0, resetTimestamp - currentTime);
+        
+        // Format reset time
+        Instant resetInstant = Instant.ofEpochSecond(resetTimestamp);
+        LocalDateTime resetTime = LocalDateTime.ofInstant(resetInstant, ZoneId.systemDefault());
+        String formattedResetTime = resetTime.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        
+        GitHubRateLimit rateLimit = new GitHubRateLimit(limit, remaining, resetTimestamp, waitSeconds, formattedResetTime);
+        
+        // Check if we're running too close to the limit
+        if (throwOnLow && remaining < 10) {
+            throw new RateLimitExceededException("GitHub API rate limit nearly exhausted: " + 
+                remaining + " requests remaining. Resets at " + formattedResetTime + 
+                " (" + formatDuration(waitSeconds) + ").", rateLimit);
+        }
+        
+        return rateLimit;
     }
-    
-    int responseCode = connection.getResponseCode();
-    if (responseCode != 200) {
-        throw new IOException("Failed to check GitHub rate limit: HTTP " + responseCode);
-    }
-    
-    // Parse response
-    ObjectMapper mapper = new ObjectMapper();
-    JsonNode json = mapper.readTree(connection.getInputStream());
-    JsonNode coreLimit = json.get("resources").get("core");
-    
-    int limit = coreLimit.get("limit").asInt();
-    int remaining = coreLimit.get("remaining").asInt();
-    long resetTimestamp = coreLimit.get("reset").asLong();
-    
-    // Calculate time until reset
-    long currentTime = System.currentTimeMillis() / 1000;
-    long waitSeconds = Math.max(0, resetTimestamp - currentTime);
-    
-    // Format reset time
-    Instant resetInstant = Instant.ofEpochSecond(resetTimestamp);
-    LocalDateTime resetTime = LocalDateTime.ofInstant(resetInstant, ZoneId.systemDefault());
-    String formattedResetTime = resetTime.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-    
-    GitHubRateLimit rateLimit = new GitHubRateLimit(limit, remaining, resetTimestamp, waitSeconds, formattedResetTime);
-    
-    // Check if we're running too close to the limit
-    if (throwOnLow && remaining < 10) {
-        throw new RateLimitExceededException("GitHub API rate limit nearly exhausted: " + 
-            remaining + " requests remaining. Resets at " + formattedResetTime + 
-            " (" + formatDuration(waitSeconds) + ").", rateLimit);
-    }
-    
-    return rateLimit;
-}
 
-/**
- * Formats duration in seconds to a human-readable string.
- */
+    /**
+     * Formats duration in seconds to a human-readable string.
+     */
     private String formatDuration(long seconds) {
         Duration duration = Duration.ofSeconds(seconds);
         long hours = duration.toHours();

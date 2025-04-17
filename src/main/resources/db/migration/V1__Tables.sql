@@ -18,7 +18,8 @@ create table if not exists usersecret (
 create table projectresource (
     prid serial,
     projectid int not null,
-    uri varchar(512) not null
+    uri varchar(512) not null,
+    restype varchar(20) not null -- git, file, zip, slack, web, etc, ...
 );
 
 create table if not exists oaifile (
@@ -46,6 +47,34 @@ create table if not exists vectorstore (
 create table if not exists vectorstore_oaifile (
     vsid int not null,
     fid int not null
+);
+
+create table if not exists socialuser (
+    userid varchar(32) not null,
+    prid int not null,
+    fname varchar(50) not null,
+    email varchar(320) null
+);
+
+create table if not exists socialchannel (
+    channelid varchar(20) not null,
+    prid int not null,
+    channelname varchar(50) not null,
+    lastmessagets varchar(30) not null
+);
+create table if not exists socialassistant (
+    aid serial,
+    oai_aid varchar(30) not null,
+    projectid int not null,
+    name varchar(256) not null,
+    description varchar(512) null,
+    instruction text not null,
+    reasoningeffort varchar(20) not null,
+    model varchar(20) not null,
+    temperature float not null,
+    maxresults int not null default(10),
+    vsid int not null,
+    created timestamp not null default now()
 );
 
 create table if not exists assistant (
@@ -102,6 +131,7 @@ create table if not exists discussion (
     name varchar(256) null,
     description varchar(512) null,
     isfavorite boolean default false,
+    assistanttype varchar(20) not null, -- codechat, social
     created timestamp DEFAULT now()
 );
 

@@ -283,4 +283,60 @@ BEGIN
             foreign key (projectid) references project(projectid)
             on delete cascade;
     end if;
+    -- Foreign key for socialuser(prid) -> projectressource(prid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'socialuser'
+            and constraint_schema = 'core'
+            and constraint_name = 'socialuser_fk_projectresource'
+    ) then
+        raise notice 'Creating socialuser_fk_projectresource...';
+        alter table socialuser
+            add constraint socialuser_fk_projectresource
+            foreign key (prid) references projectresource(prid)
+            on delete cascade;
+    end if;
+    -- Foreign key for socialchannel(prid) -> projectressource(prid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'socialchannel'
+            and constraint_schema = 'core'
+            and constraint_name = 'socialchannel_fk_projectresource'
+    ) then
+        raise notice 'Creating socialchannel_fk_projectresource...';
+        alter table socialchannel
+            add constraint socialchannel_fk_projectresource
+            foreign key (prid) references projectresource(prid)
+            on delete cascade;
+    end if;
+    -- Foreign key for socialassistant(projectid) -> project(projectid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'socialassistant'
+            and constraint_schema = 'core'
+            and constraint_name = 'socialassistant_fk_project'
+    ) then
+        raise notice 'Creating socialassistant_fk_project...';
+        alter table socialassistant
+            add constraint socialassistant_fk_project
+            foreign key (projectid) references project(projectid)
+            on delete cascade;
+    end if;
+    -- Foreign key for socialassistant(vsid) -> vectorstore(vsid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'socialassistant'
+            and constraint_schema = 'core'
+            and constraint_name = 'socialassistant_fk_vectorstore'
+    ) then
+        raise notice 'Creating socialassistant_fk_vectorstore...';
+        alter table socialassistant
+            add constraint socialassistant_fk_vectorstore
+            foreign key (vsid) references vectorstore(vsid)
+            on delete cascade;
+    end if;
 END $$;

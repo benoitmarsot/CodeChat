@@ -6,7 +6,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.unbumpkin.codechat.model.openai.Assistant;
+import com.unbumpkin.codechat.dto.openai.Assistant;
+import com.unbumpkin.codechat.dto.openai.AssistantTypes;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 
@@ -41,7 +42,13 @@ public record ModifyAssistantRequest(
      * Only for admin (may break the chat)
      * full instruction customization
      */
-    String fullInstruction
+    String fullInstruction,
+    /**
+     * Type of assistant
+     * 1. codechat
+     * 2. social
+     */
+    AssistantTypes assistantType 
 ) {
     public ModifyAssistantRequest {
         if (temperature!=null && (temperature < 0 || temperature > 2.0)) {
@@ -50,6 +57,8 @@ public record ModifyAssistantRequest(
         if(maxResults < 1 || maxResults > 50) {
             throw new IllegalArgumentException("Max results must be between 1 and 50");
         }
+        // Add default value for assistantType if null
+        assistantType = assistantType == null ? AssistantTypes.codechat : assistantType;
     }
     private static Pattern functionPattern = Pattern.compile("<Function:[^>]*>");
     private String getInstructions(String existingInstruction) {
@@ -81,12 +90,8 @@ public record ModifyAssistantRequest(
             )
         )));
         
-        if(temperature() != null) {
-            oaiMap.put("temperature", temperature());
-        }
-        if(reasoningEffort != null) {
-            oaiMap.put("reasoning_effort", reasoningEffort());
-        }
+        oaiMap.put("temperature", temperature());
+        oaiMap.put("reasoning_effort", reasoningEffort());
         
         return oaiMap;
     }

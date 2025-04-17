@@ -15,7 +15,7 @@ import com.unbumpkin.codechat.util.FileUtils;
 
 public class CCProjectFileManager {
     public enum Types {
-        code, markup, config, all, html
+        code, markup, config, image, all, social
     }
 
     public static final Set<String> CodeExtensions = Set.of(
@@ -36,8 +36,11 @@ public class CCProjectFileManager {
         "yml", "yaml", "ini", "cfg", "conf", "properties", "toml", "env", "envrc", 
         "config", "plist", "hcl", "tf", "tfvars", "psm1", "psc1", "reg", "inf", "info"
     );
+    public static final Set<String> ImagesExtensions = Set.of(
+        "png","jpg","jpeg","webp","gif"
+    );
     public static final Set<String> AllExtensions = Stream.of(
-            CodeExtensions, MarkupExtensions, ConfigExtensions
+            CodeExtensions, MarkupExtensions, ConfigExtensions, ImagesExtensions
         ).flatMap(Set::stream)
         .collect(Collectors.toSet()
     );
@@ -51,15 +54,18 @@ public class CCProjectFileManager {
     }
 
     private final Map<Types, Set<File>> fileSetMap;
+    private File dir;
 
     public CCProjectFileManager() {
+        dir=null;
         this.fileSetMap = new HashMap<>();
         fileSetMap.put(Types.code, new HashSet<>());
         fileSetMap.put(Types.config, new HashSet<>());
         fileSetMap.put(Types.markup, new HashSet<>());
+        fileSetMap.put(Types.image, new HashSet<>());
     }
     public String addDir(String dirName) throws IOException {
-        File dir = new File(dirName);
+        dir = new File(dirName);
         if (dir.exists() && dir.isDirectory()) {
             List<File> files = FileUtils.listFiles(dirName, AllExtensions);
             if (files != null) {
@@ -70,6 +76,10 @@ public class CCProjectFileManager {
         }
         return dir.getAbsolutePath();
     }
+    public String getTempDir() {
+        return dir.getAbsolutePath();
+    }
+
     public static Types getFileType(File file) {
         return getFileType(file.getName());
     }
@@ -79,6 +89,8 @@ public class CCProjectFileManager {
             return Types.code;
         } else if (MarkupExtensions.contains(extension)) {
             return Types.markup;
+        } else if (ImagesExtensions.contains(extension)) {
+            return Types.image;
         }
         return Types.config;
     }
@@ -90,6 +102,9 @@ public class CCProjectFileManager {
     }
     public Set<File> getAllFiles() {
         return Stream.of(Types.values())
+            .filter(type -> type != Types.all )
+            .filter(type -> type != Types.social )
+            .filter(type -> fileSetMap.get(type) != null)
             .flatMap(type -> fileSetMap.get(type).stream())
             .collect(Collectors.toSet());
     }

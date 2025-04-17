@@ -12,7 +12,7 @@ class MessageService {
   
   Map<String, String> get _headers => {
     'Authorization': 'Bearer ${authProvider.token}',
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json; charset=UTF-8',
   };
 
   // Add a new message to a discussion
@@ -24,9 +24,9 @@ class MessageService {
     );
     
     if (response.statusCode == 200) {
-      return Message.fromJson(jsonDecode(response.body));
+      return Message.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception('Failed to add message: ${response.body}');
+      throw Exception('Failed to add message: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -38,9 +38,9 @@ class MessageService {
     );
     
     if (response.statusCode == 200) {
-      return Message.fromJson(jsonDecode(response.body));
+      return Message.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception('Failed to load message: ${response.body}');
+      throw Exception('Failed to load message: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -52,10 +52,10 @@ class MessageService {
     );
     
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
       return data.map((json) => Message.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load messages: ${response.body}');
+      throw Exception('Failed to load messages: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -68,7 +68,7 @@ class MessageService {
     );
     
     if (response.statusCode != 200) {
-      throw Exception('Failed to update message: ${response.body}');
+      throw Exception('Failed to update message: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -80,7 +80,7 @@ class MessageService {
     );
     
     if (response.statusCode != 200) {
-      throw Exception('Failed to delete message: ${response.body}');
+      throw Exception('Failed to delete message: ${utf8.decode(response.bodyBytes)}');
     }
   }
 }

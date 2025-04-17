@@ -3,9 +3,11 @@ package com.unbumpkin.codechat.service.openai;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -22,7 +24,14 @@ public class OaiMessageService extends BaseOpenAIClient {
 
     public String createMessage(Roles role, String content) throws IOException {
         String url = String.format(API_URL, threadId);
-        String json = String.format("{\"role\": \"%s\", \"content\": \"%s\"}", role.toString(), content);
+        
+        // Use ObjectMapper to properly escape content
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+        jsonNode.put("role", role.toString());
+        jsonNode.put("content", content);
+        String json = mapper.writeValueAsString(jsonNode);
+        
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()
@@ -67,9 +76,13 @@ public class OaiMessageService extends BaseOpenAIClient {
         return this.executeRequest(request);
     }
 
-    public JsonNode modifyMessage(String messageId, String metadata) throws IOException {
+    public JsonNode modifyMessage(String messageId, String text, String metadata) throws IOException {
         String url = String.format(API_URL + "/%s", threadId, messageId);
-        String json = String.format("{\"metadata\": %s}", metadata);
+        Map<String,Object> modRequest = Map.of(
+            "metadata", metadata
+        );
+        String json = objectMapper.writeValueAsString(modRequest);
+
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
 
         Request request = new Request.Builder()

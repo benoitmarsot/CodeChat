@@ -1,0 +1,35 @@
+{
+    "format": {
+      "type": "json_schema",
+      "name": "image_description_response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Brief summary of the image."
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Key objects detected in the image."
+          },
+          "scene": {
+            "type": "string",
+            "description": "Short description of the scene."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keywords describing the image."
+          }
+        },
+        "required": ["description", "objects", "scene", "tags"],  
+        "additionalProperties": false
+      }
+    }
+  }

@@ -48,53 +48,75 @@ class _MainPage extends State<MainPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     Widget page;
     switch (selectedIndex) {
       case 0:
         page = ProjectPage();
+        break;
       case 1:
         page = AboutPage();
+        break;
       case 2:
         page = PricingPage();
+        break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
+
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
         body: Row(
           children: [
             SafeArea(
-              child: NavigationRail(
-                extended: constraints.maxWidth > 600,
-                destinations: [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.folder),
-                    label: Text('Projects'),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: NavigationRail(
+                      extended: constraints.maxWidth > 600,
+                      destinations: [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.folder),
+                          label: Text('Projects'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.info_outline),
+                          label: Text('About Codechat'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.workspace_premium),
+                          label: Text('Upgrade'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.logout),
+                          label: Text('Logout'),
+                        ),
+                      ],
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: (value) {
+                        if (value == 3) {
+                          _handleLogout();
+                        } else {
+                          setState(() {
+                            selectedIndex = value;
+                          });
+                        }
+                      },
+                    ),
                   ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.info_outline),
-                    label: Text('About Codechat'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.workspace_premium),
-                    label: Text('Upgrade'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.logout),
-                    label: Text('Logout'),
+                  // Add the theme toggle button below the NavigationRail
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: IconButton(
+                      icon: Icon(
+                        widget.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                      ),
+                      tooltip: 'Toggle Theme',
+                      onPressed: widget.onThemeToggle,
+                    ),
                   ),
                 ],
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (value) {
-                  if (value == 3) {
-                    _handleLogout();
-                  } else {
-                    setState(() {
-                      selectedIndex = value;
-                    });
-                  }
-                },
               ),
             ),
             Expanded(

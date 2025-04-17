@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:codechatui/src/login_page.dart';
+import 'package:codechatui/src/models/openai/assistant.dart';
 
 class ErrorHandler {
   static void handleForbiddenError(BuildContext context, String message) {

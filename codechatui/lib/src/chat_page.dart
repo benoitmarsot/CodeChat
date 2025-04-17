@@ -330,21 +330,15 @@ class _ChatPageState extends State<ChatPage>
             },
             tooltip: 'Back to Home',
           ),
-          IconButton(
-            icon: const Icon(Icons.add_comment),
-            onPressed: () {
-              setState(() {
-                _selectedDiscussionId = 0;
-                _messages.clear();
-              });
-            },
-            tooltip: 'New Discussion',
-          ),
-          IconButton(
-            icon: const Icon(Icons.light_mode),
-            onPressed: widget.onThemeToggle,
-            tooltip: 'Toggle theme',
-          ),
+          TextButton.icon(
+              icon: Icon(Icons.add),
+              label: Text('New Discussion'),
+              onPressed: () {
+                setState(() {
+                  _selectedDiscussionId = 0;
+                  _messages.clear();
+                });
+              }),
         ],
       ),
       body: Row(

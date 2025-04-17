@@ -37,7 +37,7 @@ public class VectorStoreRepository {
         String name,
         String description,
         Instant created,
-        long dayskeep,
+        Integer dayskeep,
         Types type
     ) { }
 
@@ -116,8 +116,21 @@ public class VectorStoreRepository {
      * @return A list of all VectorStores for the project.
      */
     public List<RepoVectorStoreResponse> getVectorStoresByProjectId(int projectId) {
-        String sql = "SELECT * FROM vectorstore WHERE projectid = ?";
+        String sql = "SELECT * FROM vectorstore WHERE projectid = ? and type != 'social'";
         return jdbcTemplate.query(sql, rowMapper, projectId);
+    }
+    /**
+     * Retrieves the social VectorStore for a specific project.
+     * @param projectId: The ID of the project to retrieve VectorStores for.
+     * @return the social VectorStore for the project.
+     */
+    public RepoVectorStoreResponse getSocialVectorStoreByProjectId(int projectId) {
+        try {
+            String sql = "SELECT * FROM vectorstore WHERE projectid = ? and type = 'social'";
+            return jdbcTemplate.queryForObject(sql, rowMapper, projectId);
+        } catch (DataAccessException e) {
+            return null;
+        }
     }
 
     /**

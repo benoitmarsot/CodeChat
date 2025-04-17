@@ -7,5 +7,8 @@ public record ProjectResource(
     int prId,
     int projectId, 
     String uri,
+    ResTypes resType,
     Map<Labels,UserSecret> secrets
-) {}
+) {
+    public enum ResTypes {git, file, zip, slack, discord};
+}
