@@ -64,8 +64,9 @@ class DiscussionUpdateRequest {
   final String name;
   final String description;
   final bool isFavorite;
+  final String ? assistantType;
 
-  DiscussionUpdateRequest({required this.did, required this.name, required this.description, required this.isFavorite });
+  DiscussionUpdateRequest({required this.did, required this.name, required this.description, required this.isFavorite, this.assistantType });
 
   Map<String, dynamic> toJson() {
     return {
@@ -73,6 +74,7 @@ class DiscussionUpdateRequest {
       'name': name,
       'description': description,
       'isFavorite': isFavorite,
+      'assistantType': assistantType??'codechat',
     };
   }
 }
