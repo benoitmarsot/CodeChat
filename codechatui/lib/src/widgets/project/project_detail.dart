@@ -1,5 +1,8 @@
 import 'dart:async';
-
+// import 'package:sse_client/sse_client.dart';
+//import 'package:eventsource/eventsource.dart';
+//import 'package:flutter_client_sse/flutter_client_sse.dart';
+//import 'package:flutter_client_sse/constants/sse_request_type_enum.dart'
 import 'package:codechatui/src/config/app_config.dart';
 import 'package:codechatui/src/models/exceptions.dart';
 import 'package:codechatui/src/models/project.dart';
@@ -22,6 +25,7 @@ enum Temperature { extraSmall, small, medium, large, extraLarge }
 class ProjectDetail extends StatefulWidget {
   final int projectId; // Prop for initial value
   final bool isEditing;
+
   final Future<void> Function()? onSave;
   //final ValueChanged<Project?>? onProjectChanged; // Callback for changes
 
@@ -47,10 +51,11 @@ class _ProjectDetailState extends State<ProjectDetail>
   final TextEditingController _webURLController = TextEditingController();
   final TextEditingController _prjAssistantController = TextEditingController();
   final TextEditingController _prjContextController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   int? _projectId;
   Future<void> Function()? _onSave;
-  //Object _model =
+  List<String> _debugMessages = [];
 
   String _createdMessage = '';
   String? _errorMessage;
@@ -61,6 +66,7 @@ class _ProjectDetailState extends State<ProjectDetail>
 
   DataSourceType _selectedDataSource = DataSourceType.github;
   bool _isEditing = false;
+  bool _loadingFiles = false;
   Project? _selectedProject;
   List<ProjectResource> _selectedProjectResources = [];
   late TabController _tabController;
@@ -82,6 +88,7 @@ class _ProjectDetailState extends State<ProjectDetail>
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -303,6 +310,10 @@ class _ProjectDetailState extends State<ProjectDetail>
         actions: [
           TextButton(
             onPressed: _deleteProject,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, // Button color
+              foregroundColor: Colors.white, // Text color
+            ),
             child: Text('Delete'),
           ),
           TextButton(
@@ -434,6 +445,18 @@ class _ProjectDetailState extends State<ProjectDetail>
     }
   }
 
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   Widget _buildProjectDetail() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // Project tab content
@@ -533,6 +556,14 @@ class _ProjectDetailState extends State<ProjectDetail>
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // ElevatedButton(
+
+                      //   onPressed: testSubscription,
+                      //   style: ElevatedButton.styleFrom(
+                      //     textStyle: TextStyle(fontSize: 20),
+                      //   ),
+                      //   child: Text(_loadingFiles ? 'Stop' : 'Start'),
+                      // ),
                       ElevatedButton(
                         onPressed: _cancelEdit,
                         style: ElevatedButton.styleFrom(
@@ -571,6 +602,33 @@ class _ProjectDetailState extends State<ProjectDetail>
                     ],
                   )),
           ),
+          // Column(
+          //   crossAxisAlignment: CrossAxisAlignment.start,
+          //   children: _debugMessages.isNotEmpty
+          //       ? [
+          //           Container(
+          //               height: 150,
+          //               decoration: BoxDecoration(
+          //                 border: Border.all(color: Colors.grey),
+          //                 borderRadius: BorderRadius.circular(8.0),
+          //                 color: Theme.of(context)
+          //                     .colorScheme
+          //                     .primary
+          //                     .withOpacity(0.1),
+          //               ),
+          //               child: ListView.builder(
+          //                 controller: _scrollController,
+          //                 itemCount: _debugMessages.length,
+          //                 itemBuilder: (context, index) {
+          //                   return Padding(
+          //                     padding: const EdgeInsets.all(4.0),
+          //                     child: Text(_debugMessages[index]),
+          //                   );
+          //                 },
+          //               )),
+          //         ]
+          //       : [],
+          // ),
         ],
       ),
     ]);
@@ -588,7 +646,11 @@ class _ProjectDetailState extends State<ProjectDetail>
         );
       case DataSourceType.zip:
         return (_projectId != null && _projectId! > 0)
-            ? ZipForm(projectId: _projectId!, onFileSelected: _handleFileAPI)
+            ? ZipForm(
+                projectId: _projectId!,
+                onFileSelected: addFilesToProject,
+                isLoading: _loadingFiles,
+                debugMessages: _debugMessages)
             : Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -655,7 +717,9 @@ class _ProjectDetailState extends State<ProjectDetail>
                 child: ElevatedButton.icon(
                   label: const Text('Delete Project'),
                   icon: Icon(Icons.delete),
-                  // color: Colors.red,
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
                   onPressed: _handleDelete,
                 ),
               ),
@@ -694,50 +758,156 @@ class _ProjectDetailState extends State<ProjectDetail>
     );
   }
 
-  Future<void> _handleFileAPI(String content, String fileName) async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final codechatService = CodechatService(authProvider: authProvider);
-
+  Future<void> addFilesToProject(String content, String fileName) async {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return Dialog(
-          child: Padding(
+        return AlertDialog(
+          content: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 16),
-                Text("Adding files...\nIt will take a while..."),
-              ],
-            ),
+            child: Text("Adding $fileName to Project?"),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+                _handleFileAPI(content, fileName);
+              },
+              child: Text('Add',
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.primary)),
+            ),
+          ],
         );
       },
     );
+  }
+
+  Future<void> _handleFileAPI(String content, String fileName) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final codechatService = CodechatService(authProvider: authProvider);
+
+    setState(() {
+      _loadingFiles = true;
+      _errorMessage = null; // Clear previous error
+    });
     try {
+      subscribeToMessages();
       await codechatService.addProjectZip(_projectId!, content, fileName);
 
       // Dismiss loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      // if (mounted) {
+      //   Navigator.of(context).pop();
+      // }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text('File(s) uploaded successfully!'),
             backgroundColor: Colors.greenAccent),
       );
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to fetch project details: $e';
-      });
-    } finally {
-      if (mounted && _errorMessage != null && _errorMessage!.isNotEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to fetch project details: $e';
+        });
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingFiles = false;
+        });
+        if (_errorMessage != null && _errorMessage!.isNotEmpty) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
+        }
+      }
+    }
+  }
+
+  void subscribeToMessages() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final codechatService = CodechatService(authProvider: authProvider);
+
+    try {
+      if (_loadingFiles) {
+        await codechatService.subscribeToMessages('debug', (event, data) {
+          setState(() {
+            _debugMessages = [..._debugMessages!, data];
+            //_debugMessages.add(data);
+          });
+          _scrollToBottom();
+        }, (error) {
+          if (mounted) {
+            setState(() {
+              _errorMessage = 'Error: $error';
+            });
+          }
+        }, () {
+          if (mounted) {
+            setState(() {
+              _loadingFiles = false;
+            });
+          }
+        });
+      } else {
+        unSubscribeToMessages();
+      }
+    } catch (e) {
+      print('Error connecting to SSE: $e');
+    }
+  }
+
+  void unSubscribeToMessages() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final codechatService = CodechatService(authProvider: authProvider);
+
+    try {
+      await codechatService.unSubscribeToMessages();
+      setState(() {
+        _loadingFiles = false;
+      });
+    } catch (e) {
+      print('Error stopping SSE subscription: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error stopping SSE subscription: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> testSubscription() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final codechatService = CodechatService(authProvider: authProvider);
+
+    if (!_loadingFiles) {
+      setState(() {
+        _loadingFiles = true;
+      });
+
+      await codechatService.subscribeToMessages('testdebug', (event, data) {
+        setState(() {
+          _debugMessages.add(data);
+        });
+      }, (error) {
+        setState(() {
+          _errorMessage = 'Error: $error';
+        });
+      }, () {
+        setState(() {
+          _loadingFiles = false;
+        });
+      });
+    } else {
+      unSubscribeToMessages();
+      setState(() {
+        _loadingFiles = false;
+      });
     }
   }
 }
