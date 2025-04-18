@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import static java.net.URLEncoder.encode;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class WebCrawlerContentManager extends CCProjectFileManager {
     private File tempDir;
@@ -33,6 +35,7 @@ public class WebCrawlerContentManager extends CCProjectFileManager {
     private List<String> allowedDomains;
     private RateLimit rateLimit;
     private Set<String> excludedFileTypes;
+    private Set<String> excludedDirectories;
 
     /**
      * Creates a new WebCrawlerContentManager with default settings.
@@ -61,8 +64,10 @@ public class WebCrawlerContentManager extends CCProjectFileManager {
         this.crawledUrls = new HashSet<>();
         this.allowedDomains = new ArrayList<>();
         this.rateLimit = new RateLimit(requestsPerMinute, 1);
+        this.excludedDirectories = new HashSet<>();
+        this.excludedDirectories.add("frontier"); // Add "frontier" by default
         this.excludedFileTypes = new HashSet<>();
-        
+
         // If not including documents/images, add their extensions to excluded types
         if (!includeDocuments) {
             this.excludedFileTypes.addAll(List.of("pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx"));
@@ -91,6 +96,27 @@ public class WebCrawlerContentManager extends CCProjectFileManager {
         if (fileTypes != null) {
             for (String type : fileTypes) {
                 excludedFileTypes.remove(type.toLowerCase());
+            }
+        }
+    }
+    /**
+     * Add directories to exclude from crawling
+     */
+    public void excludeDirectories(String... directories) {
+        if (directories != null) {
+            for (String dir : directories) {
+                excludedDirectories.add(dir.toLowerCase());
+            }
+        }
+    }
+
+    /**
+     * Remove directories from exclusion list
+     */
+    public void includeDirectories(String... directories) {
+        if (directories != null) {
+            for (String dir : directories) {
+                excludedDirectories.remove(dir.toLowerCase());
             }
         }
     }
@@ -193,13 +219,13 @@ public class WebCrawlerContentManager extends CCProjectFileManager {
     }
     
     /**
-     * Saves crawled content to a file in the temp directory.
+     * Saves crawled content to a file in the temp directory, preserving website structure.
      */
     protected void saveContent(String url, String contentType, String content) {
         try {
-            // Create a file name based on the URL
-            String fileName = urlToFileName(url, contentType);
-            File outputFile = new File(tempDir, fileName);
+            // Create a file name based on the URL that preserves directory structure
+            String relativePath = urlToFileName(url, contentType);
+            File outputFile = new File(tempDir, relativePath);
             
             // Create parent directories if needed
             outputFile.getParentFile().mkdirs();
@@ -219,15 +245,15 @@ public class WebCrawlerContentManager extends CCProjectFileManager {
             System.err.println("Error saving content for URL: " + url + " - " + e.getMessage());
         }
     }
-    
+
     /**
-     * Saves binary content to a file in the temp directory.
+     * Saves binary content to a file in the temp directory, preserving website structure.
      */
     protected void saveBinaryContent(String url, String contentType, byte[] content) {
         try {
-            // Create a file name based on the URL
-            String fileName = urlToFileName(url, contentType);
-            File outputFile = new File(tempDir, fileName);
+            // Create a file name based on the URL that preserves directory structure
+            String relativePath = urlToFileName(url, contentType);
+            File outputFile = new File(tempDir, relativePath);
             
             // Create parent directories if needed
             outputFile.getParentFile().mkdirs();
@@ -247,39 +273,77 @@ public class WebCrawlerContentManager extends CCProjectFileManager {
     }
     
     /**
-     * Converts a URL to a valid file name.
+     * Converts a URL to a path that preserves the website directory structure.
      */
     private String urlToFileName(String url, String contentType) {
-        // Remove http:// or https:// prefix
-        String fileName = url.replaceFirst("^(http|https)://", "");
+        // Remove protocol prefix
+        String path = url.replaceFirst("^(http|https)://", "");
         
-        // Replace invalid characters with underscores
-        fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
+        // Extract domain and path parts
+        String domain;
+        String pathPart;
         
-        // Handle the file extension based on content type if missing
-        if (contentType != null) {
-            if (contentType.contains("text/html") && !fileName.endsWith(".html")) {
-                fileName += ".html";
-            } else if (contentType.contains("text/css") && !fileName.endsWith(".css")) {
-                fileName += ".css";
-            } else if (contentType.contains("application/javascript") && !fileName.endsWith(".js")) {
-                fileName += ".js";
-            } else if (contentType.contains("image/jpeg") && !fileName.endsWith(".jpg")) {
-                fileName += ".jpg";
-            } else if (contentType.contains("image/png") && !fileName.endsWith(".png")) {
-                fileName += ".png";
-            } else if (contentType.contains("image/gif") && !fileName.endsWith(".gif")) {
-                fileName += ".gif";
-            } else if (contentType.contains("application/json") && !fileName.endsWith(".json")) {
-                fileName += ".json";
-            } else if ((contentType.contains("application/xml") || contentType.contains("text/xml"))
-                    && !fileName.endsWith(".xml")
-            ) {
-                fileName += ".xml";
+        int slashIndex = path.indexOf('/');
+        if (slashIndex != -1) {
+            domain = path.substring(0, slashIndex);
+            pathPart = path.substring(slashIndex + 1);
+        } else {
+            domain = path;
+            pathPart = "";
+        }
+        
+        // Clean domain (replace invalid characters)
+        domain = encode(domain,UTF_8).replace("+", "%20");
+        
+        // Build the base path starting with the domain
+        StringBuilder filePath = new StringBuilder(domain);
+        
+        // Process the path part
+        if (pathPart.isEmpty() || pathPart.equals("#") || pathPart.endsWith("/")) {
+            // Handle domain root or directory paths - use index.html
+            if (filePath.length() > 0 && filePath.charAt(filePath.length()-1) != '/') {
+                filePath.append('/');
+            }
+            filePath.append("index.html");
+        } else {
+            // For normal pages, preserve the path structure
+            filePath.append('/').append(pathPart);
+            
+            // Clean up the path (replace invalid chars but preserve slashes)
+            String cleanPath = filePath.toString().replaceAll("[*?\"<>|]", "_");
+            filePath = new StringBuilder(cleanPath);
+            
+            // Handle file extension based on content type if missing
+            boolean hasExtension = false;
+            for (String ext : new String[]{".html", ".css", ".js", ".jpg", ".jpeg", ".png", ".gif", ".json", ".xml"}) {
+                if (filePath.toString().toLowerCase().endsWith(ext)) {
+                    hasExtension = true;
+                    break;
+                }
+            }
+            
+            if (!hasExtension && contentType != null) {
+                if (contentType.contains("text/html")) {
+                    filePath.append(".html");
+                } else if (contentType.contains("text/css")) {
+                    filePath.append(".css");
+                } else if (contentType.contains("application/javascript")) {
+                    filePath.append(".js");
+                } else if (contentType.contains("image/jpeg")) {
+                    filePath.append(".jpg");
+                } else if (contentType.contains("image/png")) {
+                    filePath.append(".png");
+                } else if (contentType.contains("image/gif")) {
+                    filePath.append(".gif");
+                } else if (contentType.contains("application/json")) {
+                    filePath.append(".json");
+                } else if (contentType.contains("application/xml") || contentType.contains("text/xml")) {
+                    filePath.append(".xml");
+                }
             }
         }
         
-        return fileName;
+        return filePath.toString();
     }
     
     /**
@@ -361,6 +425,13 @@ public class WebCrawlerContentManager extends CCProjectFileManager {
             // Check if the URL ends with any excluded extension
             for (String ext : manager.excludedFileTypes) {
                 if (href.endsWith("." + ext)) {
+                    return false;
+                }
+            }
+            // Check if the URL contains any excluded directory
+            for (String dir : manager.excludedDirectories) {
+                // Check for "/dirname/" or "/dirname" at the end of the URL
+                if (href.contains("/" + dir + "/") || href.endsWith("/" + dir)) {
                     return false;
                 }
             }
