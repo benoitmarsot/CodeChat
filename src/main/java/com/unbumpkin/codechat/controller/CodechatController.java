@@ -223,11 +223,11 @@ public class CodechatController {
             }
             
             // Start crawling
-            System.out.println("Starting web crawl from URL: " + request.seedUrl());
+             writeMessage("Starting web crawl from URL: " + request.seedUrl());
             String crawlResult = request.allowedDomains() != null && !request.allowedDomains().isEmpty() ?
                 webManager.crawlWebsite(request.seedUrl(), request.allowedDomains()) :
                 webManager.crawlWebsite(request.seedUrl());
-            System.out.println("Crawl result: " + crawlResult);
+             writeMessage("Crawl result: " + crawlResult);
                         
             // Get vector stores for the project
             Map<Types, RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
@@ -238,14 +238,14 @@ public class CodechatController {
             Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMap(vsMap);
             int tempDirLength = webManager.getTempDir().length();
             Set<File> files = webManager.getAllFiles();
-            System.out.println("Found " + files.size() + " files to process.");
+             writeMessage("Found " + files.size() + " files to process.");
             int processedFiles = 0;
             // Process files
             for (File file : files) {
 
                 try {
                     if (deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap, tempDirLength)) {
-                        System.out.println("The file " + file.getPath().substring(tempDirLength + 1) + 
+                         writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
                             " already exists it will be refreshed.");
                     }
                     String protocol=webManager.getSeedUrl().substring(0, webManager.getSeedUrl().indexOf("/"));
@@ -254,13 +254,13 @@ public class CodechatController {
                         vsfServicesMap
                     );  
                 } catch (Exception e) {
-                    System.out.println("The file " + file.getPath().substring(tempDirLength + 1) + 
+                     writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
                                     " could not be added: " + e.getMessage());
                 }
-                System.out.println("Processed file " + (++processedFiles) + " of " + files.size() );
+                 writeMessage("Processed file " + (++processedFiles) + " of " + files.size() );
             }
             
-            System.out.println("Done crawling website. Crawled " + webManager.getCrawledUrls().size() + " URLs.");
+             writeMessage("Done crawling website. Crawled " + webManager.getCrawledUrls().size() + " URLs.");
             return ResponseEntity.ok(resource);
         } catch (Exception e) {
             e.printStackTrace();
@@ -299,7 +299,7 @@ public class CodechatController {
             int tempDirLength = zipManager.getTempDir().length();
             int processedFiles = 0;
             Set<File> files = zipManager.getAllFiles();
-            System.out.println("Found " + files.size() + " files to process.");
+             writeMessage("Found " + files.size() + " files to process.");
             // Process files
             for (File file : files) {
                 try {
@@ -315,7 +315,7 @@ public class CodechatController {
                     writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
                                     " could not be added: " + e.getMessage());
                 }
-                System.out.println("Processed file " + (++processedFiles) + " of " + files.size() );
+                 writeMessage("Processed file " + (++processedFiles) + " of " + files.size() );
             }
             
             writeMessage("Done adding ZIP archive.");
@@ -363,7 +363,7 @@ public class CodechatController {
             Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMap(vsMap);
             int tempDirLength=pfc.getTempDir().length();
             Set<File> files = pfc.getAllFiles();
-            System.out.println("Found " + files.size() + " files to process.");
+             writeMessage("Found " + files.size() + " files to process.");
             for (File file : pfc.getAllFiles()) {
                 try {
                     addFile(pfc.getTempDir(),pfc.getRootUrl(),
@@ -409,7 +409,7 @@ public class CodechatController {
                     GitHubChangeTracker changes=pfc.getChangesSinceCommitViaGitHubAPI( 
                         resource.uri(), oldCommitHash, branch
                     );
-                    System.out.println(changes.deletedFiles().size()+" to be deleted.");
+                     writeMessage(changes.deletedFiles().size()+" to be deleted.");
                     int deletedFiles=0;
                     for (String deletedFile : changes.deletedFiles()) {
                         try {
@@ -417,10 +417,10 @@ public class CodechatController {
                         } catch (Exception e) {
                             writeMessage("This file is ignored or could not be retrieved: "+deletedFile);
                         }
-                        System.out.println("Deleted file " + (++deletedFiles) + " of " + changes.deletedFiles().size() );
+                         writeMessage("Deleted file " + (++deletedFiles) + " of " + changes.deletedFiles().size() );
                     }
 
-                    System.out.println(changes.addedFiles().size()+" to be added.");
+                     writeMessage(changes.addedFiles().size()+" to be added.");
                     int addedFiles=0;
                     for (String addedFile : changes.addedFiles()) {
                         try {
@@ -431,7 +431,7 @@ public class CodechatController {
                         } catch (Exception e) {
                             writeMessage("The file "+addedFile+" could not be added: "+e.getMessage());
                         }   
-                        System.out.println("Added file " + (++addedFiles) + " of " + changes.addedFiles().size() );
+                         writeMessage("Added file " + (++addedFiles) + " of " + changes.addedFiles().size() );
                     }
                     writeMessage("Updating commit hash...");
                     projectResourceRepository.updateSecret(resource.prId(), Labels.commitHash, commitHash);
@@ -483,7 +483,7 @@ public class CodechatController {
             Map<Types,VectorStore> vsMap = createEmptyVectorStores(projectId);
             Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMapFormVsMap(vsMap);
             Set<File> files = pfc.getAllFiles();
-            System.out.println("Found " + files.size() + " files to process.");
+             writeMessage("Found " + files.size() + " files to process.");
             int processedFiles = 0;
             for(File file : files) {
                 try {
@@ -493,7 +493,7 @@ public class CodechatController {
                 } catch (Exception e) {
                     writeMessage("The file "+file.getPath()+" could not be added: "+e.getMessage());
                 }   
-                System.out.println("Processed file " + (++processedFiles) + " of " + files.size() );
+                writeMessage("Processed file " + (++processedFiles) + " of " + files.size() );
             }
             writeMessage("Create assistant...");
             int assistantId=createAssistant(request.name(), projectId, vsMap);
@@ -666,7 +666,7 @@ public class CodechatController {
             vs = new VectorStore( vsRepository.storeVectorStore(vs),
                 vsOaiId, projectId, vsName, vsDesc, null, type);
             vectorStoreMap.put(type,vs );
-            System.out.println("Empty vector store "+type.name()+" created with id: "+vs.getVsid()+" and OaiId: "+vsOaiId);
+             writeMessage("Empty vector store "+type.name()+" created with id: "+vs.getVsid()+" and OaiId: "+vsOaiId);
         }
         return vectorStoreMap;
     }
@@ -759,7 +759,7 @@ public class CodechatController {
     ) throws IOException {
         String oldExt = FileUtils.getFileExtension(desc.oldFileName());
         Types fileType=getFileType(desc.oldFileName());
-        System.out.println("URL:" + fileUrl);
+         writeMessage("URL:" + fileUrl);
         CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
             oaiFile.fileId(), new HashMap<>() {{
                 put("name", desc.oldFileName());
