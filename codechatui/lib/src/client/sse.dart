@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:eventflux/eventflux.dart';
 
 /// A lightweight SSE client for Flutter Web using Fetch + ReadableStream.
 /// The StreamingClient class is a lightweight Server-Sent Events (SSE) client designed for Flutter applications,
@@ -14,14 +13,15 @@ class StreamingClient {
   void Function(String event, String data)? onEvent;
   void Function(Object error)? onError;
   void Function()? onDone;
+  void Function()? onConnected;
 
-  StreamingClient({
-    required this.url,
-    this.headers = const {},
-    this.onEvent,
-    this.onError,
-    this.onDone,
-  });
+  StreamingClient(
+      {required this.url,
+      this.headers = const {},
+      this.onEvent,
+      this.onError,
+      this.onDone,
+      this.onConnected});
 
   bool _isCancelled = false;
   Future<void>? _connection;
@@ -43,7 +43,7 @@ class StreamingClient {
 
       final response = await client.send(request);
       String buffer = '';
-
+      onConnected?.call();
       final stream = response.stream.transform(utf8.decoder);
       await for (final chunk in stream) {
         if (_isCancelled) break;

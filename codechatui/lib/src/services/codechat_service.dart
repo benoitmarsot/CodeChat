@@ -31,10 +31,13 @@ class CodechatService {
     }
   }
 
-  Future<void> subscribeToMessages(
-      String route, onEvent, onError, onDone) async {
+  Future<void> subscribeToMessages(String url,
+      {void Function(String, String)? onEvent,
+      void Function(dynamic)? onError,
+      void Function()? onDone,
+      void Function()? onConnected}) async {
     final client = StreamingClient(
-        url: '$baseUrl/$route',
+        url: '$baseUrl/$url',
         headers: {
           'Accept': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -43,7 +46,8 @@ class CodechatService {
         },
         onEvent: onEvent,
         onError: onError,
-        onDone: onDone);
+        onDone: onDone,
+        onConnected: onConnected);
     try {
       client.connect();
       print('Connecting to SSE...');

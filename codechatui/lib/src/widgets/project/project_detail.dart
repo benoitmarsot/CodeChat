@@ -153,8 +153,10 @@ class _ProjectDetailState extends State<ProjectDetail>
           }
         }
       } else {
-        final uri = '${AppConfig.openaiBaseUrl}/files/uploadDir?projectId=1';
-        print('Uploading to URI: $uri');
+        setState(() {
+          _loadingFiles = true;
+          _errorMessage = null; // Clear previous error
+        });
 
         // Show loading dialog
         showDialog(
@@ -169,7 +171,7 @@ class _ProjectDetailState extends State<ProjectDetail>
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(width: 16),
-                    Text("Creating project...\nIt will take a while..."),
+                    Text("Setting up project...\nIt will take a while..."),
                   ],
                 ),
               ),
@@ -177,6 +179,7 @@ class _ProjectDetailState extends State<ProjectDetail>
           },
         );
         try {
+          subscribeToMessages();
           // Handle authentication parameters
           String? username;
           String? password;
@@ -223,6 +226,7 @@ class _ProjectDetailState extends State<ProjectDetail>
             _errorMessage = 'Failed to upload directory: $e';
           });
           print('Failed to upload directory: $e');
+          unSubscribeToMessages();
           // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           //     content: Text(_errorMessage!), backgroundColor: Colors.red));
         }
@@ -602,36 +606,39 @@ class _ProjectDetailState extends State<ProjectDetail>
                     ],
                   )),
           ),
-          // Column(
-          //   crossAxisAlignment: CrossAxisAlignment.start,
-          //   children: _debugMessages.isNotEmpty
-          //       ? [
-          //           Container(
-          //               height: 150,
-          //               decoration: BoxDecoration(
-          //                 border: Border.all(color: Colors.grey),
-          //                 borderRadius: BorderRadius.circular(8.0),
-          //                 color: Theme.of(context)
-          //                     .colorScheme
-          //                     .primary
-          //                     .withOpacity(0.1),
-          //               ),
-          //               child: ListView.builder(
-          //                 controller: _scrollController,
-          //                 itemCount: _debugMessages.length,
-          //                 itemBuilder: (context, index) {
-          //                   return Padding(
-          //                     padding: const EdgeInsets.all(4.0),
-          //                     child: Text(_debugMessages[index]),
-          //                   );
-          //                 },
-          //               )),
-          //         ]
-          //       : [],
-          // ),
+          _buildDebugMessagesWidget()
         ],
       ),
     ]);
+  }
+
+  Widget _buildDebugMessagesWidget() {
+    if (_debugMessages.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 32),
+        Container(
+          height: 150,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey),
+            borderRadius: BorderRadius.circular(8.0),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          ),
+          child: ListView.builder(
+            controller: _scrollController,
+            itemCount: _debugMessages.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Text(_debugMessages[index]),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildDataSourceForm() {
@@ -649,8 +656,7 @@ class _ProjectDetailState extends State<ProjectDetail>
             ? ZipForm(
                 projectId: _projectId!,
                 onFileSelected: addFilesToProject,
-                isLoading: _loadingFiles,
-                debugMessages: _debugMessages)
+                isLoading: _loadingFiles)
             : Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -715,11 +721,8 @@ class _ProjectDetailState extends State<ProjectDetail>
               Tooltip(
                 message: 'Delete Project',
                 child: ElevatedButton.icon(
-                  label: const Text('Delete Project'),
+                  label: const Text('Delete'),
                   icon: Icon(Icons.delete),
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                  ),
                   onPressed: _handleDelete,
                 ),
               ),
@@ -797,13 +800,34 @@ class _ProjectDetailState extends State<ProjectDetail>
       _errorMessage = null; // Clear previous error
     });
     try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text(
+                      "Setting up your project’s data source \nIt will take a while..."),
+                ],
+              ),
+            ),
+          );
+        },
+      );
       subscribeToMessages();
       await codechatService.addProjectZip(_projectId!, content, fileName);
 
       // Dismiss loading dialog
-      // if (mounted) {
-      //   Navigator.of(context).pop();
-      // }
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text('File(s) uploaded successfully!'),
@@ -829,24 +853,26 @@ class _ProjectDetailState extends State<ProjectDetail>
   }
 
   void subscribeToMessages() async {
+    if (!AppConfig.PublicDebuggingEnabled) return;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
-
+    _debugMessages.clear();
     try {
       if (_loadingFiles) {
-        await codechatService.subscribeToMessages('debug', (event, data) {
+        await codechatService.subscribeToMessages('debug',
+            onEvent: (event, data) {
           setState(() {
             _debugMessages = [..._debugMessages!, data];
             //_debugMessages.add(data);
           });
           _scrollToBottom();
-        }, (error) {
+        }, onError: (error) {
           if (mounted) {
             setState(() {
               _errorMessage = 'Error: $error';
             });
           }
-        }, () {
+        }, onDone: () {
           if (mounted) {
             setState(() {
               _loadingFiles = false;
@@ -862,6 +888,7 @@ class _ProjectDetailState extends State<ProjectDetail>
   }
 
   void unSubscribeToMessages() async {
+    if (!AppConfig.PublicDebuggingEnabled) return;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
 
@@ -881,33 +908,41 @@ class _ProjectDetailState extends State<ProjectDetail>
     }
   }
 
-  Future<void> testSubscription() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final codechatService = CodechatService(authProvider: authProvider);
+  // Future<void> testSubscription() async {
+  //   if (!AppConfig.PublicDebuggingEnabled) return;
+  //   final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  //   final codechatService = CodechatService(authProvider: authProvider);
 
-    if (!_loadingFiles) {
-      setState(() {
-        _loadingFiles = true;
-      });
+  //   if (!_loadingFiles) {
+  //     setState(() {
+  //       _loadingFiles = true;
+  //     });
 
-      await codechatService.subscribeToMessages('testdebug', (event, data) {
-        setState(() {
-          _debugMessages.add(data);
-        });
-      }, (error) {
-        setState(() {
-          _errorMessage = 'Error: $error';
-        });
-      }, () {
-        setState(() {
-          _loadingFiles = false;
-        });
-      });
-    } else {
-      unSubscribeToMessages();
-      setState(() {
-        _loadingFiles = false;
-      });
-    }
-  }
+  //     await codechatService.subscribeToMessages('testdebug',
+  //         onEvent: (event, data) {
+  //       setState(() {
+  //         _debugMessages = [..._debugMessages!, data];
+  //         //_debugMessages.add(data);
+  //       });
+  //       _scrollToBottom();
+  //     }, onError: (error) {
+  //       if (mounted) {
+  //         setState(() {
+  //           _errorMessage = 'Error: $error';
+  //         });
+  //       }
+  //     }, onDone: () {
+  //       if (mounted) {
+  //         setState(() {
+  //           _loadingFiles = false;
+  //         });
+  //       }
+  //     });
+  //   } else {
+  //     unSubscribeToMessages();
+  //     setState(() {
+  //       _loadingFiles = false;
+  //     });
+  //   }
+  // }
 }
