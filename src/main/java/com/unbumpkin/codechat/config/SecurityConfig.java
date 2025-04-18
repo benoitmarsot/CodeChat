@@ -41,32 +41,34 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-        //Uses the CORS settings defined in WebConfig
-        .cors(Customizer.withDefaults())
-        //Disables CSRF protection (common for stateless REST APIs using tokens)
-        .csrf(csrf -> csrf.disable())
-        .authorizeHttpRequests(auth -> auth
-            // Allows OPTIONS requests (needed for CORS preflight)
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-            // Public authentication endpoints
-            .requestMatchers("/api/v1/auth/**").permitAll()
-            // Public Swagger documentation endpoints
-            .requestMatchers(
-                "/swagger-ui.html", 
-                "/swagger-ui/**", 
-                "/v3/api-docs/**", 
-                "/api-docs/**", 
-                "/api-docs.yaml"
-            ).permitAll()
-            // All other requests need authentication
-            .anyRequest().authenticated()
-        )
-        //Configures stateless sessions (no session cookies): using JWT-based authentication
-        .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        //Adds IP whitelist filter first
-        .addFilterBefore(ipWhitelistFilter, UsernamePasswordAuthenticationFilter.class) // Add IP whitelist filter before JWT filter
-        //Adds JWT filter after IP whitelist filter
-        .addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+            // Use the CORS settings defined in WebConfig
+            .cors(Customizer.withDefaults())
+            // Disable CSRF protection (common for stateless REST APIs using tokens)
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                // Allow OPTIONS requests (needed for CORS preflight)
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // Allow public access to the SSE endpoint
+                .requestMatchers(HttpMethod.GET, "/api/v1/codechat/debug").authenticated()
+                // Public authentication endpoints
+                .requestMatchers("/api/v1/auth/**").permitAll()
+                // Public Swagger documentation endpoints
+                .requestMatchers(
+                    "/swagger-ui.html", 
+                    "/swagger-ui/**", 
+                    "/v3/api-docs/**", 
+                    "/api-docs/**", 
+                    "/api-docs.yaml"
+                ).permitAll()
+                // All other requests need authentication
+                .anyRequest().authenticated()
+            )
+            // Configure stateless sessions (no session cookies): using JWT-based authentication
+            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // Add IP whitelist filter first
+            .addFilterBefore(ipWhitelistFilter, UsernamePasswordAuthenticationFilter.class)
+            // Add JWT filter after IP whitelist filter
+            .addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

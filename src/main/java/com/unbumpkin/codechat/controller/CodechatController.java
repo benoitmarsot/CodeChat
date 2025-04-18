@@ -811,9 +811,9 @@ public class CodechatController {
         response.setHeader("Connection", "keep-alive");
         response.setHeader("Cache-Control", "no-cache");
         response.setHeader("Content-Type", "text/event-stream");
-  
-        emitter = new SseEmitter(TIME_OUT_SSL); 
-
+    
+        emitter = new SseEmitter(TIME_OUT_SSL);
+    
         emitter.onCompletion(() -> {
             System.out.println("SSE stream completed.");
             emitter = null; // Reset emitter when completed
@@ -826,10 +826,14 @@ public class CodechatController {
         });
     
         emitter.onError((e) -> {
-            System.out.println("SSE stream error: " + e.getMessage());
-            emitter.completeWithError(e);
+            String errorMessage = (e != null) ? e.getMessage() : "Unknown error occurred";
+            System.out.println("SSE stream error: " + errorMessage);
+            if (emitter != null) {
+                emitter.completeWithError(e);
+            }
             emitter = null; // Reset emitter on error
         });
+    
         writeMessage("Starting server communication...");
         return emitter;
     }
