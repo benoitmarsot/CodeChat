@@ -221,6 +221,7 @@ class _ChatPageState extends State<ChatPage>
       try {
         final message =
             await _discussionService.answerQuestion(_selectedDiscussionId);
+        print("AI social response: ${message.socialAnswer}");
 
         // Cancel the progress timer
         progressTimer.cancel();

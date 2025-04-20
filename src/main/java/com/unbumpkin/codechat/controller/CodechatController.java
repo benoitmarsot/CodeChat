@@ -756,7 +756,7 @@ public class CodechatController {
         }
         OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, prId);
        writeMessage(clientId,"file "+file.getName()+" uploaded with id "+oaiFile.fileId());
-        CreateVSFileRequest request = getCreateVSFileRequest( desc, rootDirUrl, oaiFile, tempDirLength, clientId);
+        CreateVSFileRequest request = getCreateVSFileRequest( desc, fileUrl, oaiFile, tempDirLength, clientId);
         if(fileType!=Types.image&&fileType!=Types.social){
             vsfServicesMap.get(fileType).addFile( request);
         }

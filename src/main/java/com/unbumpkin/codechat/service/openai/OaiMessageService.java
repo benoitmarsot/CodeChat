@@ -23,6 +23,9 @@ public class OaiMessageService extends BaseOpenAIClient {
     }
 
     public String createMessage(Roles role, String content) throws IOException {
+        return createMessage(role, content, null);
+    }
+    public String createMessage(Roles role, String content, Map<String,String> metadata) throws IOException {
         String url = String.format(API_URL, threadId);
         
         // Use ObjectMapper to properly escape content
@@ -30,6 +33,13 @@ public class OaiMessageService extends BaseOpenAIClient {
         ObjectNode jsonNode = mapper.createObjectNode();
         jsonNode.put("role", role.toString());
         jsonNode.put("content", content);
+        if (metadata != null) {
+            ObjectNode metadataNode = mapper.createObjectNode();
+            for (Map.Entry<String, String> entry : metadata.entrySet()) {
+                metadataNode.put(entry.getKey(), entry.getValue());
+            }
+            jsonNode.set("metadata", metadataNode);
+        }
         String json = mapper.writeValueAsString(jsonNode);
         
         RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);

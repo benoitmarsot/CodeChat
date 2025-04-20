@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.dto.openai.Assistant;
+import com.unbumpkin.codechat.dto.openai.SocialAssistant;
 import com.unbumpkin.codechat.dto.request.AddOaiThreadRequest;
 import com.unbumpkin.codechat.dto.request.DiscussionNameSuggestion;
 import com.unbumpkin.codechat.dto.request.DiscussionUpdateRequest;
@@ -31,6 +32,7 @@ import com.unbumpkin.codechat.repository.MessageRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
+import com.unbumpkin.codechat.repository.openai.SocialAssistantRepository;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Roles;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
@@ -49,6 +51,8 @@ public class DiscussionController {
     private MessageRepository messageRepository;
     @Autowired
     private AssistantRepository assistantRepository;
+    @Autowired
+    private SocialAssistantRepository socialAssistantRepository;
     @Autowired
     private OaiThreadService threadService;
     @Autowired
@@ -94,9 +98,51 @@ public class DiscussionController {
             throw e;
         }
     }
+    private String askSocialAssistantInsights(
+        String messageTxt, Discussion discussion
+    ) throws IOException {
+        String userQuestionTxt="""
+            Please find references to the following question in the social vector store,
+            If you are not finding any, please answer nothing:
+            """+messageTxt;
+        SocialAssistant assistant=socialAssistantRepository.getAssistantByProjectId(
+            discussion.projectId()
+        );
+
+        String socialThreadId=threadService.createThread();
+        System.out.println("OpenAi thread " + socialThreadId+" created...");
+
+        threadRepository.addThread(new AddOaiThreadRequest(
+            socialThreadId, assistant.vsid(),discussion.did(), "social"));
+
+        OaiMessageService messageService=new OaiMessageService(socialThreadId);
+        String oaiMsgId=messageService.createMessage(Roles.user,userQuestionTxt);
+        System.out.println("OpenAi social message " + oaiMsgId+" created...");
+
+        OaiRunService runService = new OaiRunService(assistant.oaiAid(), socialThreadId);
+        OaiMessageService msgService = new OaiMessageService(socialThreadId);
+        String OaiRunId = runService.create();
+        System.out.println("Starting OpenAi social run " + OaiRunId + "...");
+        System.out.println("Waiting for social answer...");
+        runService.waitForAnswer(OaiRunId);
+        JsonNode jsonNode = msgService.retrieveMessage(msgService.listMessages().get(0));
+        JsonNode answerNode = jsonNode.findValue("value");
+    
+        // Decide if the node is textual or structured
+        String answer = answerNode.isTextual() 
+            ? answerNode.asText()
+            : objectMapper.writeValueAsString(answerNode);
+        System.out.println("AI social Answer: " + answer);
+
+        return answer;
+
+    }
     @PostMapping("/{did}/answer-question")
     public ResponseEntity<Message> answerQuestion(@PathVariable int did) throws IOException {
         Discussion discussion = discussionRepository.getDiscussionById(did);
+        List<Message> messages = messageRepository.getAllMessagesByDiscussionId(did);
+        Message lastMessage = messages.get(messages.size() - 1);
+        
         Assistant assistant = assistantRepository.getAssistantByProjectId(
             discussion.projectId(), discussion.assistantType());
         Map<Types, OaiThread> threadMap = threadRepository.getAllThreadsByDiscussionId(did);
@@ -106,6 +152,7 @@ public class DiscussionController {
         String OaiRunId = runService.create();
         System.out.println("Starting OpenAi run " + OaiRunId + "...");
         System.out.println("Waiting for answer...");
+        String socialAnswer=askSocialAssistantInsights(lastMessage.message(), discussion);
         runService.waitForAnswer(OaiRunId);
     
         JsonNode jsonNode = msgService.retrieveMessage(msgService.listMessages().get(0));
@@ -117,6 +164,7 @@ public class DiscussionController {
             : objectMapper.writeValueAsString(answerNode);
         System.out.println("AI Answer: " + answer);
         answer=answer.replaceAll("```\\w+", "").replace("```", "");
+    
         // If you need to replace references:
         // Set<String> refFiles = AnswerUtils.getReferencesFileIds(answer);
         // List<OaiFile> refFileMap = oaiFileRepository.retrieveFiles(refFiles.toArray(String[]::new));
@@ -136,6 +184,7 @@ public class DiscussionController {
         Message message = messageRepository.addMessage(
             new MessageCreateRequest(did, Roles.assistant.toString(), answer)
         );
+        message =new Message(message,socialAnswer);
         return ResponseEntity.ok(message);
     }
 

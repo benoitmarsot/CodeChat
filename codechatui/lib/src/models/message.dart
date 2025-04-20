@@ -8,6 +8,7 @@ class Message {
   final String role; // 'user', 'assistant', etc.
   final int authorid;
   final String text; // this corresponds to 'message' in Java
+  final String? socialAnswer; // this is the answer from the social network assistant
   bool isLoading = false;
   final DateTime timestamp; // kept for compatibility
 
@@ -15,6 +16,7 @@ class Message {
     this.msgid = 0,
     this.discussionId = 0,
     required this.text,
+    this.socialAnswer,
     this.role = 'user',
     this.authorid = 0,
     this.isLoading = false,
@@ -28,6 +30,7 @@ class Message {
       msgid: json['msgid'] ?? 0,
       discussionId: json['discussionId'] ?? 0,
       text: json['message'] ?? json['text'] ?? '',
+      socialAnswer: json['socialAnswer'],
       role: json['role'] ??
           (json['isUserMessage'] == true ? 'user' : 'assistant'),
       authorid: json['authorid'] ?? 0,
