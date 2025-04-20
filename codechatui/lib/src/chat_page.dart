@@ -472,9 +472,7 @@ class _ChatPageState extends State<ChatPage>
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _messages.isEmpty
-                          ? Center(
-                              child: Text(
-                                  'Start a new conversation${_discussions.isNotEmpty ? ' or select one from history' : ''}'))
+                          ? _buildDiscussionList()
                           : ListView.builder(
                               controller: _scrollController,
                               itemCount: _messages.length,
@@ -931,5 +929,39 @@ class _ChatPageState extends State<ChatPage>
             content: Text("Failed to update favorite status: $error")));
       }
     }
+  }
+
+  Widget _buildDiscussionList() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 64,
+            color: Colors.grey[400], // Subtle color for the icon
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No discussions yet',
+            style: TextStyle(
+              fontSize: 24,
+              color: Colors.grey[600], // Subtle color for the text
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select a discussion or add a question to start a new one.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[500], // Subtle color for the secondary text
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
