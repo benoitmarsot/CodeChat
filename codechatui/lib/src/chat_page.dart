@@ -892,13 +892,15 @@ class _ChatPageState extends State<ChatPage>
           }
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Discussion updated successfully")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Discussion updated successfully"),
+            backgroundColor: Colors.green));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed to update discussion: $error")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Failed to update discussion: $error"),
+            backgroundColor: Colors.red));
       }
     }
   }

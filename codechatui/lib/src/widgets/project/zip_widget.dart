@@ -21,7 +21,6 @@ class ZipForm extends StatefulWidget {
 }
 
 class _ZipFormState extends State<ZipForm> {
-  String? _selectedFilePath;
   late DropzoneViewController _dropzoneController;
 
   Future<void> selectFile() async {

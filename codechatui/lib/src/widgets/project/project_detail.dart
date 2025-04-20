@@ -49,8 +49,7 @@ class _ProjectDetailState extends State<ProjectDetail>
   final TextEditingController _patController = TextEditingController();
   final TextEditingController _zipFilePathController = TextEditingController();
   final TextEditingController _webURLController = TextEditingController();
-  final TextEditingController _prjAssistantController = TextEditingController();
-  final TextEditingController _prjContextController = TextEditingController();
+
   final ScrollController _scrollController = ScrollController();
 
   int? _projectId;
@@ -70,7 +69,6 @@ class _ProjectDetailState extends State<ProjectDetail>
   Project? _selectedProject;
   List<ProjectResource> _selectedProjectResources = [];
   late TabController _tabController;
-  String _selectedModel = 'gpt-4o'; // Default selection for the dropdown
 
   @override
   void initState() {

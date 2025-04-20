@@ -74,28 +74,22 @@ class _AssistantFormState extends State<AssistantForm> {
   }
 
   void _loadAssistantData() {
-    if (_selectedAssistant != null) {
-      _assistantNameController.text = _selectedAssistant!.name;
-      _contextController.text =
-          extractFunctionContent(_selectedAssistant.instruction ?? '');
+    _assistantNameController.text = _selectedAssistant!.name;
+    _contextController.text =
+        extractFunctionContent(_selectedAssistant.instruction ?? '');
 
-      setState(() {
-        _selectedModel = _selectedAssistant.model ?? 'gpt-4o';
-        _temperature = _selectedAssistant.temperature ?? 1.0;
-      });
+    setState(() {
+      _selectedModel = _selectedAssistant.model ?? 'gpt-4o';
+      _temperature = _selectedAssistant.temperature ?? 1.0;
+    });
 
-      if (_selectedAssistant.reasoningEffort != null) {
-        final reasoning = Reasoning.values.firstWhere(
-          (e) =>
-              e.toString().split('.').last ==
-              _selectedAssistant.reasoningEffort,
-          orElse: () => Reasoning.medium,
-        );
-        setState(() => _selectedReasoning = {reasoning});
-      }
-    } else {
-      _assistantNameController.clear();
-      _contextController.clear();
+    if (_selectedAssistant.reasoningEffort != null) {
+      final reasoning = Reasoning.values.firstWhere(
+        (e) =>
+            e.toString().split('.').last == _selectedAssistant.reasoningEffort,
+        orElse: () => Reasoning.medium,
+      );
+      setState(() => _selectedReasoning = {reasoning});
     }
   }
 

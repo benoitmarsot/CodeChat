@@ -105,7 +105,7 @@ class _ProjectPageState extends State<ProjectPage>
   }
 
   Future<void> _handleDelete(Project project, int index) async {
-    final confirmDelete = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Confirm Deletion'),
