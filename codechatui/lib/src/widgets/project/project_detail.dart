@@ -87,6 +87,10 @@ class _ProjectDetailState extends State<ProjectDetail>
 
   @override
   void dispose() {
+    // TODO: Make a loop for client ids?
+    // if (_isSubscribed) {
+    //   unSubscribeToMessages();
+    // }
     _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -114,6 +118,7 @@ class _ProjectDetailState extends State<ProjectDetail>
   Future<void> _createdProject() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
+    String? clientId;
 
     if (_formKey.currentState!.validate()) {
       print('Token: ${authProvider.token}');
@@ -130,8 +135,9 @@ class _ProjectDetailState extends State<ProjectDetail>
       if (hasDataSource == false) {
         try {
           Navigator.of(context).pop(); //optimistic post
+          clientId = await subscribeToMessages();
           final project = await codechatService.createEmtptyProject(
-              _prjNameController.text, _prjDesctController.text);
+              _prjNameController.text, _prjDesctController.text, clientId);
 
           _prjNameController.clear();
           _prjDesctController.clear();
@@ -179,7 +185,7 @@ class _ProjectDetailState extends State<ProjectDetail>
           },
         );
         try {
-          subscribeToMessages();
+          clientId=await subscribeToMessages();
           // Handle authentication parameters
           String? username;
           String? password;
@@ -199,6 +205,7 @@ class _ProjectDetailState extends State<ProjectDetail>
             _prjDesctController.text,
             _prjRepoURLController.text,
             _branchNameController.text,
+            clientId,
             username,
             password,
           );
@@ -226,7 +233,8 @@ class _ProjectDetailState extends State<ProjectDetail>
             _errorMessage = 'Failed to upload directory: $e';
           });
           print('Failed to upload directory: $e');
-          unSubscribeToMessages();
+          // TODO: Needed-it?
+          //unSubscribeToMessages();
           // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           //     content: Text(_errorMessage!), backgroundColor: Colors.red));
         }
@@ -408,7 +416,7 @@ class _ProjectDetailState extends State<ProjectDetail>
   Future<void> _refreshDataSource() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechattService = CodechatService(authProvider: authProvider);
-
+    String? clientId;
     // Show loading dialog
     showDialog(
       context: context,
@@ -430,7 +438,8 @@ class _ProjectDetailState extends State<ProjectDetail>
       },
     );
     try {
-      await codechattService.refreshRepo(_projectId!);
+      clientId = await subscribeToMessages();
+      await codechattService.refreshRepo(_projectId!,clientId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Refreshed project data source'),
@@ -794,6 +803,7 @@ class _ProjectDetailState extends State<ProjectDetail>
   Future<void> _handleFileAPI(String content, String fileName) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
+    String? clientId;
 
     setState(() {
       _loadingFiles = true;
@@ -821,8 +831,8 @@ class _ProjectDetailState extends State<ProjectDetail>
           );
         },
       );
-      subscribeToMessages();
-      await codechatService.addProjectZip(_projectId!, content, fileName);
+      clientId=await subscribeToMessages();
+      await codechatService.addProjectZip(_projectId!, content, fileName, clientId);
 
       // Dismiss loading dialog
       if (mounted) {
@@ -852,59 +862,89 @@ class _ProjectDetailState extends State<ProjectDetail>
     }
   }
 
-  void subscribeToMessages() async {
-    if (!AppConfig.PublicDebuggingEnabled) return;
+
+  Future<String?> subscribeToMessages() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
+    String? clientId;
     _debugMessages.clear();
+    
+    final completer = Completer<bool>();
+    
     try {
-      if (_loadingFiles) {
-        await codechatService.subscribeToMessages('debug',
-            onEvent: (event, data) {
-          setState(() {
-            _debugMessages = [..._debugMessages!, data];
-            //_debugMessages.add(data);
-          });
-          _scrollToBottom();
-        }, onError: (error) {
-          if (mounted) {
+      if (_loadingFiles) {        
+        clientId = await codechatService.subscribeToMessages(
+          onEvent: (event, data) {
             setState(() {
-              _errorMessage = 'Error: $error';
+              _debugMessages = [..._debugMessages, data];
             });
+            _scrollToBottom();
+          }, 
+          onError: (error) {
+            if (mounted) {
+              setState(() {
+                _errorMessage = 'Error: $error';
+              });
+            }
+            if (!completer.isCompleted) {
+              completer.complete(false);
+            }
+          }, 
+          onDone: () {
+            if (mounted) {
+              setState(() {
+                _loadingFiles = false;
+              });
+            }
+          },
+          onConnected: () {
+            print('SSE connection established successfully');
+            if (!completer.isCompleted) {
+              completer.complete(true);
+            }
           }
-        }, onDone: () {
-          if (mounted) {
-            setState(() {
-              _loadingFiles = false;
-            });
+        );
+        // Wait for connection to be established or fail with a timeout
+        return await completer.future.timeout(
+          Duration(seconds: 10),
+          onTimeout: () {
+            print('SSE connection timed out');
+            return false;
           }
-        });
+        ).then((connected) => connected ? clientId : null);
       } else {
-        unSubscribeToMessages();
+        await unSubscribeToMessages(clientId!);
+        return null;
       }
     } catch (e) {
       print('Error connecting to SSE: $e');
+      return null;
     }
   }
 
-  void unSubscribeToMessages() async {
-    if (!AppConfig.PublicDebuggingEnabled) return;
+  Future<bool> unSubscribeToMessages(String clientId) async {
+    if (!AppConfig.PublicDebuggingEnabled ) return false;
+    
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
 
     try {
-      await codechatService.unSubscribeToMessages();
+      await codechatService.unSubscribeToMessages(clientId);
       setState(() {
         _loadingFiles = false;
       });
+      return true;
     } catch (e) {
       print('Error stopping SSE subscription: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error stopping SSE subscription: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error stopping SSE subscription: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
     }
   }
 

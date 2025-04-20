@@ -1,14 +1,9 @@
 package com.unbumpkin.codechat.service.social;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import static java.lang.String.format;
 
@@ -46,6 +41,9 @@ public class DiscordService extends SocialService {
                 System.out.println("Guild: " + g.getName() + " (" + g.getId() + ")");
             }
             Guild guild = jda.getGuildById("1352499579550957628");
+            if(guild == null) {
+                throw new RuntimeException("Could not find Discord guild with ID: " + guildId);
+            }
             System.out.println("Guild Members: " + guild.getMemberCount());
             System.out.println("Guild Channels: " + guild.getTextChannels().size());
 

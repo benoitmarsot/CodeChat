@@ -1,4 +1,4 @@
-package com.unbumpkin.codechat.model;
+package com.unbumpkin.codechat.dto.request;
 
 import java.sql.Timestamp;
 

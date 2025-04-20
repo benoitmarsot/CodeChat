@@ -49,7 +49,7 @@ public class SecurityConfig {
                 // Allow OPTIONS requests (needed for CORS preflight)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Allow public access to the SSE endpoint
-                .requestMatchers(HttpMethod.GET, "/api/v1/codechat/debug").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/v1/sse/debug").authenticated()
                 // Public authentication endpoints
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 // Public Swagger documentation endpoints

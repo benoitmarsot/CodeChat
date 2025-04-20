@@ -69,16 +69,4 @@ public class ZipFileUtils implements AutoCloseable {
         zipFile.close();
     }
 
-    // Example usage in OaiFileService:
-    public static void example() throws IOException {
-        try (ZipFileUtils zipUtils = new ZipFileUtils("path/to/your.zip")) {
-            // List all Java files
-            List<String> javaFiles = zipUtils.listFiles(Set.of("java"));
-            
-            // Process a specific file
-            String filePath = "path/in/zip/File.java";
-            int lineCount = zipUtils.countLines(filePath);
-            RequestBody fileBody = zipUtils.createRequestBody(filePath, MediaType.parse("application/json"));
-        }
-    }
 }

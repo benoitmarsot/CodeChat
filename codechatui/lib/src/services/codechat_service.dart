@@ -13,55 +13,93 @@ import 'dart:async';
 
 class CodechatService {
   static final String baseUrl = '${AppConfig.apiVersionBaseUrl}/codechat';
+  static final String sseBaseUrl = '${AppConfig.apiVersionBaseUrl}/sse';
   final AuthProvider authProvider;
+  StreamingClient? _sseClient;
 
   CodechatService({required this.authProvider});
-  Map<String, String> get _headers => {
-        'Authorization': 'Bearer ${authProvider.token}',
-        'Content-Type': 'application/json; charset=UTF-8',
-      };
 
-  Future<void> refreshRepo(int projectId) async {
+  Map<String, String> getHeader(String? clientId) {
+    return {
+      'Authorization': 'Bearer ${authProvider.token}',
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Sse-Client-ID': clientId??'',
+    };
+  }
+Future<void> refreshRepo(int projectId, String  ? clientId) async {
     final response = await http.post(
       Uri.parse('$baseUrl/$projectId/refresh-repo'),
-      headers: _headers,
+      headers: getHeader(clientId),
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to refresh repository for project $projectId');
     }
   }
 
-  Future<void> subscribeToMessages(String url,
+  // Get a client ID from the server for SSE connection
+  Future<String> _getClientId() async {
+    
+    final response = await http.get(
+      Uri.parse('$sseBaseUrl/connect'),
+      headers: getHeader(null),
+    );
+    
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      return data['clientId'];
+    } else {
+      throw Exception('Failed to get SSE client ID: ${utf8.decode(response.bodyBytes)}');
+    }
+  }
+
+  Future<String?> subscribeToMessages(
       {void Function(String, String)? onEvent,
       void Function(dynamic)? onError,
       void Function()? onDone,
       void Function()? onConnected}) async {
-    final client = StreamingClient(
-        url: '$baseUrl/$url',
-        headers: {
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer ${authProvider.token}'
-        },
+    
+    // Get client ID first
+    final clientId = await _getClientId();
+    
+    // Add Sse-Client-ID header for server identification
+    final headers = {
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Authorization': 'Bearer ${authProvider.token}',
+      'Sse-Client-ID': clientId
+    };
+    
+    _sseClient = StreamingClient(
+        url: '$sseBaseUrl/debug/$clientId',
+        headers: headers,
         onEvent: onEvent,
         onError: onError,
         onDone: onDone,
         onConnected: onConnected);
+        
     try {
-      client.connect();
-      print('Connecting to SSE...');
+      _sseClient!.connect();
+      print('Connecting to SSE with client ID: $clientId');
+      return clientId;
     } catch (e) {
       print('Request failed: $e');
+      return null;
     }
   }
 
-  Future<void> unSubscribeToMessages() async {
+  Future<void> unSubscribeToMessages(String clientId) async {
+    
     try {
       print('Stopping SSE subscription...');
+      
+      // Close client connection if it exists
+      _sseClient?.cancel();
+      
+      // Notify server to stop emitting events
       final response = await http.get(
-        Uri.parse('$baseUrl/debug/stop'),
-        headers: _headers,
+        Uri.parse('$sseBaseUrl/debug/stop/$clientId'),
+        headers: getHeader(clientId),
       );
 
       if (response.statusCode == 200) {
@@ -73,10 +111,12 @@ class CodechatService {
     } catch (e) {
       print('Error stopping SSE subscription: $e');
       throw Exception('Error stopping SSE subscription: $e');
+    } finally {
+      _sseClient = null;
     }
   }
 
-  Future<Project> createEmtptyProject(String name, String description) async {
+  Future<Project> createEmtptyProject(String name, String description, String? clientId) async {
     final Map<String, dynamic> requestBody = {
       'name': name,
       'description': description,
@@ -84,7 +124,7 @@ class CodechatService {
 
     final response = await http.post(
       Uri.parse('$baseUrl/create-empty-project'),
-      headers: _headers,
+      headers: getHeader(clientId),
       body: json.encode(requestBody),
     );
 
@@ -98,7 +138,7 @@ class CodechatService {
 
   Future<Project> createProject(
       String name, String description, String repoURL, String branchName,
-      [String? username, String? password]) async {
+      String? clientId, [String? username, String? password]) async {
     final Map<String, dynamic> requestBody = {
       'name': name,
       'description': description,
@@ -116,7 +156,7 @@ class CodechatService {
 
     final response = await http.post(
       Uri.parse('$baseUrl/create-project'),
-      headers: _headers,
+      headers: getHeader(clientId),
       body: json.encode(requestBody),
     );
 
@@ -129,7 +169,7 @@ class CodechatService {
   }
 
   Future<void> addProjectZip(
-      int projectId, String base64Content, fileName) async {
+      int projectId, String base64Content, fileName, String? clientId) async {
     if (base64Content.isNotEmpty) {
       // Create the request body
       final Map<String, dynamic> requestBody = {
@@ -137,11 +177,11 @@ class CodechatService {
         'zipName': fileName,
         'zipContent': base64Content,
       };
-
+      var headers = getHeader(clientId);
       // Send the POST request
       final response = await http.post(
         Uri.parse('$baseUrl/add-project-zip'),
-        headers: _headers,
+        headers: headers,
         body: json.encode(requestBody),
       );
 
@@ -182,10 +222,10 @@ class CodechatService {
   //   }
   // }
 
-  Future<void> deleteAll() async {
+  Future<void> deleteAll(String clientId) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/delete-all'),
-      headers: _headers,
+      headers: getHeader(clientId),
     );
 
     if (response.statusCode != 200) {

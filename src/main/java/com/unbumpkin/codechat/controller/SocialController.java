@@ -33,7 +33,6 @@ import com.unbumpkin.codechat.dto.social.SocialMessage;
 import com.unbumpkin.codechat.dto.social.SocialUser;
 import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.UserSecret;
-import com.unbumpkin.codechat.model.ProjectResource.ResTypes;
 import com.unbumpkin.codechat.model.UserSecret.Labels;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.VectorStore;
@@ -53,7 +52,6 @@ import com.unbumpkin.codechat.service.openai.OaiFileService;
 import com.unbumpkin.codechat.service.openai.VectorStoreFile;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
 
-import static com.unbumpkin.codechat.service.social.SlackService.SLACK_API_URL;
 import com.unbumpkin.codechat.service.social.SocialService;
 import com.unbumpkin.codechat.service.social.SocialService.SocialPlatforms;
 

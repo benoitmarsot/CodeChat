@@ -27,10 +27,8 @@ public class SlackService extends SocialService {
     
     private final String apiToken;
     private final String workspaceId;
-    private final SocialPlatforms platform;;
 
     public SlackService(String apiToken, String workspaceId) {
-        this.platform = SocialPlatforms.slack;
         this.apiToken = apiToken;
         this.workspaceId = workspaceId;
     }

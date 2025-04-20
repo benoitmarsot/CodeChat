@@ -3,6 +3,8 @@ package com.unbumpkin.codechat.controller;
 import static java.lang.String.format;
 import static java.net.URLDecoder.decode;
 import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,7 +13,6 @@ import java.util.Set;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +21,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.unbumpkin.codechat.service.openai.AssistantBuilder;
 import com.unbumpkin.codechat.service.openai.AssistantService;
@@ -34,11 +34,15 @@ import com.unbumpkin.codechat.service.openai.CCProjectFileManager;
 import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.getFileType;
 import static com.unbumpkin.codechat.util.ExtMimeType.getMimeType;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
+import com.unbumpkin.codechat.service.sse.SseService;
 import com.unbumpkin.codechat.service.openai.VectorStoreService;
 import com.unbumpkin.codechat.service.openai.WebCrawlerContentManager;
 import com.unbumpkin.codechat.service.openai.ZipContentManager;
 import com.unbumpkin.codechat.util.ExtMimeType;
 import com.unbumpkin.codechat.util.FileUtils;
+
+import jakarta.servlet.http.HttpServletRequest;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
@@ -73,23 +77,16 @@ import com.unbumpkin.codechat.repository.social.SocialUserRepository;
 import com.unbumpkin.codechat.security.CustomAuthentication;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import com.unbumpkin.codechat.model.DebugMessage;
-
-import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 
 
 @RestController
 @RequestMapping("/api/v1/codechat")
 public class CodechatController {
-    private static final int PRIORITY_MESSAGE_LIMIT = 1; // Define the constant
-    private static final long TIME_OUT_SSL = 900_000L; // Set timeout to 15 minutes
     @Autowired
     private AssistantRepository assistantRepository;
     @Autowired
@@ -118,8 +115,9 @@ public class CodechatController {
     private SocialUserRepository socialUserRepository;
     @Autowired
     private SocialChannelRepository socialChannelRepository;
-    private SseEmitter emitter;
-
+    @Autowired
+    private SseService sseService;
+    
     private int getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof CustomAuthentication) {
@@ -173,26 +171,38 @@ public class CodechatController {
     @Transactional
     @PostMapping("create-empty-project")
     public ResponseEntity<Project> createEmptyProject(
-        @RequestBody CreateProjectRequest request
+        @RequestBody CreateProjectRequest request,
+        @RequestHeader(name = "Sse-Client-ID", required = false) String clientId
     ) throws Exception {
         int projectId=projectRepository.addProject(request.name(), request.description());
         if(projectId==0){
             throw new Exception("project could not be created.");
         }
-        writeMessage("project created with id: "+projectId);
+        writeMessage(clientId,"project created with id: "+projectId);
 
-        Map<Types,VectorStore> vectorStoreMap = createEmptyVectorStores(projectId);
-        writeMessage("Create assistant...");
+        Map<Types,VectorStore> vectorStoreMap = createEmptyVectorStores(projectId,clientId);
+        writeMessage(clientId,"Create assistant...");
         int assistantId=createAssistant(request.name(), projectId, vectorStoreMap);
-        writeMessage("Assistant created with id: "+assistantId);
+        writeMessage(clientId,"Assistant created with id: "+assistantId);
         Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
         return ResponseEntity.ok(project);
+    }
+    private void writeMessage(String clientId,String message) {
+        if (clientId != null) {
+            // Send to specific client
+            sseService.sendMessage(clientId, message);
+        } else {
+            // No specific client ID, write the log to console
+            System.out.println(message);
+        }
     }
     @Transactional
     @PostMapping("add-project-web")
     public ResponseEntity<ProjectResource> addWebResource(
-        @RequestBody AddWebRequest request
+        @RequestBody AddWebRequest request,
+        @RequestHeader(name = "Sse-Client-ID", required = false) String clientId
     ) throws Exception {
+
         int projectId = request.projectId();
         WebCrawlerContentManager webManager = null;
         
@@ -223,11 +233,11 @@ public class CodechatController {
             }
             
             // Start crawling
-             writeMessage("Starting web crawl from URL: " + request.seedUrl());
+             writeMessage(clientId,"Starting web crawl from URL: " + request.seedUrl());
             String crawlResult = request.allowedDomains() != null && !request.allowedDomains().isEmpty() ?
                 webManager.crawlWebsite(request.seedUrl(), request.allowedDomains()) :
                 webManager.crawlWebsite(request.seedUrl());
-             writeMessage("Crawl result: " + crawlResult);
+             writeMessage(clientId,"Crawl result: " + crawlResult);
                         
             // Get vector stores for the project
             Map<Types, RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
@@ -238,29 +248,29 @@ public class CodechatController {
             Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMap(vsMap);
             int tempDirLength = webManager.getTempDir().length();
             Set<File> files = webManager.getAllFiles();
-             writeMessage("Found " + files.size() + " files to process.");
+             writeMessage(clientId,"Found " + files.size() + " files to process.");
             int processedFiles = 0;
             // Process files
             for (File file : files) {
 
                 try {
-                    if (deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap, tempDirLength)) {
-                         writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
+                    if (deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap, tempDirLength,clientId)) {
+                         writeMessage(clientId,"The file " + file.getPath().substring(tempDirLength + 1) + 
                             " already exists it will be refreshed.");
                     }
                     String protocol=webManager.getSeedUrl().substring(0, webManager.getSeedUrl().indexOf("/"));
                     addFile(webManager.getTempDir(), webManager.getSeedUrl(), 
                         protocol+"//"+decode(file.getPath().substring(tempDirLength+1),UTF_8), file.getPath(), resource.prId(), 
-                        vsfServicesMap
+                        vsfServicesMap,clientId
                     );  
                 } catch (Exception e) {
-                     writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
+                     writeMessage(clientId,"The file " + file.getPath().substring(tempDirLength + 1) + 
                                     " could not be added: " + e.getMessage());
                 }
-                 writeMessage("Processed file " + (++processedFiles) + " of " + files.size() );
+                 writeMessage(clientId,"Processed file " + (++processedFiles) + " of " + files.size() );
             }
             
-             writeMessage("Done crawling website. Crawled " + webManager.getCrawledUrls().size() + " URLs.");
+             writeMessage(clientId,"Done crawling website. Crawled " + webManager.getCrawledUrls().size() + " URLs.");
             return ResponseEntity.ok(resource);
         } catch (Exception e) {
             e.printStackTrace();
@@ -271,12 +281,15 @@ public class CodechatController {
             }
         }
     }
-
+    
     @Transactional
     @PostMapping("add-project-zip")
     public ResponseEntity<ProjectResource> addZipResource(
-        @RequestBody AddZipRequest request
+        @RequestBody AddZipRequest request,
+        @RequestHeader(name = "Sse-Client-ID", required = false) String clientId,
+        HttpServletRequest httpRequest 
     ) throws Exception {
+        //printRequestHeaders(httpRequest);
         int projectId = request.projectId();
         ZipContentManager zipManager = null;
         
@@ -299,26 +312,26 @@ public class CodechatController {
             int tempDirLength = zipManager.getTempDir().length();
             int processedFiles = 0;
             Set<File> files = zipManager.getAllFiles();
-             writeMessage("Found " + files.size() + " files to process.");
+             writeMessage(clientId,"Found " + files.size() + " files to process.");
             // Process files
             for (File file : files) {
                 try {
                     String relFilePath=file.getPath().substring(tempDirLength + 1);
-                    if(deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap,tempDirLength)) {
-                        writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
+                    if(deleteIfExists(file.getPath().substring(tempDirLength+1), projectId, vsfServicesMap,tempDirLength,clientId)) {
+                        writeMessage(clientId,"The file " + file.getPath().substring(tempDirLength + 1) + 
                             " already exists it will be refreshed.");
                     }
                     addFile(zipManager.getTempDir(), "",relFilePath,file.getPath(), resource.prId(), 
-                        vsfServicesMap
+                        vsfServicesMap, clientId
                     );  
                 } catch (Exception e) {
-                    writeMessage("The file " + file.getPath().substring(tempDirLength + 1) + 
+                    writeMessage(clientId,"The file " + file.getPath().substring(tempDirLength + 1) + 
                                     " could not be added: " + e.getMessage());
                 }
-                 writeMessage("Processed file " + (++processedFiles) + " of " + files.size() );
+                 writeMessage(clientId,"Processed file " + (++processedFiles) + " of " + files.size() );
             }
             
-            writeMessage("Done adding ZIP archive.");
+            writeMessage(clientId,"Done adding ZIP archive.");
             return ResponseEntity.ok(resource);
         } catch (Exception e) {
             e.printStackTrace();
@@ -332,7 +345,8 @@ public class CodechatController {
     @Transactional
     @PostMapping("add-project-repo")
     public ResponseEntity<ProjectResource> addRepoResource(
-        @RequestBody AddRepoRequest request
+        @RequestBody AddRepoRequest request,
+        @RequestHeader(name = "Sse-Client-ID", required = false) String clientId
     ) throws Exception {
         int projectId=request.projectId();
         GithubRepoContentManager pfc=new GithubRepoContentManager();
@@ -363,17 +377,17 @@ public class CodechatController {
             Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMap(vsMap);
             int tempDirLength=pfc.getTempDir().length();
             Set<File> files = pfc.getAllFiles();
-             writeMessage("Found " + files.size() + " files to process.");
+             writeMessage(clientId,"Found " + files.size() + " files to process.");
             for (File file : pfc.getAllFiles()) {
                 try {
                     addFile(pfc.getTempDir(),pfc.getRootUrl(),
                         pfc.getRootUrl()+file.getPath().substring(tempDirLength + 1),
-                        file.getPath(), resource.prId(), vsfServicesMap);
+                        file.getPath(), resource.prId(), vsfServicesMap,clientId);
                 } catch (Exception e) {
-                    writeMessage("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+                    writeMessage(clientId,"The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
                 }   
             }
-            writeMessage("Done adding new repo.");
+            writeMessage(clientId,"Done adding new repo.");
             return ResponseEntity.ok(resource);
         } catch (Exception e) {
             e.printStackTrace();
@@ -387,7 +401,8 @@ public class CodechatController {
     @Transactional
     @PostMapping("{projectId}/refresh-repo")
     public ResponseEntity<Void> refreshRepo(
-        @PathVariable int projectId
+        @PathVariable int projectId,
+        @RequestHeader(name = "Sse-Client-ID", required = false) String clientId
     ) throws Exception {
         GithubRepoContentManager pfc=new GithubRepoContentManager();
         List<ProjectResource> resources = projectResourceRepository.getResources(projectId);
@@ -403,39 +418,39 @@ public class CodechatController {
                     String oldCommitHash=resource.secrets().get(Labels.commitHash).value();
                     String commitHash=pfc.getLatestCommitHash(resource.uri(), branch);
                     if(commitHash.equals(oldCommitHash)){
-                        writeMessage("No changes in the repo "+resource.uri());
+                        writeMessage(clientId,"No changes in the repo "+resource.uri());
                         continue;
                     }
                     GitHubChangeTracker changes=pfc.getChangesSinceCommitViaGitHubAPI( 
                         resource.uri(), oldCommitHash, branch
                     );
-                     writeMessage(changes.deletedFiles().size()+" to be deleted.");
+                     writeMessage(clientId,changes.deletedFiles().size()+" to be deleted.");
                     int deletedFiles=0;
                     for (String deletedFile : changes.deletedFiles()) {
                         try {
-                            deleteIfExists( deletedFile, resource.projectId(), vsfServicesMap, pfc.getTempDir().length());
+                            deleteIfExists( deletedFile, resource.projectId(), vsfServicesMap, pfc.getTempDir().length(),clientId);
                         } catch (Exception e) {
-                            writeMessage("This file is ignored or could not be retrieved: "+deletedFile);
+                            writeMessage(clientId,"This file is ignored or could not be retrieved: "+deletedFile);
                         }
-                         writeMessage("Deleted file " + (++deletedFiles) + " of " + changes.deletedFiles().size() );
+                         writeMessage(clientId,"Deleted file " + (++deletedFiles) + " of " + changes.deletedFiles().size() );
                     }
 
-                     writeMessage(changes.addedFiles().size()+" to be added.");
+                     writeMessage(clientId,changes.addedFiles().size()+" to be added.");
                     int addedFiles=0;
                     for (String addedFile : changes.addedFiles()) {
                         try {
                             addFile(pfc.getTempDir(), pfc.getRootUrl(), 
                                 pfc.getRootUrl()+addedFile.substring(pfc.getTempDir().length() + 1), 
-                                pfc.getTempDir()+"/"+addedFile, resource.prId(), vsfServicesMap
+                                pfc.getTempDir()+"/"+addedFile, resource.prId(), vsfServicesMap, clientId
                             );
                         } catch (Exception e) {
-                            writeMessage("The file "+addedFile+" could not be added: "+e.getMessage());
+                            writeMessage(clientId,"The file "+addedFile+" could not be added: "+e.getMessage());
                         }   
-                         writeMessage("Added file " + (++addedFiles) + " of " + changes.addedFiles().size() );
+                         writeMessage(clientId,"Added file " + (++addedFiles) + " of " + changes.addedFiles().size() );
                     }
-                    writeMessage("Updating commit hash...");
+                    writeMessage(clientId,"Updating commit hash...");
                     projectResourceRepository.updateSecret(resource.prId(), Labels.commitHash, commitHash);
-                    writeMessage("Done refreshing repo.");
+                    writeMessage(clientId,"Done refreshing repo.");
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -452,7 +467,8 @@ public class CodechatController {
     @Transactional
     @PostMapping("create-project")
     public ResponseEntity<Project> createProject(
-        @RequestBody CreateProjectRequest request
+        @RequestBody CreateProjectRequest request,
+        @RequestHeader(name = "Sse-Client-ID", required = false) String clientId
     ) throws Exception {
         GithubRepoContentManager pfc=new GithubRepoContentManager();
         try{ 
@@ -464,7 +480,7 @@ public class CodechatController {
             if(projectId==0){
                 throw new Exception("project could not be created.");
             }
-            writeMessage("project created with id: "+projectId);
+            writeMessage(clientId,"project created with id: "+projectId);
             if(request.repoURL()!=null){
                 pfc=new GithubRepoContentManager(request.username(), request.password());
                 pfc.addRepository(request.repoURL(), request.branch());
@@ -480,24 +496,24 @@ public class CodechatController {
             userSecrets.put(Labels.branch, new UserSecret(Labels.branch, request.branch()));
             userSecrets.put(Labels.commitHash, new UserSecret(Labels.commitHash, pfc.getCommitHash()));
             ProjectResource pr=projectResourceRepository.createResource(projectId, request.repoURL(), ResTypes.git, userSecrets);
-            Map<Types,VectorStore> vsMap = createEmptyVectorStores(projectId);
+            Map<Types,VectorStore> vsMap = createEmptyVectorStores(projectId,clientId);
             Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMapFormVsMap(vsMap);
             Set<File> files = pfc.getAllFiles();
-             writeMessage("Found " + files.size() + " files to process.");
+             writeMessage(clientId,"Found " + files.size() + " files to process.");
             int processedFiles = 0;
             for(File file : files) {
                 try {
                     addFile(pfc.getTempDir(), pfc.getRootUrl(), 
                         pfc.getRootUrl()+file.getPath().substring(pfc.getTempDir().length()+1), 
-                        file.getPath(), pr.prId(), vsfServicesMap);
+                        file.getPath(), pr.prId(), vsfServicesMap, clientId);
                 } catch (Exception e) {
-                    writeMessage("The file "+file.getPath()+" could not be added: "+e.getMessage());
+                    writeMessage(clientId,"The file "+file.getPath()+" could not be added: "+e.getMessage());
                 }   
-                writeMessage("Processed file " + (++processedFiles) + " of " + files.size() );
+                writeMessage(clientId,"Processed file " + (++processedFiles) + " of " + files.size() );
             }
-            writeMessage("Create assistant...");
+            writeMessage(clientId,"Create assistant...");
             int assistantId=createAssistant(request.name(), projectId, vsMap);
-            writeMessage("Assistant created with id: "+assistantId);
+            writeMessage(clientId,"Assistant created with id: "+assistantId);
             Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
             return ResponseEntity.ok(project);
         } catch (Exception e) {
@@ -651,7 +667,8 @@ public class CodechatController {
         return assistantRepository.addAssistant(assistant);
     }
     private Map<Types,VectorStore> createEmptyVectorStores(
-        int projectId
+        int projectId,
+        String clientId
     ) throws IOException {
         Map<Types,VectorStore> vectorStoreMap = new LinkedHashMap<>(4);
         for(Types type : Types.values()) {
@@ -666,7 +683,7 @@ public class CodechatController {
             vs = new VectorStore( vsRepository.storeVectorStore(vs),
                 vsOaiId, projectId, vsName, vsDesc, null, type);
             vectorStoreMap.put(type,vs );
-             writeMessage("Empty vector store "+type.name()+" created with id: "+vs.getVsid()+" and OaiId: "+vsOaiId);
+             writeMessage(clientId,"Empty vector store "+type.name()+" created with id: "+vs.getVsid()+" and OaiId: "+vsOaiId);
         }
         return vectorStoreMap;
     }
@@ -706,7 +723,7 @@ public class CodechatController {
      * @throws IOException
      */
     private boolean deleteIfExists( String filePath, int projectId, 
-        Map<Types,VectorStoreFile> vsfServicesMap, int rootPathLength
+        Map<Types,VectorStoreFile> vsfServicesMap, int rootPathLength, String clientId
     ) throws IOException {        
         List<OaiFile> files = oaiFileRepository.getOaiFileByPath(filePath, projectId);
         boolean wasDeleted=false;
@@ -718,13 +735,13 @@ public class CodechatController {
             vsfServicesMap.get(Types.all).removeFile(oaiFile.fileId());
             oaiFileService.deleteFile(oaiFile.fileId());
             oaiFileRepository.deleteFile(oaiFile.fileId());
-           writeMessage(oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from all and "+fileType.toString()+" vector stores and deleted.");
+           writeMessage(clientId,oaiFile.filePath()+" id "+oaiFile.fileId()+" removed from all and "+fileType.toString()+" vector stores and deleted.");
             wasDeleted=true;
         }
         return wasDeleted;
     }
     private void addFile(String tempDirPath, String rootDirUrl, String fileUrl, String filePath, int prId,
-        Map<Types,VectorStoreFile> vsfServicesMap
+        Map<Types,VectorStoreFile> vsfServicesMap, String clientId
     ) throws IOException {
         File file = new File(filePath);
 
@@ -732,14 +749,14 @@ public class CodechatController {
         Types fileType=getFileType(file);
         FileRenameDescriptor desc;
         try {
-            desc = getFileRenameDescriptor(file,fileType);
+            desc = getFileRenameDescriptor(file,fileType,clientId);
         } catch (Exception e) {
-           writeMessage("The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+           writeMessage(clientId,"The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
             return;
         }
         OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, prId);
-       writeMessage("file "+file.getName()+" uploaded with id "+oaiFile.fileId());
-        CreateVSFileRequest request = getCreateVSFileRequest( desc, rootDirUrl, oaiFile, tempDirLength);
+       writeMessage(clientId,"file "+file.getName()+" uploaded with id "+oaiFile.fileId());
+        CreateVSFileRequest request = getCreateVSFileRequest( desc, rootDirUrl, oaiFile, tempDirLength, clientId);
         if(fileType!=Types.image&&fileType!=Types.social){
             vsfServicesMap.get(fileType).addFile( request);
         }
@@ -752,14 +769,14 @@ public class CodechatController {
         );
         oaiFileRepository.storeOaiFile(oaiFile, oaiFile.prId());
 
-      writeMessage("File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
+      writeMessage(clientId,"File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
     }
     private CreateVSFileRequest getCreateVSFileRequest( 
-        FileRenameDescriptor desc, String fileUrl, OaiFile oaiFile, int tempDirLength
+        FileRenameDescriptor desc, String fileUrl, OaiFile oaiFile, int tempDirLength, String clientId
     ) throws IOException {
         String oldExt = FileUtils.getFileExtension(desc.oldFileName());
         Types fileType=getFileType(desc.oldFileName());
-         writeMessage("URL:" + fileUrl);
+         writeMessage(clientId,"URL:" + fileUrl);
         CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
             oaiFile.fileId(), new HashMap<>() {{
                 put("name", desc.oldFileName());
@@ -773,7 +790,7 @@ public class CodechatController {
         return creaVsRequest;
     }
 
-    private FileRenameDescriptor getFileRenameDescriptor(File file, Types fileType) throws Exception {
+    private FileRenameDescriptor getFileRenameDescriptor(File file, Types fileType, String clientId) throws Exception {
         if(fileType==Types.image){
             try {
                 String imgDesc=responsesService.describeImage(
@@ -795,7 +812,7 @@ public class CodechatController {
                 try (FileWriter writer = new java.io.FileWriter(file)) {
                     writer.write(imgDesc);
                 }
-               writeMessage(format(
+               writeMessage(clientId,format(
                     "%s image description: \n\t%s", oldFileName, imgDesc)
                 );
                 return new FileRenameDescriptor(
@@ -808,100 +825,14 @@ public class CodechatController {
         } 
         return ExtMimeType.oaiRename(file);
     }
-    
-    @GetMapping("/debug")
-    public SseEmitter streamDebugMessages(HttpServletResponse response) {
-        // Set custom headers for the response
-        response.setHeader("Connection", "keep-alive");
-        response.setHeader("Cache-Control", "no-cache");
-        response.setHeader("Content-Type", "text/event-stream");
-    
-        emitter = new SseEmitter(TIME_OUT_SSL);
-    
-        emitter.onCompletion(() -> {
-            System.out.println("SSE stream completed.");
-            emitter = null; // Reset emitter when completed
-        });
-    
-        emitter.onTimeout(() -> {
-            System.out.println("SSE stream timed out.");
-            emitter.complete();
-            emitter = null; // Reset emitter on timeout
-        });
-    
-        emitter.onError((e) -> {
-            String errorMessage = (e != null) ? e.getMessage() : "Unknown error occurred";
-            System.out.println("SSE stream error: " + errorMessage);
-            if (emitter != null) {
-                emitter.completeWithError(e);
-            }
-            emitter = null; // Reset emitter on error
-        });
-    
-        writeMessage("Starting server communication...");
-        return emitter;
-    }
-
-    private void writeMessage(String message) {
-        writeMessage(message, 1);
-    }
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-    
-    //todo @PreDestroy
-    //public void shutdownExecutor() {
-    //  executorService.shutdown();}
-    
-    private void writeMessage(String message, int priority) {
-        if (emitter != null) {
-            executorService.submit(() -> {
-                try {
-                    if (priority <= PRIORITY_MESSAGE_LIMIT) {
-                        emitter.send(SseEmitter.event()
-                                .name("debug")
-                                .data(message));
-                    }
-                } catch (IllegalStateException e) {
-                    System.out.println("Emitter is already completed: " + e.getMessage());
-                    emitter = null; // Reset emitter to avoid further errors
-                } catch (IOException e) {
-                    System.out.println("Error sending SSE message: " + e.getMessage());
-                    emitter.completeWithError(e);
-                    emitter = null; // Reset emitter on error
-                }
-            });
-        } else {
-            System.out.println(message);
+    @SuppressWarnings("unused")
+    private void printRequestHeaders(HttpServletRequest request) {
+        System.out.println("=== REQUEST HEADERS ===");
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String headerName = headerNames.nextElement();
+            System.out.println(headerName + ": " + request.getHeader(headerName));
         }
-    }
-
-    @GetMapping("/debug/stop")
-    public ResponseEntity<String> stopDebugMessages() {
-        emitter = null;
-        return ResponseEntity.ok("Debug message stream stopped.");
-    }
-   
-
-    @GetMapping("/testdebug")
-    public SseEmitter streamTestMessages(HttpServletResponse response) {
-        if(emitter == null)
-            streamDebugMessages(response);
-
-        // Start a new thread to send debug messages to the client
-        executorService.submit(() -> {
-            try {
-                while (emitter != null) {
-                    DebugMessage debugMessage = new DebugMessage("This is a debug message from CodechatController", java.sql.Timestamp.valueOf(LocalDateTime.now()), 1);
-                    emitter.send(SseEmitter.event()
-                            .name("debug")
-                            .data(debugMessage));
-                    // Sleep for 1 second
-                    Thread.sleep(1000);
-                }
-            } catch (IOException | InterruptedException e) {
-                emitter.completeWithError(e);
-            }
-        });
-
-        return emitter;
+        System.out.println("======================");
     }
 }
