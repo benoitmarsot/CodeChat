@@ -4,29 +4,29 @@ import 'package:codechatui/src/services/codechat_service.dart';
 import 'package:provider/provider.dart';
 
 class WebForm extends StatefulWidget {
-  final List<String> domains;
+  final List<String> allowedDomains;
   final TextEditingController webURLController;
   final TextEditingController userNameController;
   final TextEditingController userPswController;
   final TextEditingController? maxPagesController;
   final TextEditingController? maxDepthController;
   final TextEditingController? requestsPerMinuteController;
-  final TextEditingController? alloweddomainsController;
   final int projectId;
-  final bool isDisabled; // New property to control the disabled state
+  final bool isDisabled;
+  final ValueChanged<List<String>>? onDomainsChanged;
 
   const WebForm({
     Key? key,
     required this.webURLController,
     required this.userNameController,
     required this.userPswController,
-    this.domains = const [],
+    required this.allowedDomains,
     this.maxPagesController,
     this.maxDepthController,
     this.requestsPerMinuteController,
-    this.alloweddomainsController,
     this.projectId = -1,
-    this.isDisabled = false, // Default value is false (enabled)
+    this.isDisabled = false,
+    this.onDomainsChanged,
   }) : super(key: key);
 
   @override
@@ -35,16 +35,24 @@ class WebForm extends StatefulWidget {
 
 class _WebFormState extends State<WebForm> {
   bool _showAuth = false;
-
+  List<String> _allowedDomains = [];
   final int _defaultMaxPages = 100;
   final int _defaultMaxDepth = 5;
   final int _defaultRequestsPerMinute = 60;
 
   @override
-  Widget build(BuildContext context) {
-    if (widget.domains.isEmpty) {
-      widget.domains.add('');
+  void initState() {
+    super.initState();
+    //le copy of widget.allowedDomains
+    _allowedDomains = List<String>.from(widget.allowedDomains);
+    //_allowedDomains = widget.allowedDomains;
+    if (_allowedDomains.isEmpty) {
+      _allowedDomains.add('');
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -170,6 +178,7 @@ class _WebFormState extends State<WebForm> {
           ],
         ),
         const SizedBox(height: 16.0),
+        //_buildWebURLsInput()
         _buildDomainInput()
       ],
     );
@@ -192,7 +201,7 @@ class _WebFormState extends State<WebForm> {
           shrinkWrap: true,
           physics:
               NeverScrollableScrollPhysics(), // Prevent scrolling inside the form
-          itemCount: widget.domains.length,
+          itemCount: _allowedDomains.length,
           itemBuilder: (context, index) {
             bool isHovered = false; // Track hover state
             return StatefulBuilder(
@@ -201,12 +210,12 @@ class _WebFormState extends State<WebForm> {
                   children: [
                     Expanded(
                       child: TextFormField(
-                        initialValue: widget.domains[index],
+                        initialValue: _allowedDomains[index],
                         enabled: !widget
                             .isDisabled, // Disable field if isDisabled is true
                         onChanged: (value) {
                           setState(() {
-                            widget.domains[index] = value;
+                            _allowedDomains[index] = value;
                           });
                         },
                         decoration: InputDecoration(
@@ -240,7 +249,11 @@ class _WebFormState extends State<WebForm> {
                             ? null
                             : () {
                                 setState(() {
-                                  widget.domains.removeAt(index);
+                                  if (index < _allowedDomains.length) {
+                                    _allowedDomains.removeAt(index);
+                                    widget.onDomainsChanged
+                                        ?.call(_allowedDomains);
+                                  }
                                 });
                               },
                       ),
@@ -257,7 +270,8 @@ class _WebFormState extends State<WebForm> {
               ? null
               : () {
                   setState(() {
-                    widget.domains.add(''); // Add an empty domain to the list
+                    _allowedDomains.add('');
+                    widget.onDomainsChanged?.call(_allowedDomains);
                   });
                 },
           icon: Icon(Icons.add),

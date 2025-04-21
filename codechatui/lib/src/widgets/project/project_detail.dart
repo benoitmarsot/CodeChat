@@ -124,6 +124,12 @@ class _ProjectDetailState extends State<ProjectDetail>
     }
   }
 
+  void _updateDomains(List<String> newDomains) {
+    setState(() {
+      _domains = newDomains;
+    });
+  }
+
   Future<void> _createdProject() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
@@ -314,7 +320,6 @@ class _ProjectDetailState extends State<ProjectDetail>
       setState(() {
         _selectedProject = updatedProject;
         _loadProjectData();
-        _createdMessage = 'Project details updated successfully!';
       });
     } catch (e) {
       setState(() {
@@ -630,12 +635,13 @@ class _ProjectDetailState extends State<ProjectDetail>
       case DataSourceType.web:
         return WebForm(
           webURLController: _webURLController,
-          domains: _domains,
+          allowedDomains: _domains ?? [],
           userNameController: _userNameController,
           userPswController: _userPswController,
           maxPagesController: _maxPagesController,
           maxDepthController: _maxDepthController,
           requestsPerMinuteController: _requestsPerMinuteController,
+          onDomainsChanged: _updateDomains,
         );
       //isDisabled: _isEditing);
       default:
