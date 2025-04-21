@@ -21,10 +21,12 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
+  int logo = 0;
 
   @override
   void initState() {
     super.initState();
+    logo = 0;
     _checkExistingToken();
   }
 
@@ -151,7 +153,8 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         setState(() {
-          _errorMessage = 'Google login failed: ${utf8.decode(response.bodyBytes)}';
+          _errorMessage =
+              'Google login failed: ${utf8.decode(response.bodyBytes)}';
         });
       }
     } catch (error) {
@@ -182,42 +185,20 @@ class _LoginPageState extends State<LoginPage> {
               'logo.svg',
               semanticsLabel: 'My SVG Image',
               width: 200, // Optional: specify width
-              height: 200, // Optional: specify height
+              height: 200, // Optional: spec`i`fy height
               fit: BoxFit
                   .contain, // Optional: specify how the SVG should be scaled
             ),
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: 'RAG',
-                    style: GoogleFonts.scada(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E4396), // Original blue color
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'time',
-                    style: GoogleFonts.scada(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w700,
-                      fontStyle: FontStyle.italic,
-                      color: const Color(0xFFFF9800), // Amber/orange color that complements blue
-                    ),
-                  ),
-                ],
-              ),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  // Cycle through different logos
+                  logo = (logo + 1) % 4;
+                });
+              },
+              child: getLogo(),
             ),
-            // Text(
-            //   'SAMTAL AI',
-            //   style: GoogleFonts.scada(
-            //     textStyle: Theme.of(context).textTheme.displayLarge,
-            //     fontSize: 48,
-            //     fontWeight: FontWeight.w700,
-            //     color: const Color(0xFF1E4396),
-            //   ),
-            // ),
+
             SizedBox(height: 24.0),
             Card(
               shape: RoundedRectangleBorder(
@@ -279,5 +260,91 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+
+  Widget getLogo() {
+    switch (logo) {
+      case 1:
+        return RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: 'RAG',
+                style: GoogleFonts.scada(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E4396), // Original blue color
+                ),
+              ),
+              TextSpan(
+                text: 'time',
+                style: GoogleFonts.scada(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  fontStyle: FontStyle.italic,
+                  color: const Color(
+                      0xFFFF9800), // Amber/orange color that complements blue
+                ),
+              ),
+            ],
+          ),
+        );
+      case 2:
+        return Text(
+          'SAMTAL AI',
+          style: GoogleFonts.scada(
+            textStyle: Theme.of(context).textTheme.displayLarge,
+            fontSize: 48,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1E4396),
+          ),
+        );
+      case 3:
+        return RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: 'Branded ',
+                style: GoogleFonts.scada(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E4396), // Original blue color
+                ),
+              ),
+              TextSpan(
+                text: 'Voice',
+                style: GoogleFonts.scada(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  color: const Color.fromARGB(255, 87, 106, 150),
+                ),
+              )
+            ],
+          ),
+        );
+      default:
+        return RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: 'Brand',
+                style: GoogleFonts.scada(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E4396), // Original blue color
+                ),
+              ),
+              TextSpan(
+                text: 'Voice',
+                style: GoogleFonts.scada(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  color: const Color.fromARGB(255, 87, 106, 150),
+                ),
+              )
+            ],
+          ),
+        );
+    }
   }
 }
