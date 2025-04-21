@@ -327,7 +327,7 @@ class _ChatPageState extends State<ChatPage>
           IconButton(
             icon: const Icon(Icons.home),
             onPressed: () {
-              Navigator.of(context).pop(); // Navigate back to home page
+              Navigator.of(context).pushReplacementNamed('/');
             },
             tooltip: 'Back to Home',
           ),

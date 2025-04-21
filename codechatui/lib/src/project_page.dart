@@ -223,109 +223,135 @@ class _ProjectPageState extends State<ProjectPage>
             label: Text('New Project'),
             onPressed: () {
               Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ProjectDetail(isEditing: false, onSave: _onSave),
-                  ));
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ProjectDetail(isEditing: false, onSave: _onSave),
+                ),
+              );
             },
           ),
         ],
       ),
       body: Padding(
         padding: EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: _projects.length,
-                itemBuilder: (context, index) {
-                  final project = _projects[index];
-                  return MouseRegion(
-                    onEnter: (_) => setState(() => _hoveredIndex = index),
-                    onExit: (_) => setState(() => _hoveredIndex = null),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _hoveredIndex == index
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : null,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ListTile(
-                        title: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Text(project.name),
-                            SizedBox(width: 10),
-                            StatusTag(
-                                label: project.model ?? 'No Model',
-                                color: languageModelColorMap[project.model] ??
-                                    Colors.grey)
-                          ],
-                        ),
-                        subtitle: Text(project.description),
-                        onTap: () {
-                          _selectProject(project);
-                          _redirectToChat(project);
-                        },
-                        trailing:
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                          IconButton(
-                            icon: Icon(Icons.settings),
-                            onPressed: () => gotoSettings(project),
-                          ),
-                          PopupMenuButton<String>(
-                            padding: EdgeInsets.zero,
-                            icon: Icon(
-                              Icons.more_vert,
-                              size: 16,
-                            ),
-                            iconSize: 16,
-                            tooltip: 'Project options',
-                            onSelected: (value) =>
-                                _handleProjectAction(value, project),
-                            itemBuilder: (BuildContext context) =>
-                                <PopupMenuEntry<String>>[
-                              // const PopupMenuItem<String>(
-                              //   value: 'edit',
-                              //   child: ListTile(
-                              //     leading: Icon(Icons.edit),
-                              //     title: Text('Edit'),
-                              //     dense: true,
-                              //   ),
-                              // ),
-                              const PopupMenuItem<String>(
-                                value: 'refresh',
-                                child: ListTile(
-                                  leading: Icon(Icons.refresh),
-                                  title: Text('Refresh'),
-                                  dense: true,
-                                ),
-                              ),
-                              const PopupMenuDivider(),
-                              const PopupMenuItem<String>(
-                                value: 'delete',
-                                child: ListTile(
-                                  leading:
-                                      Icon(Icons.delete, color: Colors.red),
-                                  title: Text('Delete',
-                                      style: TextStyle(color: Colors.red)),
-                                  dense: true,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ]),
+        child: _projects.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'No projects found.',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey,
                       ),
                     ),
-                  );
-                },
+                    SizedBox(height: 8),
+                    Text(
+                      'Click the "New Project" button above to add your first project.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _projects.length,
+                      itemBuilder: (context, index) {
+                        final project = _projects[index];
+                        return MouseRegion(
+                          onEnter: (_) => setState(() => _hoveredIndex = index),
+                          onExit: (_) => setState(() => _hoveredIndex = null),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _hoveredIndex == index
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer
+                                  : null,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListTile(
+                              title: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Text(project.name),
+                                  SizedBox(width: 10),
+                                  StatusTag(
+                                    label: project.model ?? 'No Model',
+                                    color:
+                                        languageModelColorMap[project.model] ??
+                                            Colors.grey,
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text(project.description),
+                              onTap: () {
+                                _selectProject(project);
+                                _redirectToChat(project);
+                              },
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.settings),
+                                    onPressed: () => gotoSettings(project),
+                                  ),
+                                  PopupMenuButton<String>(
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(
+                                      Icons.more_vert,
+                                      size: 16,
+                                    ),
+                                    iconSize: 16,
+                                    tooltip: 'Project options',
+                                    onSelected: (value) =>
+                                        _handleProjectAction(value, project),
+                                    itemBuilder: (BuildContext context) =>
+                                        <PopupMenuEntry<String>>[
+                                      const PopupMenuItem<String>(
+                                        value: 'refresh',
+                                        child: ListTile(
+                                          leading: Icon(Icons.refresh),
+                                          title: Text('Refresh'),
+                                          dense: true,
+                                        ),
+                                      ),
+                                      const PopupMenuDivider(),
+                                      const PopupMenuItem<String>(
+                                        value: 'delete',
+                                        child: ListTile(
+                                          leading: Icon(Icons.delete,
+                                              color: Colors.red),
+                                          title: Text('Delete',
+                                              style:
+                                                  TextStyle(color: Colors.red)),
+                                          dense: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
