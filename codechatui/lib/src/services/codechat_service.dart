@@ -3,6 +3,7 @@ import 'dart:convert';
 //import 'package:path/path.dart';
 import 'package:codechatui/src/config/app_config.dart';
 import 'package:codechatui/src/client/sse.dart';
+import 'package:codechatui/src/models/project_resources.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
 // import 'package:flutter_client_sse/flutter_client_sse.dart';
 import 'package:http/http.dart' as http;
@@ -23,10 +24,11 @@ class CodechatService {
     return {
       'Authorization': 'Bearer ${authProvider.token}',
       'Content-Type': 'application/json; charset=UTF-8',
-      'Sse-Client-ID': clientId??'',
+      'Sse-Client-ID': clientId ?? '',
     };
   }
-Future<void> refreshRepo(int projectId, String  ? clientId) async {
+
+  Future<void> refreshRepo(int projectId, String? clientId) async {
     final response = await http.post(
       Uri.parse('$baseUrl/$projectId/refresh-repo'),
       headers: getHeader(clientId),
@@ -38,17 +40,18 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
 
   // Get a client ID from the server for SSE connection
   Future<String> _getClientId() async {
-    
     final response = await http.get(
       Uri.parse('$sseBaseUrl/connect'),
       headers: getHeader(null),
     );
-    
+
     if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      final Map<String, dynamic> data =
+          json.decode(utf8.decode(response.bodyBytes));
       return data['clientId'];
     } else {
-      throw Exception('Failed to get SSE client ID: ${utf8.decode(response.bodyBytes)}');
+      throw Exception(
+          'Failed to get SSE client ID: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -57,10 +60,9 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
       void Function(dynamic)? onError,
       void Function()? onDone,
       void Function()? onConnected}) async {
-    
     // Get client ID first
     final clientId = await _getClientId();
-    
+
     // Add Sse-Client-ID header for server identification
     final headers = {
       'Accept': 'text/event-stream',
@@ -69,7 +71,7 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
       'Authorization': 'Bearer ${authProvider.token}',
       'Sse-Client-ID': clientId
     };
-    
+
     _sseClient = StreamingClient(
         url: '$sseBaseUrl/debug/$clientId',
         headers: headers,
@@ -77,7 +79,7 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
         onError: onError,
         onDone: onDone,
         onConnected: onConnected);
-        
+
     try {
       _sseClient!.connect();
       print('Connecting to SSE with client ID: $clientId');
@@ -89,13 +91,12 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
   }
 
   Future<void> unSubscribeToMessages(String clientId) async {
-    
     try {
       print('Stopping SSE subscription...');
-      
+
       // Close client connection if it exists
       _sseClient?.cancel();
-      
+
       // Notify server to stop emitting events
       final response = await http.get(
         Uri.parse('$sseBaseUrl/debug/stop/$clientId'),
@@ -116,7 +117,8 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
     }
   }
 
-  Future<Project> createEmtptyProject(String name, String description, String? clientId) async {
+  Future<Project> createEmtptyProject(
+      String name, String description, String? clientId) async {
     final Map<String, dynamic> requestBody = {
       'name': name,
       'description': description,
@@ -136,9 +138,9 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
     }
   }
 
-  Future<Project> createProject(
-      String name, String description, String repoURL, String branchName,
-      String? clientId, [String? username, String? password]) async {
+  Future<Project> createProject(String name, String description, String repoURL,
+      String branchName, String? clientId,
+      [String? username, String? password]) async {
     final Map<String, dynamic> requestBody = {
       'name': name,
       'description': description,
@@ -165,6 +167,54 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
     } else {
       throw Exception(
           'Failed to create project: ${utf8.decode(response.bodyBytes)}');
+    }
+  }
+
+  Future<ProjectResource> addProjectWeb(
+      {required int projectId,
+      required String seedUrl,
+      int? maxPages,
+      int? maxDepth,
+      int? requestsPerMinute,
+      List<String>? allowedDomains,
+      String? userName,
+      String? password,
+      String? clientId}) async {
+    // Create the request body
+    final Map<String, dynamic> requestBody = {
+      'projectId': projectId,
+      'seedUrl': seedUrl,
+    };
+
+    // Add optional parameters if provided
+    if (maxPages != null) requestBody['maxPages'] = maxPages;
+    if (maxDepth != null) requestBody['maxDepth'] = maxDepth;
+    if (requestsPerMinute != null)
+      requestBody['requestsPerMinute'] = requestsPerMinute;
+    if (allowedDomains != null && allowedDomains.isNotEmpty) {
+      requestBody['allowedDomains'] = allowedDomains;
+    }
+    if (userName != null && userName.isNotEmpty) {
+      requestBody['userName'] = userName;
+      if (password != null && password.isNotEmpty) {
+        requestBody['password'] = password;
+      }
+    }
+    var headers = getHeader(clientId);
+    // Send the POST request
+    final response = await http.post(
+      Uri.parse('$baseUrl/add-project-web'),
+      headers: headers,
+      body: json.encode(requestBody),
+    );
+
+    // Check the response status
+    if (response.statusCode == 200) {
+      return ProjectResource.fromJson(
+          json.decode(utf8.decode(response.bodyBytes)));
+    } else {
+      throw Exception(
+          'Failed to add project web resource: ${utf8.decode(response.bodyBytes)}');
     }
   }
 
@@ -200,21 +250,18 @@ Future<void> refreshRepo(int projectId, String  ? clientId) async {
   //   // Read the file and encode its content in Base64
   //   final bytes = await File(zipFilePath).readAsBytes();
   //   final base64Content = base64Encode(bytes);
-
   //   // Create the request body
   //   final Map<String, dynamic> requestBody = {
   //     'projectId': projectId,
   //     'zipName': basename(zipFilePath), // Extract the file name from the path
   //     'zipContent': base64Content,
   //   };
-
   //   // Send the POST request
   //   final response = await http.post(
   //     Uri.parse('$baseUrl/add-project-zip'),
   //     headers: _headers,
   //     body: json.encode(requestBody),
   //   );
-
   //   // Check the response status
   //   if (response.statusCode != 200) {
   //     throw Exception(

@@ -222,7 +222,7 @@ class _AssistantFormState extends State<AssistantForm> {
           Column(children: [
             Row(children: [
               Text(
-                'Reasoning:',
+                'Temperature:',
                 style: TextStyle(
                   fontSize: 16,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,

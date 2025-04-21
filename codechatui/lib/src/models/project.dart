@@ -6,23 +6,32 @@ class Project {
   final int assistantId;
   String? assistant;
   String? model;
+  List<String> resourceUris;
+  List<String> allowedDomains;
 
-  Project(
-      {required this.projectId,
-      required this.name,
-      required this.description,
-      required this.authorId,
-      required this.assistantId,
-      this.assistant = '',
-      this.model = 'gpt_4o'});
+  Project({
+    required this.projectId,
+    required this.name,
+    required this.description,
+    required this.authorId,
+    required this.assistantId,
+    this.assistant = '',
+    this.model = 'gpt_4o',
+    this.resourceUris = const [],
+    this.allowedDomains = const [],
+  });
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(
       projectId: json['projectId'],
       name: json['name'],
-      description: json['description'],
+      description: json['description'] ?? '',
       authorId: json['authorId'],
       assistantId: json['assistantId'],
+      resourceUris: (json['resourceUris'] as List<dynamic>?)
+              ?.map((uri) => uri as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -32,6 +41,7 @@ class Project {
     String? description,
     int? authorId,
     int? assistantId,
+    List<String>? resourceUris,
   }) {
     return Project(
       projectId: projectId ?? this.projectId,
@@ -39,6 +49,7 @@ class Project {
       description: description ?? this.description,
       authorId: authorId ?? this.authorId,
       assistantId: assistantId ?? this.assistantId,
+      resourceUris: resourceUris ?? this.resourceUris,
     );
   }
 
@@ -48,5 +59,6 @@ class Project {
         'description': description,
         'authorId': authorId,
         'assistantId': assistantId,
+        'resourceUris': resourceUris,
       };
 }

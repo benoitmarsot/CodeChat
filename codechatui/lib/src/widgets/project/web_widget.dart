@@ -1,15 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:codechatui/src/services/auth_provider.dart';
+import 'package:codechatui/src/services/codechat_service.dart';
+import 'package:provider/provider.dart';
 
 class WebForm extends StatefulWidget {
-  final TextEditingController prjRepoURLController;
+  final List<String> domains;
+  final TextEditingController webURLController;
   final TextEditingController userNameController;
   final TextEditingController userPswController;
+  final TextEditingController? maxPagesController;
+  final TextEditingController? maxDepthController;
+  final TextEditingController? requestsPerMinuteController;
+  final TextEditingController? alloweddomainsController;
+  final int projectId;
+  final bool isDisabled; // New property to control the disabled state
 
   const WebForm({
     Key? key,
-    required this.prjRepoURLController,
+    required this.webURLController,
     required this.userNameController,
     required this.userPswController,
+    this.domains = const [],
+    this.maxPagesController,
+    this.maxDepthController,
+    this.requestsPerMinuteController,
+    this.alloweddomainsController,
+    this.projectId = -1,
+    this.isDisabled = false, // Default value is false (enabled)
   }) : super(key: key);
 
   @override
@@ -18,73 +35,234 @@ class WebForm extends StatefulWidget {
 
 class _WebFormState extends State<WebForm> {
   bool _showAuth = false;
+
+  final int _defaultMaxPages = 100;
+  final int _defaultMaxDepth = 5;
+  final int _defaultRequestsPerMinute = 60;
+
   @override
   Widget build(BuildContext context) {
+    if (widget.domains.isEmpty) {
+      widget.domains.add('');
+    }
     return Column(
       children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              controller: widget.webURLController,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a Web URL';
+                }
+                return null;
+              },
+              decoration: InputDecoration(
+                labelText: 'Web URL:',
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+              ),
+            ),
+          ),
+          SizedBox(width: 24.0)
+        ]),
+        const SizedBox(height: 16),
+        if (_showAuth)
+          Container(
+            margin: EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: widget.userNameController,
+                        enabled: !widget
+                            .isDisabled, // Disable field if isDisabled is true
+                        decoration: InputDecoration(
+                          labelText: 'Username:',
+                          filled: true,
+                          fillColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerLowest,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12.0),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: widget.userPswController,
+                        enabled: !widget
+                            .isDisabled, // Disable field if isDisabled is true
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Password:',
+                          filled: true,
+                          fillColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerLowest,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        SizedBox(height: 48.0),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 4,
-              child: TextField(
-                controller: widget.prjRepoURLController,
-                decoration: const InputDecoration(
-                  labelText: 'Web URL',
+            Flexible(
+              flex: 1,
+              child: TextFormField(
+                controller: widget.maxPagesController ??
+                    TextEditingController(text: _defaultMaxPages.toString()),
+                enabled:
+                    !widget.isDisabled, // Disable field if isDisabled is true
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Max Pages:',
+                  filled: true,
+                  fillColor:
+                      Theme.of(context).colorScheme.surfaceContainerLowest,
+                ),
+              ),
+            ),
+            SizedBox(width: 24.0),
+            Flexible(
+              flex: 1,
+              child: TextFormField(
+                controller: widget.maxDepthController ??
+                    TextEditingController(text: _defaultMaxDepth.toString()),
+                enabled:
+                    !widget.isDisabled, // Disable field if isDisabled is true
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Max Depth:',
+                  filled: true,
+                  fillColor:
+                      Theme.of(context).colorScheme.surfaceContainerLowest,
+                ),
+              ),
+            ),
+            SizedBox(width: 24.0),
+            Flexible(
+              flex: 1,
+              child: TextFormField(
+                controller: widget.requestsPerMinuteController ??
+                    TextEditingController(
+                        text: _defaultRequestsPerMinute.toString()),
+                enabled:
+                    !widget.isDisabled, // Disable field if isDisabled is true
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Requests Per Minute:',
+                  filled: true,
+                  fillColor:
+                      Theme.of(context).colorScheme.surfaceContainerLowest,
                 ),
               ),
             ),
           ],
         ),
-        Row(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 32.0),
-              child: Row(
-                children: [
-                  Text('Authentication'),
-                  Switch(
-                    value: _showAuth,
-                    onChanged: (value) {
-                      setState(() {
-                        _showAuth = value;
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (_showAuth)
-          Container(
-            margin: EdgeInsets.all(20),
-            child: Column(children: [
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextField(
-                      controller: widget.userNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Username:',
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12.0),
-                  Expanded(
-                    flex: 2,
-                    child: TextField(
-                      controller: widget.userPswController,
-                      decoration: const InputDecoration(
-                        labelText: 'Password:',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ]),
+        const SizedBox(height: 16.0),
+        _buildDomainInput()
+      ],
+    );
+  }
+
+  Widget _buildDomainInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Allowed Domains:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
+        ),
+        const SizedBox(height: 8),
+        ListView.builder(
+          shrinkWrap: true,
+          physics:
+              NeverScrollableScrollPhysics(), // Prevent scrolling inside the form
+          itemCount: widget.domains.length,
+          itemBuilder: (context, index) {
+            bool isHovered = false; // Track hover state
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: widget.domains[index],
+                        enabled: !widget
+                            .isDisabled, // Disable field if isDisabled is true
+                        onChanged: (value) {
+                          setState(() {
+                            widget.domains[index] = value;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Domain ${index + 1}',
+                          filled: true,
+                          fillColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerLowest,
+                        ),
+                      ),
+                    ),
+                    MouseRegion(
+                      onEnter: (_) {
+                        setState(() {
+                          isHovered = true;
+                        });
+                      },
+                      onExit: (_) {
+                        setState(() {
+                          isHovered = false;
+                        });
+                      },
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.delete,
+                          color: isHovered
+                              ? Colors.red
+                              : Colors.grey, // Change color on hover
+                        ),
+                        onPressed: widget.isDisabled
+                            ? null
+                            : () {
+                                setState(() {
+                                  widget.domains.removeAt(index);
+                                });
+                              },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          onPressed: widget.isDisabled
+              ? null
+              : () {
+                  setState(() {
+                    widget.domains.add(''); // Add an empty domain to the list
+                  });
+                },
+          icon: Icon(Icons.add),
+          label: Text('Add Domain'),
+        ),
       ],
     );
   }

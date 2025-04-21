@@ -13,7 +13,7 @@ class ZipForm extends StatefulWidget {
   const ZipForm({
     required this.onFileSelected,
     this.isLoading = false,
-    this.projectId = -1, // Replace with actual project ID
+    this.projectId = -1,
     Key? key,
   }) : super(key: key);
   @override
