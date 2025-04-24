@@ -1,26 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:codechatui/src/models/message.dart';
 import 'package:flutter_syntax_view/flutter_syntax_view.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';  // Add this import
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart'; 
+import 'package:url_launcher/url_launcher.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:codechatui/src/utils/util.dart';
 
 class HoverCopyWidget extends StatefulWidget {
   final String text;
   final Widget child;
-  final bool isCodeSection; // new parameter
-  const HoverCopyWidget({super.key, required this.text, required this.child, this.isCodeSection = false});
-  
+  final bool isCodeSection;
+  const HoverCopyWidget(
+      {Key? key,
+      required this.text,
+      required this.child,
+      this.isCodeSection = false})
+      : super(key: key);
+
   @override
   _HoverCopyWidgetState createState() => _HoverCopyWidgetState();
 }
 
 class _HoverCopyWidgetState extends State<HoverCopyWidget> {
   bool _hover = false;
-  
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -31,17 +37,15 @@ class _HoverCopyWidgetState extends State<HoverCopyWidget> {
           widget.child,
           if (_hover)
             Positioned(
-              // changed code: for code sections, align 4px from the top left; otherwise use the original position
               top: widget.isCodeSection ? 4 : -12,
               right: widget.isCodeSection ? 4 : -12,
               child: IconButton(
-                // changed code: if code section, use white icon color
-                icon: Icon(Icons.copy, size: 16, color: Theme.of(context).colorScheme.outline),
+                icon: Icon(Icons.copy,
+                    size: 16, color: Theme.of(context).colorScheme.outline),
                 tooltip: 'Copy text',
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: widget.text));
                 },
-              
               ),
             ),
         ],
@@ -54,25 +58,24 @@ class AIResponseWidget extends StatelessWidget {
   final Message message;
   final dateFormat = DateFormat('HH:mm');
 
-  AIResponseWidget({super.key, required this.message});
+  AIResponseWidget({Key? key, required this.message}) : super(key: key);
 
-  
-  void openLink(String? text, String? href, String? title, [BuildContext? context]) {
+  void openLink(String? text, String? href, String? title,
+      [BuildContext? context]) {
     if (href == null) return;
-    
+
     if (href.startsWith('file://')) {
       final filePath = href.replaceFirst('file://', '');
       print("Opening local file: $filePath");
-      
-      // Handle platform-specific file opening
+
       if (kIsWeb) {
         print("File opening not supported on web. Path: $filePath");
-        
-        // If context is available, show a snackbar
+
         if (context != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('File links cannot be opened in web version: $filePath'),
+              content:
+                  Text('File links cannot be opened in web version: $filePath'),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -93,7 +96,6 @@ class AIResponseWidget extends StatelessWidget {
         }
       }
     } else {
-      // Launch web URLs
       try {
         launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
       } catch (e) {
@@ -101,6 +103,7 @@ class AIResponseWidget extends StatelessWidget {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     // Parse the AI response from the message text
@@ -115,6 +118,8 @@ class AIResponseWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start, // Align items to the start
         children: [
           // AI response container
           Flexible(
@@ -122,18 +127,21 @@ class AIResponseWidget extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
               margin: const EdgeInsets.only(right: 60),
+              padding: const EdgeInsets.all(12.0), // Added padding here
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Process each answer item
-                  ...aiResponse.answers.map((answer) => _buildAnswerItem(context, answer)),
-                  
+                  ...aiResponse.answers
+                      .map((answer) => _buildAnswerItem(context, answer)),
+
                   // Conversational guidance
                   if (aiResponse.conversationalGuidance != null)
-                  const Divider(),
+                    const Divider(),
+                  if (aiResponse.conversationalGuidance != null)
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: HoverCopyWidget(
@@ -144,9 +152,17 @@ class AIResponseWidget extends StatelessWidget {
                             data: aiResponse.conversationalGuidance!,
                             selectable: true,
                             styleSheet: MarkdownStyleSheet(
-                              p: Theme.of(context).textTheme.bodyMedium,
+                              p: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                      fontSize: 16, // Increased font size
+                                      height: 1.5 // Increased line height
+                                      ),
                               code: TextStyle(
-                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
                                 fontFamily: 'monospace',
                                 fontSize: 14,
                               ),
@@ -160,12 +176,13 @@ class AIResponseWidget extends StatelessWidget {
                     ),
                   // Timestamp
                   Padding(
-                    padding: const EdgeInsets.only(left: 12.0, bottom: 4.0, top: 4.0),
+                    padding: const EdgeInsets.only(
+                        left: 12.0, bottom: 4.0, top: 4.0),
                     child: Text(
-                      dateFormat.format(message.timestamp),
+                      DateFormat('hh:mm a').format(message.timestamp),
                       style: TextStyle(
                         fontSize: 12,
-                        color:  Theme.of(context).colorScheme.surfaceContainer,
+                        color: Theme.of(context).colorScheme.secondary,
                       ),
                     ),
                   ),
@@ -184,6 +201,7 @@ class AIResponseWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             backgroundColor: Colors.blue[100],
@@ -201,16 +219,21 @@ class AIResponseWidget extends StatelessWidget {
                     width: double.infinity, // ensures stack covers full bubble
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerLowest,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: MarkdownBody(
                       data: text,
                       selectable: true,
                       styleSheet: MarkdownStyleSheet(
-                        p: Theme.of(context).textTheme.bodyMedium,
+                        p: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 16, // Increased font size
+                            height: 1.5 // Increased line height
+                            ),
                         code: TextStyle(
-                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.surfaceContainerLow,
                           fontFamily: 'monospace',
                           fontSize: 14,
                         ),
@@ -227,7 +250,8 @@ class AIResponseWidget extends StatelessWidget {
                     dateFormat.format(message.timestamp),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                     ),
                   ),
                 ),
@@ -246,8 +270,7 @@ class AIResponseWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Explanation
-          // Replace Text with Markdown for explanation
+          // Explanation Section
           HoverCopyWidget(
             text: answer.explanation,
             child: Container(
@@ -256,9 +279,13 @@ class AIResponseWidget extends StatelessWidget {
                 data: answer.explanation,
                 selectable: true,
                 styleSheet: MarkdownStyleSheet(
-                  p: Theme.of(context).textTheme.bodyMedium,
+                  p: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 16, // Increased font size
+                      height: 1.5 // Increased line height
+                      ),
                   code: TextStyle(
-                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     fontFamily: 'monospace',
                     fontSize: 14,
                   ),
@@ -283,14 +310,15 @@ class AIResponseWidget extends StatelessWidget {
               ),
             ),
           ),
-          // Code
+
+          // Code Section
           if (answer.code != null && answer.language != null)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
                 HoverCopyWidget(
-                  isCodeSection: true, // changed code: mark as code section for white icon and left alignment
+                  isCodeSection: true,
                   text: answer.code!,
                   child: Container(
                     decoration: BoxDecoration(
@@ -310,7 +338,7 @@ class AIResponseWidget extends StatelessWidget {
                         code: answer.code!,
                         syntax: answer.getSyntaxLanguage(),
                         syntaxTheme: SyntaxTheme.vscodeDark(),
-                        withZoom: true,
+                        withZoom: false,
                         withLinesCount: true,
                         fontSize: 12,
                       ),
@@ -326,9 +354,14 @@ class AIResponseWidget extends StatelessWidget {
                       data: answer.codeExplanation ?? '',
                       selectable: true,
                       styleSheet: MarkdownStyleSheet(
-                        p: Theme.of(context).textTheme.bodyMedium,
+                        p: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 16, // Increased font size
+                            height: 1.5 // Increased line height
+                            ),
                         code: TextStyle(
-                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           fontFamily: 'monospace',
                           fontSize: 14,
                         ),
@@ -341,8 +374,10 @@ class AIResponseWidget extends StatelessWidget {
                 ),
               ],
             ),
-          // Social Media
-          if (answer.socialAnswer != null && answer.socialAnswer!.isNotEmpty && answer.socialAnswer!="\"\"")
+// Social Media
+          if (answer.socialAnswer != null &&
+              answer.socialAnswer!.isNotEmpty &&
+              answer.socialAnswer != "\"\"")
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -358,7 +393,9 @@ class AIResponseWidget extends StatelessWidget {
                       styleSheet: MarkdownStyleSheet(
                         p: Theme.of(context).textTheme.bodyMedium,
                         code: TextStyle(
-                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           fontFamily: 'monospace',
                           fontSize: 14,
                         ),
@@ -371,7 +408,7 @@ class AIResponseWidget extends StatelessWidget {
                 ),
               ],
             ),
-          // References
+          // References Section
           if (answer.references != null && answer.references!.isNotEmpty)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,30 +420,37 @@ class AIResponseWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 ...answer.references!.map((ref) => Padding(
-                  padding: const EdgeInsets.only(bottom: 2.0),
-                  child: HoverCopyWidget(
-                    text: ref,
-                    child: Container(
-                      width: double.infinity,
-                      child: MarkdownBody(
-                        data: ref,
-                        selectable: true,
-                        styleSheet: MarkdownStyleSheet(
-                          p: Theme.of(context).textTheme.bodyMedium,
-                          code: TextStyle(
-                            backgroundColor: Colors.grey[300],
-                            fontFamily: 'monospace',
-                            fontSize: 14,
+                      padding: const EdgeInsets.only(bottom: 2.0),
+                      child: HoverCopyWidget(
+                        text: ref,
+                        child: Container(
+                          width: double.infinity,
+                          child: MarkdownBody(
+                            data: ref,
+                            selectable: true,
+                            styleSheet: MarkdownStyleSheet(
+                              p: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                      fontSize: 16, // Increased font size
+                                      height: 1.5 // Increased line height
+                                      ),
+                              code: TextStyle(
+                                backgroundColor: Colors.grey[300],
+                                fontFamily: 'monospace',
+                                fontSize: 14,
+                              ),
+                            ),
+                            onTapLink: (text, href, title) {
+                              openLink(text, href, title, context);
+                            },
+                            onSelectionChanged: (text, selection, cause) =>
+                                print('Selection: $text'),
                           ),
                         ),
-                        onTapLink: (text, href, title) {
-                          openLink(text, href, title, context);
-                        },
-                        onSelectionChanged: (text, selection, cause) => print('Selection: $text'),
                       ),
-                    ),
-                  ),
-                )),
+                    )),
               ],
             ),
         ],

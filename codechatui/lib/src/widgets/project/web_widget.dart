@@ -37,8 +37,8 @@ class _WebFormState extends State<WebForm> {
   bool _showAuth = false;
   List<String> _allowedDomains = [];
   final int _defaultMaxPages = 100;
-  final int _defaultMaxDepth = 5;
-  final int _defaultRequestsPerMinute = 60;
+  final int _defaultMaxDepth = 2;
+  final int _defaultRequestsPerMinute = 200;
 
   @override
   void initState() {

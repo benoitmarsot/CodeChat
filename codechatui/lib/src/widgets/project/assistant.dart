@@ -228,6 +228,15 @@ class _AssistantFormState extends State<AssistantForm> {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
+              Tooltip(
+                message:
+                    'Controls randomness in the model’s output and can limit hallucination',
+                child: const Icon(
+                  Icons.info_outline,
+                  size: 18.0,
+                  color: Colors.grey,
+                ),
+              ),
               const SizedBox(width: 8.0),
               SizedBox(
                 width: 200,
@@ -289,6 +298,17 @@ class _AssistantFormState extends State<AssistantForm> {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    const SizedBox(width: 4.0),
+                    Tooltip(
+                      message:
+                          'How hard should the assistant try to reason things through before replying?',
+                      child: const Icon(
+                        Icons.info_outline,
+                        size: 18.0,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(width: 8.0),
                     const SizedBox(width: 8.0),
                     isAttributeSupported(_selectedModel, 'reasoningEffort')
                         ? SegmentedButton<Reasoning>(

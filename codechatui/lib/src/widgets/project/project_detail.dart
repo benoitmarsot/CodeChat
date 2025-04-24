@@ -56,7 +56,7 @@ class _ProjectDetailState extends State<ProjectDetail>
   final TextEditingController _maxDepthController =
       TextEditingController(text: '2');
   final TextEditingController _requestsPerMinuteController =
-      TextEditingController(text: '30');
+      TextEditingController(text: '200');
   final ScrollController _scrollController = ScrollController();
 
   int? _projectId;
