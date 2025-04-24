@@ -42,4 +42,11 @@ public record Assistant(
         this(aid, oaiAid, projectid, name, description, instruction, reasoningEffort, 
              model, temperature, maxResults, codevsid, markupvsid, configvsid, fullvsid, null);
     }
+    public Assistant(Assistant assistant,String newInstruction) {
+        this(assistant.aid(), assistant.oaiAid(), assistant.projectid(), assistant.name(), 
+             assistant.description(), newInstruction, assistant.reasoningEffort(), 
+             assistant.model(), assistant.temperature(), assistant.maxResults(), 
+             assistant.codevsid(), assistant.markupvsid(), assistant.configvsid(), 
+             assistant.fullvsid(), LocalDateTime.now());
+    }
 }

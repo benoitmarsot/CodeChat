@@ -49,6 +49,8 @@ public class AssistantController {
         if(assistantOai.get("error") != null) {
             return ResponseEntity.badRequest().body(assistantOai.get("error").toString());
         }
+        String newInstruction=request.getInstructions(assistant.instruction());
+        assistant = new Assistant(assistant, newInstruction);
         //System.out.println("Assistant OAI:");
         //printJsonNode(assistantOai);
         assistantRepository.updateAssistant(assistant);

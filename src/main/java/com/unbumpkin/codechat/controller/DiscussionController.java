@@ -109,12 +109,12 @@ public class DiscussionController {
                 discussion.did(),
                 Roles.user.toString(), 0,
                 "[SYSTEM INSTRUCTION] \n" +
-                "Most importantly, Only answer based on the results from vector store. If no match is found, answer with empty string. \n"+
+                "Most importantly, Only answer based on the results from vector store. If no match is found, answer with nothing. \n"+
                 "When a user sends a query, treat the full conversation thread from the main assistant as the query context. Use that entire thread (not just the latest message) to search the attached vector store, which contains Slack/Discord messages and Jira/GitHub tickets.\n" +
                 "Search using the original full joined terms (e.g., 'authToken', 'issue_id'), giving the highest weight to exact matches of these joined words.\n" +
                 "To improve retrieval accuracy, preprocess the thread content before searching:\n" +
                 "- Also split compound or joined words (e.g., camelCase, PascalCase, snake_case, kebab-case) into individual tokens. For example, 'authToken' becomes 'auth' and 'token'; 'issue_id' becomes 'issue' and 'id'.\n" +
-                "Return the most relevant results that semantically match the thread. Include references (e.g., URLs, message snippets, or ticket IDs) to the original content in your responses.\n"
+                "Return any results that semantically match the thread. Include references (e.g., URLs, message snippets, or ticket IDs) to the original content in your responses.\n"
                 ,null
             );
             messages.add(0, sysMessage);

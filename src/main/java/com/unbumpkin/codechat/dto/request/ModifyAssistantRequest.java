@@ -50,6 +50,7 @@ public record ModifyAssistantRequest(
      */
     AssistantTypes assistantType 
 ) {
+    private static final String FUNCTION_ST = "<Function: ";
     public ModifyAssistantRequest {
         if (temperature!=null && (temperature < 0 || temperature > 2.0)) {
             throw new IllegalArgumentException("temperature must be between 0 and 2.0");
@@ -57,19 +58,22 @@ public record ModifyAssistantRequest(
         if(maxResults < 1 || maxResults > 50) {
             throw new IllegalArgumentException("Max results must be between 1 and 50");
         }
+        if(primaryFunction!=null && (primaryFunction.contains(">") || primaryFunction.contains(FUNCTION_ST))) {
+            throw new IllegalArgumentException("primaryFunction cannot contain '>' or '"+FUNCTION_ST+"'.");
+        }
         // Add default value for assistantType if null
         assistantType = assistantType == null ? AssistantTypes.codechat : assistantType;
     }
-    private static Pattern functionPattern = Pattern.compile("<Function:[^>]*>");
-    private String getInstructions(String existingInstruction) {
+    private static Pattern functionPattern = Pattern.compile(FUNCTION_ST+"[^>]*>", Pattern.DOTALL);
+    public String getInstructions(String existingInstruction) {
         String instruction=existingInstruction;
         if(fullInstruction()!=null && !fullInstruction().isEmpty()) {
             instruction=fullInstruction();
         } else {
-            if(primaryFunction()!=null && primaryFunction().isEmpty()) {
+            if(primaryFunction()!=null && !primaryFunction().isEmpty()) {
                 Matcher matcher=functionPattern.matcher(instruction);
                 if(matcher.find()) {
-                    instruction=matcher.replaceFirst("<Function: "+primaryFunction()+">");
+                    instruction=matcher.replaceFirst(FUNCTION_ST+primaryFunction()+">");
                 }
             }
         }
