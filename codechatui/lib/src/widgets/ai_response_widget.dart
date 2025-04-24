@@ -346,31 +346,28 @@ class AIResponseWidget extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.forum, size: 16),
-                    HoverCopyWidget(
-                      text: answer.socialAnswer!,
-                      child: Container(
-                        width: double.infinity,
-                        child: MarkdownBody(
-                          data: answer.socialAnswer!,
-                          selectable: true,
-                          styleSheet: MarkdownStyleSheet(
-                            p: Theme.of(context).textTheme.bodyMedium,
-                            code: TextStyle(
-                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              fontFamily: 'monospace',
-                              fontSize: 14,
-                            ),
-                          ),
-                          onTapLink: (text, href, title) {
-                            openLink(text, href, title, context);
-                          },
+                Icon(Icons.forum, size: 16),
+                const SizedBox(height: 8),
+                HoverCopyWidget(
+                  text: answer.socialAnswer!,
+                  child: Container(
+                    width: double.infinity,
+                    child: MarkdownBody(
+                      data: answer.socialAnswer!,
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet(
+                        p: Theme.of(context).textTheme.bodyMedium,
+                        code: TextStyle(
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          fontFamily: 'monospace',
+                          fontSize: 14,
                         ),
                       ),
+                      onTapLink: (text, href, title) {
+                        openLink(text, href, title, context);
+                      },
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
