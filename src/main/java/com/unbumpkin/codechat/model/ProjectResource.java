@@ -10,5 +10,5 @@ public record ProjectResource(
     ResTypes resType,
     Map<Labels,UserSecret> secrets
 ) {
-    public enum ResTypes {git, web, file, zip, slack, discord};
+    public enum ResTypes {git, web, file, zip, slack, discord, jiraissue, githubissue};
 }

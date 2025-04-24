@@ -34,6 +34,8 @@ public abstract class SocialService {
     public abstract String getMessageUrl(SocialMessage message,SocialChannel channel);
     public abstract String getRessourceUrl();
     public abstract String getTSIso8601(SocialMessage message);
+    public abstract SocialPlatforms platform();
+    public abstract ResTypes resType();
     public Map<String, SocialUser> getUsersMap() throws IOException {
         Map<String, SocialUser> userMap = new HashMap<>();
         List<SocialUser> users = getUsers();
@@ -41,11 +43,5 @@ public abstract class SocialService {
             userMap.put(user.userId(), user);
         }
         return userMap;
-    }
-    public SocialPlatforms platform() {
-        return null;
-    }
-    public ResTypes resType() {
-        return null;
     }
 }

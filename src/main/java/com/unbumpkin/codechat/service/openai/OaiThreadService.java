@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.unbumpkin.codechat.model.Message;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -41,6 +44,48 @@ public class OaiThreadService extends BaseOpenAIClient {
         //System.out.println("Request:"+json);
 
         return this.executeRequest(request).get("id").asText();
+    }
+    /**
+     * Creates a new thread with multiple messages in a single API call.
+     * This is more efficient than creating a thread and then adding messages individually.
+     *
+     * @param messages List of Message objects to add to the new thread
+     * @return The ID of the newly created thread
+     * @throws IOException If an API error occurs or the response cannot be parsed
+     * @see <a href="https://platform.openai.com/docs/api-reference/threads/createThread">OpenAI API Reference</a>
+     */
+    public String createThreadWithMessages(List<Message> messages) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode threadRequest = mapper.createObjectNode();
+        ArrayNode messagesArray = threadRequest.putArray("messages");
+        
+        for (Message message : messages) {
+            ObjectNode messageNode = messagesArray.addObject();
+            // Messages from other assistants need to be treated as user input
+            messageNode.put("role", message.role()==Roles.assistant.toString()?Roles.user.toString():message.role());
+            messageNode.put("content", message.message());
+        }
+        
+        String url = "https://api.openai.com/v1/threads";
+        String json = mapper.writeValueAsString(threadRequest);
+        
+        RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("OpenAI-Beta", "assistants=v2")
+                .build();
+        
+        JsonNode response = executeRequest(request);
+        if(response == null) {
+            throw new IOException("Failed to create thread: No response from server");
+        }
+        if(response.has("error")) {
+            throw new IOException("Failed to create thread: " + response.get("error").asText());
+        }
+        return response.get("id").asText();
     }
     public JsonNode retrieveThread(String threadId) throws IOException {
         Request request = new Request.Builder()

@@ -165,6 +165,18 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- gihub api -->
+		<dependency>
+			<groupId>org.kohsuke</groupId>
+			<artifactId>github-api</artifactId>
+			<version>1.326</version>
+		</dependency>
+		<!-- JIRA API -->
+		<dependency>
+			<groupId>net.rcarz</groupId>
+			<artifactId>jira-client</artifactId>
+			<version>0.5</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>

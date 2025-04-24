@@ -46,7 +46,14 @@ public class OaiRunService extends BaseOpenAIClient {
                 .addHeader("OpenAI-Beta", "assistants=v2")
                 .build();
 
-        return this.executeRequest(request).get("id").asText();
+        JsonNode jsonResponse = this.executeRequest(request);
+        if (jsonResponse == null) {
+            throw new IOException("Failed to create run: No response from server");
+        }
+        if (jsonResponse.has("error")) {
+            throw new IOException("Failed to create run: " + jsonResponse.get("error").asText());
+        }
+        return jsonResponse.get("id").asText();
     }
 
     public JsonNode createThreadAndRun(OaiMessageService.Roles role, List<OaiMessageService> messages) throws IOException {
@@ -158,6 +165,12 @@ public class OaiRunService extends BaseOpenAIClient {
             try {
                 Thread.sleep((long)1000);
                 JsonNode jsonNode = this.retrieve(runId);
+                if(jsonNode == null) {
+                    throw new RuntimeException("Failed to retrieve run: No response from server");
+                }
+                if(jsonNode.has("error")) {
+                    throw new RuntimeException("Failed to retrieve run: " + jsonNode.get("error").asText());
+                }
                 status=jsonNode.get("status").asText();
                 JsonNode lastError=jsonNode.get("last_error");
                 if(lastError.size()>0) {

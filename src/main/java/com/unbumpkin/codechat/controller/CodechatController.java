@@ -202,7 +202,6 @@ public class CodechatController {
         @RequestBody AddWebRequest request,
         @RequestHeader(name = "Sse-Client-ID", required = false) String clientId
     ) throws Exception {
-
         int projectId = request.projectId();
         WebCrawlerContentManager webManager = null;
         
@@ -776,7 +775,7 @@ public class CodechatController {
     ) throws IOException {
         String oldExt = FileUtils.getFileExtension(desc.oldFileName());
         Types fileType=getFileType(desc.oldFileName());
-         writeMessage(clientId,"URL:" + fileUrl);
+        writeMessage(clientId,"URL:" + fileUrl);
         CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
             oaiFile.fileId(), new HashMap<>() {{
                 put("name", desc.oldFileName());

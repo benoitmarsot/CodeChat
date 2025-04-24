@@ -57,7 +57,7 @@ class Message {
       // Check if the text is valid JSON
       if (isLoading) return null;
       final decoded = jsonDecode(text);
-      return AIResponse.fromJson(decoded);
+      return AIResponse.fromJson(decoded,socialAnswer);
     } catch (e) {
       // If parsing fails, return null
       print('Error parsing AI response: $e');
@@ -71,11 +71,11 @@ class AIResponse {
   final String? conversationalGuidance; // Add this line
 
   AIResponse({required this.conversationalGuidance, required this.answers});
-
-  factory AIResponse.fromJson(Map<String, dynamic> json) {
+  
+  factory AIResponse.fromJson(Map<String, dynamic> json, String? socialAnswer) {
     return AIResponse(
       answers: (json['answers'] as List)
-          .map((item) => AIAnswerItem.fromJson(item))
+          .map((item) => AIAnswerItem.fromJson(item,socialAnswer))
           .toList(),
       conversationalGuidance: json['conversationalGuidance'],
     );
@@ -86,6 +86,7 @@ class AIAnswerItem {
   final String explanation;
   final String? language;
   final String? code;
+  final String? socialAnswer; // This is the answer from the social network assistant
   final List<String>? references; // Make this field optional
   final String? codeExplanation;
 
@@ -93,14 +94,16 @@ class AIAnswerItem {
       {required this.explanation,
       this.language,
       this.code,
+      this.socialAnswer,
       this.references, // Update constructor
       this.codeExplanation});
 
-  factory AIAnswerItem.fromJson(Map<String, dynamic> json) {
+  factory AIAnswerItem.fromJson(Map<String, dynamic> json, String? socialAnswer) {
     return AIAnswerItem(
       explanation: json['explanation'],
       language: json['language'],
       code: json['code'],
+      socialAnswer: socialAnswer,
       references: json['references'] != null
           ? (json['references'] as List).map((e) => e.toString()).toList()
           : null, // Handle null case

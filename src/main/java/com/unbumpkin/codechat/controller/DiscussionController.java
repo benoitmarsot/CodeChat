@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.unbumpkin.codechat.dto.openai.Assistant;
 import com.unbumpkin.codechat.dto.openai.SocialAssistant;
 import com.unbumpkin.codechat.dto.request.AddOaiThreadRequest;
@@ -98,44 +100,67 @@ public class DiscussionController {
             throw e;
         }
     }
-    private String askSocialAssistantInsights(
-        String messageTxt, Discussion discussion
-    ) throws IOException {
-        String userQuestionTxt="""
-            Please find references to the following question in the social vector store,
-            If you are not finding any, please answer nothing:
-            """+messageTxt;
-        SocialAssistant assistant=socialAssistantRepository.getAssistantByProjectId(
-            discussion.projectId()
-        );
+    private String askSocialAssistantInsights(String messageTxt, Discussion discussion) throws IOException {
+        try {
+            // Get all messages for the discussion 
+            List<Message> messages = messageRepository.getAllMessagesByDiscussionId(discussion.did());
+            
+            Message sysMessage = new Message( 0,
+                discussion.did(),
+                Roles.user.toString(), 0,
+                "[SYSTEM INSTRUCTION] \n" +
+                "Most importantly, Only answer based on the results from vector store. If no match is found, answer with empty string. \n"+
+                "When a user sends a query, treat the full conversation thread from the main assistant as the query context. Use that entire thread (not just the latest message) to search the attached vector store, which contains Slack/Discord messages and Jira/GitHub tickets.\n" +
+                "To improve retrieval accuracy, preprocess the thread content before searching:\n" +
+                "- Search using the original full joined terms (e.g., 'authToken', 'issue_id'), giving very high weight to exact matches of these joined words.\n" +
+                "- Also split compound or joined words (e.g., camelCase, PascalCase, snake_case, kebab-case) into individual tokens. For example, 'authToken' becomes 'auth' and 'token'; 'issue_id' becomes 'issue' and 'id'.\n" +
+                "Return the most relevant results that semantically match the thread. Include references (e.g., URLs, message snippets, or ticket IDs) to the original content in your responses.\n"
+                ,null
+            );
+            messages.add(0, sysMessage);
+            // Create a new thread with all messages at once
+            String socialThreadId = threadService.createThreadWithMessages(messages);
+            
+            // Run the social assistant on this thread
+            SocialAssistant socialAssistant = socialAssistantRepository.getAssistantByProjectId(
+                discussion.projectId()
+            );
+            
+            OaiRunService runService = new OaiRunService(socialAssistant.oaiAid(), socialThreadId);
+            String oaiRunId = runService.create();
+            System.out.println("Starting OpenAI social run " + oaiRunId + "...");
+            runService.waitForAnswer(oaiRunId);
+            
+            // Get the response
+            OaiMessageService msgService = new OaiMessageService(socialThreadId);
+            List<String> responseMessages = msgService.listMessages();
 
-        String socialThreadId=threadService.createThread();
-        System.out.println("OpenAi thread " + socialThreadId+" created...");
+            if (responseMessages.isEmpty()) {
+                System.out.println("No messages in discussion.");
+                return null;
+            }
+            JsonNode jsonNode = msgService.retrieveMessage(responseMessages.get(0));
+            if(jsonNode==null){
+                System.out.println("No messages in discussion.");
+                return null;
+            }
+            JsonNode answerNode = jsonNode.findValue("value");
+            if(answerNode==null){
+                System.out.println("Answer is null");
+                return null;
+            }
+            // Decide if the node is textual or structured
+            String answer = answerNode.isTextual() 
+                ? answerNode.asText()
+                : objectMapper.writeValueAsString(answerNode);
+            System.out.println("AI social Answer: " + answer);
 
-        threadRepository.addThread(new AddOaiThreadRequest(
-            socialThreadId, assistant.vsid(),discussion.did(), "social"));
-
-        OaiMessageService messageService=new OaiMessageService(socialThreadId);
-        String oaiMsgId=messageService.createMessage(Roles.user,userQuestionTxt);
-        System.out.println("OpenAi social message " + oaiMsgId+" created...");
-
-        OaiRunService runService = new OaiRunService(assistant.oaiAid(), socialThreadId);
-        OaiMessageService msgService = new OaiMessageService(socialThreadId);
-        String OaiRunId = runService.create();
-        System.out.println("Starting OpenAi social run " + OaiRunId + "...");
-        System.out.println("Waiting for social answer...");
-        runService.waitForAnswer(OaiRunId);
-        JsonNode jsonNode = msgService.retrieveMessage(msgService.listMessages().get(0));
-        JsonNode answerNode = jsonNode.findValue("value");
-    
-        // Decide if the node is textual or structured
-        String answer = answerNode.isTextual() 
-            ? answerNode.asText()
-            : objectMapper.writeValueAsString(answerNode);
-        System.out.println("AI social Answer: " + answer);
-
-        return answer;
-
+            return answer;
+        } catch (Exception e) {
+            System.out.println("Exception in askSocialAssistantInsights: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
     @PostMapping("/{did}/answer-question")
     public ResponseEntity<Message> answerQuestion(@PathVariable int did) throws IOException {
@@ -234,4 +259,5 @@ public class DiscussionController {
         discussionRepository.deleteDiscussion(did);
         return ResponseEntity.ok().build();
     }
+
 }

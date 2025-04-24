@@ -246,6 +246,7 @@ class AIResponseWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Explanation
           // Replace Text with Markdown for explanation
           HoverCopyWidget(
             text: answer.explanation,
@@ -282,7 +283,7 @@ class AIResponseWidget extends StatelessWidget {
               ),
             ),
           ),
-          
+          // Code
           if (answer.code != null && answer.language != null)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,7 +341,40 @@ class AIResponseWidget extends StatelessWidget {
                 ),
               ],
             ),
-          
+          // Social Media
+          if (answer.socialAnswer != null && answer.socialAnswer!.isNotEmpty && answer.socialAnswer!="\"\"")
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.forum, size: 16),
+                    HoverCopyWidget(
+                      text: answer.socialAnswer!,
+                      child: Container(
+                        width: double.infinity,
+                        child: MarkdownBody(
+                          data: answer.socialAnswer!,
+                          selectable: true,
+                          styleSheet: MarkdownStyleSheet(
+                            p: Theme.of(context).textTheme.bodyMedium,
+                            code: TextStyle(
+                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              fontFamily: 'monospace',
+                              fontSize: 14,
+                            ),
+                          ),
+                          onTapLink: (text, href, title) {
+                            openLink(text, href, title, context);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          // References
           if (answer.references != null && answer.references!.isNotEmpty)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,

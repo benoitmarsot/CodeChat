@@ -7,7 +7,9 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.unbumpkin.codechat.model.Message;
 
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -51,7 +53,17 @@ public class OaiMessageService extends BaseOpenAIClient {
                 .addHeader("OpenAI-Beta", "assistants=v2")
                 .addHeader("Content-Type", "application/json")
                 .build();
-        return this.executeRequest(request).get("id").asText();
+        JsonNode jsonResponse = this.executeRequest(request);
+        if (jsonResponse == null) {
+            throw new IOException("Failed to create message: No response from server");
+        }
+        if (jsonResponse.has("error")) {
+            throw new IOException("Failed to create message: " + jsonResponse.get("error").asText());
+        }
+        if (!jsonResponse.has("id")) {
+            throw new IOException("Failed to create message: No ID in response");
+        }
+        return jsonResponse.get("id").asText();
     }
 
     public List<String> listMessages() throws IOException {

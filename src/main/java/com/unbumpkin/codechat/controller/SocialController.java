@@ -13,19 +13,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.slack.api.Slack;
-import com.slack.api.methods.MethodsClient;
-import com.slack.api.methods.request.conversations.ConversationsHistoryRequest;
-import com.slack.api.methods.response.conversations.ConversationsHistoryResponse;
-import com.slack.api.methods.response.conversations.ConversationsListResponse;
-import com.slack.api.methods.response.users.UsersListResponse;
+import com.unbumpkin.codechat.dto.issuetracker.AddIssueTrackerRequest;
+import com.unbumpkin.codechat.dto.issuetracker.Issue;
 import com.unbumpkin.codechat.dto.openai.SocialAssistant;
+import com.unbumpkin.codechat.dto.request.CreateVSIssueRequest;
 import com.unbumpkin.codechat.dto.request.CreateVSSocialMessageRequest;
 import com.unbumpkin.codechat.dto.social.AddSocialRequest;
 import com.unbumpkin.codechat.dto.social.SocialChannel;
@@ -43,6 +38,7 @@ import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.repository.social.SocialChannelRepository;
 import com.unbumpkin.codechat.repository.social.SocialUserRepository;
+import com.unbumpkin.codechat.service.issuetracking.IssueTrackingService;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 import com.unbumpkin.codechat.service.openai.AssistantService;
@@ -82,18 +78,71 @@ public class SocialController {
 
 
     @Transactional
+    @PostMapping("add-issue-tracker")
+    public ResponseEntity<ProjectResource> addSocialIssueTracker(
+        @RequestBody AddIssueTrackerRequest request
+    ) throws Exception {
+        int projectId=request.projectId();
+        // create the IsuuseTracking service
+        IssueTrackingService issueTrackingService = IssueTrackingService.getInstance(request);
+        // Get the project resource
+        Integer prId=projectResourceRepository.getResourceId(projectId, issueTrackingService.getRessourceUrl());
+        if(prId!=null){
+            //TODO: implement refresh
+            throw new Exception("The project already has the issue tracker resource "+issueTrackingService.getRessourceUrl()+", use refresh to update it");
+        }
+        // Create a new project resource 
+        Map<Labels,UserSecret> userSecrets = new HashMap<>();
+        if(request.pat()!=null && !request.pat().isEmpty()){
+            userSecrets.put(Labels.pat, new UserSecret(Labels.pat, request.pat()));
+        }
+        if(request.userName()!=null && !request.userName().isEmpty()){
+            userSecrets.put(Labels.username, new UserSecret(Labels.username, request.userName()));
+        }
+        if(request.password()!=null && !request.password().isEmpty()){
+            userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
+        }
+        ProjectResource pr=projectResourceRepository.createResource(
+            projectId, issueTrackingService.getRessourceUrl(), issueTrackingService.resType(), userSecrets
+        );
+        prId=pr.prId();
+        VectorStore vs=getOrCreateVectorStore(projectId);
+        VectorStoreFile vsf=new VectorStoreFile(vs.getOaiVsid());
+
+        Map<String,SocialUser> mUsers=issueTrackingService.getUsersMap();
+        socialUserRepository.addMissingSocialUsers(mUsers.values(),prId);
+
+        // add the issues
+        //Getting all issues
+        System.out.println("Getting all issues for project "+request.repositoryName());
+        List<Issue> issues=issueTrackingService.getAllIssues();
+        //String stLastUpdated=issues.get(0).lastUpdated();
+        //Transform iso8601 date to milli
+        addIssues(issueTrackingService,issues,mUsers,pr.prId(),vsf);
+        List<SocialChannel> sChannelsDb=new ArrayList<>(1);
+        sChannelsDb.add(new SocialChannel(
+            issueTrackingService.getIssuesChannel(),issueTrackingService.getIssuesChannel(),issues.get(0).lastUpdated()
+        ));
+        socialChannelRepository.addMissingSocialChannels(sChannelsDb,prId);
+        //Create a new social assistant if needed
+        int assistantId=retrieveCreateAssistant("Social Assisant",projectId,vs);
+        System.out.println("Assistant created with id: "+assistantId);
+        return ResponseEntity.ok(pr);
+    }
+    @Transactional
     @PostMapping("add-social-platform")
     public ResponseEntity<ProjectResource> addSocialResource(
         @RequestBody AddSocialRequest request
     ) throws Exception {
         int projectId=request.projectId();
-        // create the slack service
+        // create the social service
         SocialService socialService = SocialService.getInstance(request);
         // Get the project resource
         Integer prId=projectResourceRepository.getResourceId(projectId, socialService.getRessourceUrl());
 
         if(prId!=null){
-            throw new Exception("The project already has the slack resource "+socialService.getRessourceUrl()+", use refresh to update it");
+            //TODO: implement refresh
+            throw new Exception("The project already has the social resource "+socialService.getRessourceUrl()+", use refresh to update it");
         }
         // Create a new project resource 
         Map<Labels,UserSecret> userSecrets = new HashMap<>();
@@ -110,10 +159,10 @@ public class SocialController {
 
         Map<String,SocialUser> mUsers=socialService.getUsersMap();
         socialUserRepository.addMissingSocialUsers(mUsers.values(),prId);
-        // add the slack channels
+        // add the social channels
         List<SocialChannel> sChannels=socialService.getDiscussions();
         List<SocialChannel> sChannelsDb=new ArrayList<>(sChannels.size());
-        // add the slack messages
+        // add the social messages
         for(SocialChannel sChannel:sChannels) {
             try{ 
                 System.out.println("Getting messages for channel "+sChannel.channelName());
@@ -131,7 +180,6 @@ public class SocialController {
         //Create a new social assistant
 
         int assistantId=retrieveCreateAssistant("Social Assisant",projectId,vs);
-        System.out.println("Assistant created with id: "+assistantId);
         return ResponseEntity.ok(pr);
     }
     private VectorStore getOrCreateVectorStore(int projectId) throws IOException {
@@ -150,6 +198,36 @@ public class SocialController {
         }
         
         return new VectorStore(repoVs.id(), repoVs.vsid(), projectId, repoVs.name(), repoVs.description(), repoVs.dayskeep(), repoVs.type());
+    }
+    private void addIssues(
+        IssueTrackingService issueTrackingService, List<Issue> issues, Map<String,SocialUser> mUsers, int prId, VectorStoreFile vsf
+    ) throws IOException {
+        for(Issue issue:issues){
+            try {
+                String body=issue.body();
+                if(body==null || body.isEmpty()){
+                    System.out.println("Message is empty, skipping it");
+                    continue;
+                }
+                String issueUrl=issue.url(); // maybe needs issueTrackingService.getIssueUrl(issue.issueNumber());
+                CreateVSIssueRequest creaVsRequest=new CreateVSIssueRequest(
+                    "", issueTrackingService.platform(), issueTrackingService.getIssuesChannel(),mUsers.get(issue.author()).fullName(), 
+                    issueUrl,issue.isOpen(),issue.lastUpdated()
+                );
+                ObjectMapper objectMapper = new ObjectMapper();
+                objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+                body=objectMapper.writeValueAsString(CreateSocialMessage(creaVsRequest.attributes(),body));
+                System.out.println("body: "+body);
+                issue=new Issue(issue, body);
+
+                OaiFile oaiFile=oaiFileService.uploadIssue(issue, issueUrl, Purposes.assistants, prId);
+                creaVsRequest= new CreateVSIssueRequest(oaiFile.fileId(),creaVsRequest.attributes());
+                vsf.addFile( creaVsRequest);
+                System.out.println(issueTrackingService.platform().toString()+" message "+issueUrl+" added to social vector store.");
+            } catch (Exception e) {
+                System.out.println("Error adding message "+issue.Title()+": "+e.getMessage());
+            }
+        }
     }
 
     private static final Pattern NAME_REGEXP = java.util.regex.Pattern.compile("<@([A-Z0-9]+)>");
@@ -210,6 +288,8 @@ public class SocialController {
         //Check if the assistant already exists
         SocialAssistant assistant=socialAssistantRepository.getAssistantByProjectId(projectId);
         if(assistant!=null) {
+            System.out.println("Assistant retrieved with id: "+assistant.aid());
+
             return assistant.aid();
         }
         //Create a new social assistant
@@ -219,7 +299,7 @@ public class SocialController {
             ## 🧠 Assistant Instructions
 
             <Function: You are a smart, multi-platform message search assistant. You have access to a vector store of all internal and external communications across platforms like Slack, Discord, MS Teams, and Facebook. Your job is to help users find important messages, decisions, or patterns across these platforms using natural language queries.>
-            Each message contains metadata such as `platform`, `channel`, `author`, `messageUrl`, and `timestamp` (in ISO 8601 format).
+            Each documents (messages or tickets) contains metadata such as `platform`, `channel`, `author`, `messageUrl`, and `timestamp` (in ISO 8601 format).
 
             ---
 
@@ -229,9 +309,9 @@ public class SocialController {
             - Interpret the user's query
             - Understand any time-based constraints (e.g. "last week", "Q1", "yesterday")
             - Convert natural language into filters (timestamp, channel, author, etc.)
-            - Search for the most relevant messages across platforms
+            - Search for the most relevant documents across platforms
             - Summarize, answer
-            - reference relevant discussion messages
+            - reference relevant documents
 
             Use the `timestamp` field for any time-based filtering. Timestamps are in ISO 8601 format.
 
@@ -279,95 +359,9 @@ public class SocialController {
             instruction, ReasoningEfforts.high, model, .7f, 10, 
             vectorStore.getVsid()
         );
+        System.out.println("Assistant created with id: "+assistant.aid());
+
         return socialAssistantRepository.addAssistant(assistant);
     }
 
-    @GetMapping("slack-users")
-    public ResponseEntity<String> getSlackUsers() {
-        String token=System.getenv("SLACK_API_TOKEN");
-        Slack slack = Slack.getInstance();
-        MethodsClient methods = slack.methods(token);
-        try {
-            UsersListResponse ulResponse = methods.usersList(r -> r.token(token));
-            ulResponse.getMembers().forEach(user -> {
-                System.out.println("User ID: " + user.getId());
-                System.out.println("User Name: " + user.getName());
-                System.out.println("User Real Name: " + user.getRealName());
-                System.out.println("User Email: " + user.getProfile().getEmail());
-            });
-            //System.out.println("Response: " + ulResponse);
-            if (ulResponse.isOk()) {
-                return ResponseEntity.ok("Users fetched successfully");
-            } else {
-                return ResponseEntity.status(500).body("Error: " + ulResponse.getError());
-            }
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
-        }
-    }
-    @GetMapping("slack-messages")
-    public ResponseEntity<String> getSlackMessages(
-            @RequestParam(value = "channel", required = true) String channel,
-            @RequestParam(value = "ts", required = false) String ts
-    ) {
-        String token=System.getenv("SLACK_API_TOKEN");
-        Slack slack = Slack.getInstance();
-        MethodsClient methods = slack.methods(token);
-        try {
-            ConversationsHistoryRequest chRequest = ConversationsHistoryRequest.builder()
-                    .token(token)
-                    .channel(channel) // Replace with your channel ID
-                    .oldest(ts) // Replace with your timestamp
-                    .build();
-            ConversationsHistoryResponse chResponse = methods.conversationsHistory(chRequest);
-            chResponse.getMessages().forEach(m -> {
-                System.out.println("User ID: " + m.getUser());
-                System.out.println("User Name: " + m.getUsername());
-                System.out.println("Metadata: " + m.getMetadata());
-                System.out.println("ts: " + m.getTs());
-                System.out.println("Message: " + m.getText());
-            });
-            //System.out.println("Response: " + ulResponse);
-            if (chResponse.isOk()) {
-                return ResponseEntity.ok("Messages fetched successfully");
-            } else {
-                return ResponseEntity.status(500).body("Error: " + chResponse.getError());
-            }
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
-        }
-    }
-
-
-    @GetMapping("slack-discussions")
-    public ResponseEntity<String> getSlackDiscussions() {
-        String token=System.getenv("SLACK_API_TOKEN");
-        Slack slack = Slack.getInstance();
-        MethodsClient methods = slack.methods(token);
-        try {
-            ConversationsListResponse clResponse = methods.conversationsList( r-> r.token(token));
-            clResponse.getChannels().forEach(c -> {
-                System.out.println("Channel Id: " + c.getId());
-                System.out.println("Channel Name: " + c.getName());
-                System.out.println("Channel Topic]: " + c.getTopic());
-            });
-            //System.out.println("Response: " + ulResponse);
-            if (clResponse.isOk()) {
-                return ResponseEntity.ok("Messages fetched successfully");
-            } else {
-                return ResponseEntity.status(500).body("Error: " + clResponse.getError());
-            }
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
-        }
-    }
-    
-    
-    
 }

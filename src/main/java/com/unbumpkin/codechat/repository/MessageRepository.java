@@ -45,7 +45,7 @@ public class MessageRepository {
 
     /**
      * Add a message to the database.
-     * @param message The message to add.
+     * @param IssueComment The message to add.
      */
     public Message addMessage( MessageCreateRequest createRequest) {
         String sql = """

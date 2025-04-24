@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unbumpkin.codechat.dto.issuetracker.Issue;
 import com.unbumpkin.codechat.dto.social.SocialMessage;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
@@ -103,6 +105,46 @@ public class OaiFileService  extends BaseOpenAIClient {
         fileIds=this.listFiles();
         System.out.println("there is "+fileIds.size()+" file left.");
         return deletedFileIds;
+    }
+    public OaiFile uploadIssue(  Issue issue, String issueUrl, Purposes purpose, int prId) throws IOException {
+        String url = API_URL;
+        ObjectMapper mapper = new ObjectMapper();
+        // Serialize to JSON
+        String issueContent = mapper.writeValueAsString(issue);
+        RequestBody fileBody = RequestBody.create(
+            issueContent.getBytes(StandardCharsets.UTF_8),
+            MediaType.parse("application/json; charset=utf-8")
+        );
+    
+        String fileName = URLEncoder.encode(issueUrl, StandardCharsets.UTF_8) + ".json";
+    
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("purpose", purpose.toString())
+                .addFormDataPart("file", fileName, fileBody)
+                .build();
+    
+        Request request = new Request.Builder()
+                .url(url)
+                .post(requestBody)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .build();
+    
+        JsonNode responseJson = this.executeRequest(request);
+    
+        int linecount = issue.body() != null ? issue.body().split("\n").length : 1;
+    
+        OaiFile oaiFile = new OaiFile(
+            0,
+            prId,
+            responseJson.get("id").asText(),
+            fileName,
+            "",  // parentPath
+            "",  // relative file path
+            purpose,
+            linecount
+        );
+        return oaiFile;
     }
     /**
      * Upload a SocialMessage as a file to OpenAI.
