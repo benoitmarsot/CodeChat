@@ -59,6 +59,6 @@ class Project {
         'description': description,
         'authorId': authorId,
         'assistantId': assistantId,
-        'resourceUris': resourceUris,
+        // 'resourceUris': resourceUris,
       };
 }

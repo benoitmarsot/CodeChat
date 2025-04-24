@@ -40,8 +40,7 @@ class ProjectDetail extends StatefulWidget {
 class _ProjectDetailState extends State<ProjectDetail>
     with SingleTickerProviderStateMixin {
   final TextEditingController _prjNameController = TextEditingController();
-  final TextEditingController _prjDesctController = TextEditingController();
-  final TextEditingController _prjRepoURLController = TextEditingController();
+  final TextEditingController _prjDescController = TextEditingController();
 
   final TextEditingController _branchNameController =
       TextEditingController(text: 'main');
@@ -64,15 +63,14 @@ class _ProjectDetailState extends State<ProjectDetail>
 
   List<String> _debugMessages = [];
 
-  String _createdMessage = '';
   String? _errorMessage;
   bool get hasDataSource =>
-      _prjRepoURLController.text.isNotEmpty ||
       _zipFilePathController.text.isNotEmpty ||
       _webURLController.text.isNotEmpty;
 
   DataSourceType _selectedDataSource = DataSourceType.web;
   bool _isEditing = false;
+  bool _loadingDetails = false;
   bool _loadingFiles = false;
   bool _showDetails = false;
   Project? _selectedProject;
@@ -92,15 +90,18 @@ class _ProjectDetailState extends State<ProjectDetail>
     if (_isEditing) {
       _fetchProjectDetails();
       //_fetchProjectResources();
+    } else {
+      _selectedProject = Project(
+          name: _prjNameController.text,
+          description: _prjDescController.text,
+          projectId: _projectId ?? -1,
+          authorId: -1,
+          assistantId: -1); //todo do we need both _selectedProject and
     }
   }
 
   @override
   void dispose() {
-    // TODO: Make a loop for client ids?
-    // if (_isSubscribed) {
-    //   unSubscribeToMessages();
-    // }
     _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -109,7 +110,7 @@ class _ProjectDetailState extends State<ProjectDetail>
   void _loadProjectData() {
     if (_projectId != null) {
       _prjNameController.text = _selectedProject!.name;
-      _prjDesctController.text = _selectedProject!.description;
+      _prjDescController.text = _selectedProject!.description;
       _webURLController.text = _selectedProject!.resourceUris.isNotEmpty
           ? _selectedProject!
               .resourceUris[_selectedProject!.resourceUris.length - 1]
@@ -118,8 +119,8 @@ class _ProjectDetailState extends State<ProjectDetail>
       // You might need to fetch other project details here based on your data model
     } else {
       _prjNameController.clear();
-      _prjDesctController.clear();
-      _prjRepoURLController.clear();
+      _prjDescController.clear();
+      _webURLController.clear();
       //_webURLs.clear();
     }
   }
@@ -133,20 +134,15 @@ class _ProjectDetailState extends State<ProjectDetail>
   Future<void> _createdProject() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
-
     if (_formKey.currentState!.validate()) {
       print('Token: ${authProvider.token}');
-      setState(() {
-        _errorMessage = null; // Clear previous error
-      });
-      if (_prjNameController.text.isEmpty) {
-        setState(() {
-          _errorMessage = 'Project name is required';
-        });
-        return;
-      }
 
-      if (_selectedDataSource != DataSourceType.zip) {
+      if (_selectedDataSource == DataSourceType.github) {
+        setState(() {
+          _showDetails = true;
+          _projectId = -1;
+        });
+      } else {
         try {
           showDialog(
             context: context,
@@ -169,7 +165,7 @@ class _ProjectDetailState extends State<ProjectDetail>
           );
 
           final project = await codechatService.createEmtptyProject(
-              _prjNameController.text, _prjDesctController.text, 'not-used');
+              _prjNameController.text, _prjDescController.text, 'not-used');
 
           Navigator.of(context).pop();
 
@@ -200,7 +196,7 @@ class _ProjectDetailState extends State<ProjectDetail>
     setState(() {
       //isEditing = false;
       _prjNameController.clear();
-      _prjDesctController.clear();
+      _prjDescController.clear();
     });
   }
 
@@ -211,45 +207,38 @@ class _ProjectDetailState extends State<ProjectDetail>
     widget.onSave!();
   }
 
-  // Future<void> _saveChanges() async {
-  //   print('_saveChanges $_prjNameController.text');
+  Future<void> _saveChanges() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final projectService = ProjectService(authProvider: authProvider);
 
-  //   final authProvider = Provider.of<AuthProvider>(context, listen: false);
-  //   final projectService = ProjectService(authProvider: authProvider);
+    if (_formKey.currentState!.validate()) {
+      try {
+        // Update the project with the new values
+        final updatedProject = _selectedProject!.copyWith(
+          name: _prjNameController.text,
+          description: _prjDescController.text,
+        );
 
-  //   if (_formKey.currentState!.validate()) {
-  //     try {
-  //       // Update the project with the new values
-  //       final updatedProject = _selectedProject!.copyWith(
-  //         name: _prjNameController.text,
-  //         description: _prjDesctController.text,
-  //       );
+        await projectService.updateProject(updatedProject);
 
-  //       await projectService.updateProject(updatedProject);
-  //       // if (hasDataSource) {
-  //       //   // If there's a data source, you might want to refresh or update it here
-  //       //   //await projectService.refreshRepo(_selectedProject!.projectId);
-  //       // }
-  //       setState(() {
-  //         //_isEditing = false;
-  //         _createdMessage = 'Project updated successfully!';
-
-  //         Navigator.pop(context);
-  //         if (mounted) {
-  //           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //               content: Text(_createdMessage),
-  //               backgroundColor: Colors.greenAccent));
-  //         }
-  //       });
-  //       _onSave!();
-  //     } catch (e) {
-  //       setState(() {
-  //         _errorMessage = 'Failed to update project: $e';
-  //       });
-  //       print('_errorMessage $_errorMessage');
-  //     }
-  //   }
-  // }
+        Navigator.pop(context);
+        if (mounted) {
+          setState(() {
+            _selectedProject = updatedProject;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Project updated successfully!'),
+              backgroundColor: Colors.greenAccent));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Failed to update project: $e'),
+              backgroundColor: Colors.redAccent));
+        }
+      }
+    }
+  }
 
   Future<void> _deleteProject() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -316,6 +305,10 @@ class _ProjectDetailState extends State<ProjectDetail>
     final projectService = ProjectService(authProvider: authProvider);
 
     try {
+      setState(() {
+        _loadingDetails = true;
+        _errorMessage = null; // Clear previous error
+      });
       final updatedProject = await projectService.getProject(widget.projectId);
       setState(() {
         _selectedProject = updatedProject;
@@ -326,6 +319,9 @@ class _ProjectDetailState extends State<ProjectDetail>
         _errorMessage = 'Failed to fetch project details: $e';
       });
     } finally {
+      setState(() {
+        _loadingDetails = false;
+      });
       if (mounted && _errorMessage != null && _errorMessage!.isNotEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
@@ -391,22 +387,97 @@ class _ProjectDetailState extends State<ProjectDetail>
   }
 
   Widget _buildProjectInfo() {
-    return _showDetails
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Project Name: ${_selectedProject!.name}',
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Description: ${_selectedProject!.description}',
-                style: const TextStyle(fontSize: 16),
-              ),
-            ],
-          )
+    return (_showDetails || _isEditing)
+        ? !_loadingDetails
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Text(
+                      'Project Name: ${_selectedProject!.name}',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    if (_isEditing)
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () {
+                          _prjNameController.text = _selectedProject!.name;
+                          _prjDescController.text =
+                              _selectedProject!.description;
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: const Text('Edit Project'),
+                                content: SizedBox(
+                                  width: 400, // increased width
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextFormField(
+                                        controller: _prjNameController,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter a Project Name';
+                                          }
+                                          return null;
+                                        },
+                                        decoration: const InputDecoration(
+                                          labelText: 'Project Name',
+                                        ),
+                                      ),
+                                      TextFormField(
+                                        controller: _prjDescController,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter a Description';
+                                          }
+                                          return null;
+                                        },
+                                        decoration: const InputDecoration(
+                                          labelText: 'Description',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                    ),
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                    onPressed: () {
+                                      _saveChanges();
+                                    },
+                                    child: const Text('Save'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Description: ${_selectedProject!.description}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              )
+            : SizedBox.shrink()
         : Column(children: [
             TextFormField(
               controller: _prjNameController,
@@ -426,7 +497,7 @@ class _ProjectDetailState extends State<ProjectDetail>
             ),
             const SizedBox(height: 16.0),
             TextFormField(
-              controller: _prjDesctController,
+              controller: _prjDescController,
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a Description';
@@ -447,12 +518,12 @@ class _ProjectDetailState extends State<ProjectDetail>
   Widget _buildProjectDetail() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _buildProjectInfo(),
-      _showDetails || _isEditing
-          ? _buildDataSourceChoice()
-          : const SizedBox.shrink(),
+      // _showDetails || _isEditing
+      _buildDataSourceChoice(),
       _showDetails || _isEditing
           ? _buildDataSourceForm()
           : const SizedBox.shrink(),
+
       _buildBottomButtons(),
       _buildDebugMessagesWidget()
     ]);
@@ -472,17 +543,18 @@ class _ProjectDetailState extends State<ProjectDetail>
                   ),
                   child: const Text('Cancel'),
                 ),
-                ElevatedButton(
-                  onPressed: addProject,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    textStyle: const TextStyle(fontSize: 16),
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                if (_selectedDataSource != DataSourceType.github)
+                  ElevatedButton(
+                    onPressed: addProject,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      textStyle: const TextStyle(fontSize: 16),
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    child: (_isEditing)
+                        ? const Text('Apply')
+                        : const Text('Complete Data Source Setup'),
                   ),
-                  child: (_isEditing)
-                      ? const Text('Apply')
-                      : const Text('Complete Data Source Setup'),
-                ),
               ]
             : [
                 if (!_isEditing)
@@ -758,7 +830,8 @@ class _ProjectDetailState extends State<ProjectDetail>
               children: [
                 CircularProgressIndicator(),
                 SizedBox(width: 16),
-                Text("Setting up project...\nIt will take a while..."),
+                Text(
+                    "Setting up your project’s data source \nIt will take a while..."),
               ],
             ),
           ),
@@ -782,40 +855,44 @@ class _ProjectDetailState extends State<ProjectDetail>
 
       final project = await codechatService.createProject(
         _prjNameController.text,
-        _prjDesctController.text,
-        _prjRepoURLController.text,
+        _prjDescController.text,
+        _webURLController.text,
         _branchNameController.text,
         clientId,
         username,
         password,
       );
+      if (mounted) {
+        Navigator.of(context).pop();
 
+        _buildSuccessDialog();
+      }
+      _selectedProject = project as Project?;
+      //onSave!();
+    } catch (e) {
       setState(() {
-        _createdMessage = 'Project created';
+        String errorMsg = e.toString();
+        if (errorMsg.length > 300) {
+          errorMsg = errorMsg.substring(0, 300);
+        }
+        _errorMessage = 'Failed to creat project: $errorMsg';
       });
-
-      // Clear the form
-      _prjNameController.clear();
-      _prjDesctController.clear();
-      _prjRepoURLController.clear();
-
+    } finally {
       // Dismiss loading dialog
       if (mounted) {
         Navigator.of(context).pop();
       }
-      _selectedProject = project as Project?;
-      _onSave!();
-
-      Navigator.of(context).pop();
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to upload directory: $e';
-      });
-      print('Failed to upload directory: $e');
-      // TODO: Needed-it?
-      //unSubscribeToMessages();
-      // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      //     content: Text(_errorMessage!), backgroundColor: Colors.red));
+      if (mounted) {
+        setState(() {
+          _loadingFiles = false;
+        });
+        if (_errorMessage != null && _errorMessage!.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_errorMessage ?? ''),
+            backgroundColor: Colors.red,
+          ));
+        }
+      }
     }
   }
 
@@ -887,10 +964,7 @@ class _ProjectDetailState extends State<ProjectDetail>
       );
       try {
         clientId = await subscribeToMessages();
-        if (_projectId == null || _projectId! < 0) {
-          throw Exception('Invalid project ID');
-        }
-        print('Project ID: $_projectId');
+
         await codechatService.addProjectWeb(
             projectId: _projectId!,
             seedUrl: _webURLController.text,
@@ -904,28 +978,31 @@ class _ProjectDetailState extends State<ProjectDetail>
         // Dismiss loading dialog
         if (mounted) {
           Navigator.of(context).pop();
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('File(s) uploaded successfully!'),
-                backgroundColor: Colors.greenAccent),
-          );
+          _buildSuccessDialog();
         }
-        _buildSuccessDialog();
+        Navigator.of(context).pop();
       } catch (e) {
-        if (mounted) {
-          setState(() {
-            _errorMessage = 'Failed to fetch project details: $e';
-          });
-        }
+        setState(() {
+          String errorMsg = e.toString();
+          if (errorMsg.length > 250) {
+            errorMsg = errorMsg.substring(0, 250);
+          }
+          _errorMessage = 'Failed to creat project: $errorMsg';
+        });
       } finally {
+        // Dismiss loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
         if (mounted) {
           setState(() {
             _loadingFiles = false;
           });
           if (_errorMessage != null && _errorMessage!.isNotEmpty) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(_errorMessage ?? ''),
+              backgroundColor: Colors.red,
+            ));
           }
         }
       }
@@ -970,9 +1047,8 @@ class _ProjectDetailState extends State<ProjectDetail>
       // Dismiss loading dialog
       if (mounted) {
         Navigator.of(context).pop();
+        _buildSuccessDialog();
       }
-
-      _buildSuccessDialog();
     } catch (e) {
       if (mounted) {
         setState(() {

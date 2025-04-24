@@ -204,11 +204,6 @@ class _ProjectPageState extends State<ProjectPage>
   }
 
   Future<void> _onSave() async {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Project created!'),
-          backgroundColor: Colors.greenAccent));
-    }
     _fetchProjects();
   }
 
