@@ -327,21 +327,13 @@ class _LoginPageState extends State<LoginPage> {
           text: TextSpan(
             children: [
               TextSpan(
-                text: 'Brand',
+                text: 'Augmentera',
                 style: GoogleFonts.scada(
                   fontSize: 48,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF1E4396), // Original blue color
                 ),
               ),
-              TextSpan(
-                text: 'Voice',
-                style: GoogleFonts.scada(
-                  fontSize: 48,
-                  fontWeight: FontWeight.w700,
-                  color: const Color.fromARGB(255, 87, 106, 150),
-                ),
-              )
             ],
           ),
         );
