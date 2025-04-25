@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
-import 'package:codechatui/src/utils/util.dart';
 
 class HoverCopyWidget extends StatefulWidget {
   final String text;
@@ -76,7 +75,8 @@ class AIResponseWidget extends StatelessWidget {
             SnackBar(
               content:
                   Text('File links cannot be opened in web version: $filePath'),
-              duration: const Duration(seconds: 3),
+              backgroundColor: Colors.redAccent,
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -89,7 +89,8 @@ class AIResponseWidget extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Error opening file: $filePath'),
-                duration: const Duration(seconds: 2),
+                backgroundColor: Colors.redAccent,
+                duration: const Duration(seconds: 5),
               ),
             );
           }

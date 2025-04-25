@@ -64,9 +64,10 @@ class _ProjectDetailState extends State<ProjectDetail>
   List<String> _debugMessages = [];
 
   String? _errorMessage;
-  bool get hasDataSource =>
-      _zipFilePathController.text.isNotEmpty ||
-      _webURLController.text.isNotEmpty;
+  bool get hasGitDataSource =>
+      _webURLController.text.isNotEmpty &&
+      _webURLController.text.toLowerCase().contains('github') &&
+      _selectedDataSource == DataSourceType.github;
 
   DataSourceType _selectedDataSource = DataSourceType.web;
   bool _isEditing = false;
@@ -163,9 +164,9 @@ class _ProjectDetailState extends State<ProjectDetail>
               );
             },
           );
-
+          String? clientId = await subscribeToMessages();
           final project = await codechatService.createEmtptyProject(
-              _prjNameController.text, _prjDescController.text, 'not-used');
+              _prjNameController.text, _prjDescController.text, clientId);
 
           Navigator.of(context).pop();
 
@@ -185,7 +186,10 @@ class _ProjectDetailState extends State<ProjectDetail>
           print('Failed to create project: $e');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(_errorMessage!), backgroundColor: Colors.red));
+              content: Text(_errorMessage!),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ));
           }
         }
       }
@@ -234,6 +238,7 @@ class _ProjectDetailState extends State<ProjectDetail>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text('Failed to update project: $e'),
+              duration: const Duration(seconds: 5),
               backgroundColor: Colors.redAccent));
         }
       }
@@ -323,48 +328,35 @@ class _ProjectDetailState extends State<ProjectDetail>
         _loadingDetails = false;
       });
       if (mounted && _errorMessage != null && _errorMessage!.isNotEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_errorMessage ?? ''),
+          duration: const Duration(seconds: 5),
+          backgroundColor: Colors.red,
+        ));
       }
     }
   }
 
   Future<void> _refreshDataSource() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final codechattService = CodechatService(authProvider: authProvider);
+    final codechatService = CodechatService(authProvider: authProvider);
     String? clientId;
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 16),
-                Text("Refreshing project repo...\nIt will take a while..."),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+
     try {
       clientId = await subscribeToMessages();
-      await codechattService.refreshRepo(_projectId!, clientId);
+      _buildLoadingDialog();
+      await codechatService.refreshRepo(_projectId!, clientId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Refreshed project data source'),
+            duration: const Duration(seconds: 5),
             backgroundColor: Colors.greenAccent));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Failed to refresh data source: $e'),
+            duration: const Duration(seconds: 5),
             backgroundColor: Colors.redAccent));
       }
     } finally {
@@ -543,7 +535,7 @@ class _ProjectDetailState extends State<ProjectDetail>
                   ),
                   child: const Text('Cancel'),
                 ),
-                if (_selectedDataSource != DataSourceType.github)
+                if (_selectedDataSource != DataSourceType.zip)
                   ElevatedButton(
                     onPressed: addProject,
                     style: ElevatedButton.styleFrom(
@@ -741,13 +733,13 @@ class _ProjectDetailState extends State<ProjectDetail>
           actions: [
             if (_isEditing == true)
               Tooltip(
-                message: hasDataSource
+                message: hasGitDataSource
                     ? 'Refresh Data Source'
-                    : 'You need to define a project URL to be able to refresh it.',
+                    : 'Only supported for GitHub datasources. You need to define a project github URL to be able to refresh it.',
                 child: ElevatedButton.icon(
                   label: const Text('Refresh'),
                   icon: Icon(Icons.refresh),
-                  onPressed: hasDataSource ? _refreshDataSource : null,
+                  onPressed: hasGitDataSource ? _refreshDataSource : null,
                 ),
               ),
             if (_isEditing == true && _selectedProject != null)
@@ -817,27 +809,6 @@ class _ProjectDetailState extends State<ProjectDetail>
       _errorMessage = null; // Clear previous error
     });
 
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 16),
-                Text(
-                    "Setting up your project’s data source \nIt will take a while..."),
-              ],
-            ),
-          ),
-        );
-      },
-    );
     try {
       clientId = await subscribeToMessages();
       // Handle authentication parameters
@@ -852,7 +823,7 @@ class _ProjectDetailState extends State<ProjectDetail>
         username = _userNameController.text;
         password = _userPswController.text;
       }
-
+      _buildLoadingDialog();
       final project = await codechatService.createProject(
         _prjNameController.text,
         _prjDescController.text,
@@ -889,6 +860,7 @@ class _ProjectDetailState extends State<ProjectDetail>
         if (_errorMessage != null && _errorMessage!.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(_errorMessage ?? ''),
+            duration: const Duration(seconds: 5),
             backgroundColor: Colors.red,
           ));
         }
@@ -942,29 +914,10 @@ class _ProjectDetailState extends State<ProjectDetail>
         _errorMessage = null; // Clear previous error
       });
       // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return Dialog(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(width: 16),
-                  Text(
-                      "Setting up your project’s data source \nIt will take a while..."),
-                ],
-              ),
-            ),
-          );
-        },
-      );
+
       try {
         clientId = await subscribeToMessages();
-
+        _buildLoadingDialog();
         await codechatService.addProjectWeb(
             projectId: _projectId!,
             seedUrl: _webURLController.text,
@@ -1001,6 +954,7 @@ class _ProjectDetailState extends State<ProjectDetail>
           if (_errorMessage != null && _errorMessage!.isNotEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(_errorMessage ?? ''),
+              duration: const Duration(seconds: 5),
               backgroundColor: Colors.red,
             ));
           }
@@ -1061,11 +1015,37 @@ class _ProjectDetailState extends State<ProjectDetail>
           _loadingFiles = false;
         });
         if (_errorMessage != null && _errorMessage!.isNotEmpty) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(_errorMessage ?? '')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_errorMessage ?? ''),
+            duration: const Duration(seconds: 5),
+            backgroundColor: Colors.red,
+          ));
         }
       }
     }
+  }
+
+  void _buildLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text(
+                    "Setting up your project’s data source \nIt will take a while..."),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _buildSuccessDialog() {
@@ -1143,6 +1123,7 @@ class _ProjectDetailState extends State<ProjectDetail>
           }
         }, onConnected: () {
           print('SSE connection established successfully');
+          // Complete the completer *after* clientId is assigned
           if (!completer.isCompleted) {
             completer.complete(true);
           }
@@ -1152,9 +1133,13 @@ class _ProjectDetailState extends State<ProjectDetail>
             onTimeout: () {
           print('SSE connection timed out');
           return false;
-        }).then((connected) => connected ? clientId : null);
+        }).then((connected) => connected && clientId != null
+            ? clientId
+            : null); // Check for null clientId
       } else {
-        await unSubscribeToMessages(clientId!);
+        if (clientId != null) {
+          await unSubscribeToMessages(clientId!);
+        }
         return null;
       }
     } catch (e) {
@@ -1180,9 +1165,9 @@ class _ProjectDetailState extends State<ProjectDetail>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error stopping SSE subscription: $e'),
-            backgroundColor: Colors.red,
-          ),
+              content: Text('Error stopping SSE subscription: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5)),
         );
       }
       return false;

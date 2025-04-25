@@ -80,9 +80,13 @@ class _ProjectPageState extends State<ProjectPage>
       // Handle 403 error
       ErrorHandler.handleForbiddenError(context, e.message);
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load projects: $e';
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to load projects!'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ));
+      }
     }
   }
 
