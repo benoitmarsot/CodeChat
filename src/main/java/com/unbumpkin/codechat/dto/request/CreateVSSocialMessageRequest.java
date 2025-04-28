@@ -11,14 +11,17 @@ public record CreateVSSocialMessageRequest(
     public CreateVSSocialMessageRequest(String file_id, SocialPlatforms platform, String channel, String author, String messageUrl, String timestamp) {
         this(
             file_id,
-            Map.of(
-                "platform", platform.toString(),
-                "channel", channel,
-                "author", author,
-                "messageUrl", messageUrl,
-                "timestamp", timestamp
-            )
+            createAttributes(platform, channel, author, messageUrl, timestamp)
         );
+    }
+    private static Map<String, String> createAttributes(SocialPlatforms platform, String channel, String author, String messageUrl, String timestamp) {
+        Map<String, String> map = new java.util.HashMap<>();
+        map.put("platform", platform.toString());
+        map.put("channel", channel);
+        map.put("author", author);
+        map.put("messageUrl", messageUrl);
+        map.put("timestamp", timestamp);
+        return map;
     }
     public Map<String, String> attributes() {
         return attributes;

@@ -339,4 +339,18 @@ BEGIN
             foreign key (vsid) references vectorstore(vsid)
             on delete cascade;
     end if;
+    -- Foreign key for chunk(projectid) -> project(projectid)
+    if not exists (
+        select constraint_name
+        from information_schema.table_constraints
+        where table_name = 'chunk'
+            and constraint_schema = 'core'
+            and constraint_name = 'chunk_fk_project'
+    ) then
+        raise notice 'Creating chunk_fk_project...';
+        alter table chunk
+            add constraint chunk_fk_project
+            foreign key (projectid) references project(projectid)
+            on delete cascade;
+    end if;
 END $$;

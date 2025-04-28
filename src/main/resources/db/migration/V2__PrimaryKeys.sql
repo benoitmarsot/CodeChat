@@ -57,4 +57,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'socialchannel_pkey') THEN
         ALTER TABLE socialchannel ADD CONSTRAINT socialchannel_pkey PRIMARY KEY (channelid,prid);
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chunk_pkey') THEN
+        ALTER TABLE chunk ADD CONSTRAINT chunk_pkey PRIMARY KEY (chunkid);
+    END IF;
 END $$;

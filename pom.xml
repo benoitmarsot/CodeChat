@@ -29,6 +29,12 @@
 	<properties>
 		<java.version>17</java.version>
 	</properties>
+	<repositories>
+		<repository>
+			<id>jitpack.io</id>
+			<url>https://jitpack.io</url>
+		</repository>
+	</repositories>
 	<dependencyManagement>
 	<dependencies>
 		<dependency>
@@ -177,6 +183,38 @@
 			<artifactId>jira-client</artifactId>
 			<version>0.5</version>
 		</dependency>
+		<!-- use in CodeChunker -->
+		<!-- separate classes for chunking -->
+		<dependency>
+			<groupId>com.github.serenadeai</groupId>
+			<artifactId>java-tree-sitter</artifactId>
+			<version>1.1.2</version>
+		</dependency>
+		<!-- tokenizer -->
+		<dependency>
+			<groupId>com.knuddels</groupId>
+			<artifactId>jtokkit</artifactId>
+			<version>1.1.0</version>
+		</dependency>
+		<!-- embedding model: alternative to openai TEXT_EMBEDDING_ADA_002 -->
+		<dependency>
+			<groupId>ai.djl.huggingface</groupId>
+			<artifactId>tokenizers</artifactId>
+			<version>0.32.0</version>
+		</dependency>
+		 <dependency>
+			<groupId>ai.djl.pytorch</groupId>
+			<artifactId>pytorch-engine</artifactId>
+			<version>0.32.0</version> 
+		</dependency> 
+		<!--
+		or 0.24.0 for mac? needed or not?
+		<dependency>
+			<groupId>ai.djl.onnxruntime</groupId>
+			<artifactId>onnxruntime-engine</artifactId>
+			<version>0.32.0</version>
+		</dependency>
+		-->
 	</dependencies>
 	<build>
 		<plugins>

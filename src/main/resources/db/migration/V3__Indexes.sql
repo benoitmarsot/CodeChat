@@ -1,4 +1,4 @@
-SET search_path TO ${schema};
+SET search_path TO ${schema},public;
 
 -- Indexes should use IF NOT EXISTS to ensure idempotency
 CREATE INDEX IF NOT EXISTS users_email ON users(email);
@@ -33,5 +33,13 @@ CREATE INDEX IF NOT EXISTS idx_projectresource_projectid ON projectresource(proj
 CREATE INDEX IF NOT EXISTS idx_socialuser_prid ON socialuser(prid);
 CREATE INDEX IF NOT EXISTS idx_socialchannel_prid ON socialchannel(prid);
 CREATE INDEX IF NOT EXISTS idx_socialassistant_projectid ON socialassistant(projectid);
+CREATE INDEX IF NOT EXISTS idx_chunk_projectid_chunktype ON chunk (projectid, chunktype);
+-- For vector search
+CREATE INDEX IF NOT EXISTS idx_chunk_embedding_ivfflat
+    ON chunk USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- For full-text search
+CREATE INDEX IF NOT EXISTS idx_chunk_projectid_chunktype_content_gin
+    ON chunk USING gin (to_tsvector('english', content));
+
 
 

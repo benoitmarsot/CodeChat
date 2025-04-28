@@ -1,4 +1,4 @@
-SET search_path TO ${schema};
+SET search_path TO ${schema},public;
 
 create table if not exists users (
     userid serial,
@@ -138,4 +138,14 @@ create table if not exists discussion (
 create table if not exists sharedproject (
     projectid int not null,
     userid int not null
+);
+
+create table chunk (
+    chunkid serial,
+    projectid int not null,
+    chunktype varchar(20) not null, -- code, markup, config, full, social, image
+    content text not null,
+    embedding vector(768), -- assuming openai's ada-002 model
+    metadata jsonb,         -- metadata like {"type": "method", "language": "java"}
+    created_at timestamp default current_timestamp
 );

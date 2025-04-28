@@ -17,6 +17,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.unbumpkin.codechat.ai.chunker.TextChunker;
+import com.unbumpkin.codechat.ai.dto.Chunk;
+import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
+import com.unbumpkin.codechat.ai.embedder.EmbedderService;
+import com.unbumpkin.codechat.ai.vectorstore.PgVectorRepository;
+import com.unbumpkin.codechat.dto.FindInPgVectorRequest;
 import com.unbumpkin.codechat.dto.issuetracker.AddIssueTrackerRequest;
 import com.unbumpkin.codechat.dto.issuetracker.Issue;
 import com.unbumpkin.codechat.dto.openai.SocialAssistant;
@@ -75,6 +81,30 @@ public class SocialController {
     private SocialUserRepository socialUserRepository;
     @Autowired
     private SocialChannelRepository socialChannelRepository;
+    @Autowired
+    private PgVectorRepository pgVectorRepository;
+    @Autowired
+    private TextChunker textChunker;
+    @Autowired
+    private EmbedderService embeddingService;
+
+    @PostMapping("find-in-pgvector")
+    public ResponseEntity<List<String>> findInPgVector(
+        @RequestBody FindInPgVectorRequest request
+    ) throws Exception {
+        if(!pgVectorRepository.haveContent(request.projectId(), request.type())){
+            // No content in the vector store for the projectId and type
+            return ResponseEntity.ok(List.of());
+        }
+        float[] embededQusetion=embeddingService.embed(request.content());
+
+        List<EmbeddedChunk> chunks=pgVectorRepository.search(request.projectId(), request.type(), embededQusetion, 10);
+
+        List<String> answers=new ArrayList<>(chunks.size());
+        chunks.forEach(chunk -> answers.add(chunk.content()));
+        return ResponseEntity.ok(answers);
+    }
+    
 
 
     @Transactional
@@ -124,6 +154,8 @@ public class SocialController {
             issueTrackingService.getIssuesChannel(),issueTrackingService.getIssuesChannel(),issues.get(0).lastUpdated()
         ));
         socialChannelRepository.addMissingSocialChannels(sChannelsDb,prId);
+        //TODO: add the last message timestamp to the socialchannel
+
         //Create a new social assistant if needed
         int assistantId=retrieveCreateAssistant("Social Assisant",projectId,vs);
         System.out.println("Assistant created with id: "+assistantId);
@@ -135,7 +167,7 @@ public class SocialController {
         @RequestBody AddSocialRequest request
     ) throws Exception {
         int projectId=request.projectId();
-        // create the social service
+        // Get the social service
         SocialService socialService = SocialService.getInstance(request);
         // Get the project resource
         Integer prId=projectResourceRepository.getResourceId(projectId, socialService.getRessourceUrl());
@@ -154,20 +186,31 @@ public class SocialController {
 
         ProjectResource pr=projectResourceRepository.createResource(projectId, socialService.getRessourceUrl(), socialService.resType(), userSecrets);
         prId=pr.prId();
-        VectorStore vs=getOrCreateVectorStore(projectId);
-        VectorStoreFile vsf=new VectorStoreFile(vs.getOaiVsid());
 
         Map<String,SocialUser> mUsers=socialService.getUsersMap();
         socialUserRepository.addMissingSocialUsers(mUsers.values(),prId);
         // add the social channels
         List<SocialChannel> sChannels=socialService.getDiscussions();
         List<SocialChannel> sChannelsDb=new ArrayList<>(sChannels.size());
+
+        VectorStore vs=null;
+        VectorStoreFile vsf=null;
+        if(!request.selfChunk()) {
+            vs=getOrCreateVectorStore(projectId);
+            vsf=new VectorStoreFile(vs.getOaiVsid());
+        }
         // add the social messages
         for(SocialChannel sChannel:sChannels) {
             try{ 
                 System.out.println("Getting messages for channel "+sChannel.channelName());
                 List<SocialMessage> sMessages=socialService.getMessages(sChannel.channelId(), sChannel.lastMessageTs());
-                addMessages( socialService,sMessages,sChannel,mUsers,pr.prId(),vsf);
+                if(!request.selfChunk()) {
+                    // add the messages to the openai vector store
+                    addMessages(socialService,sMessages,sChannel,mUsers,pr.prId(),vsf);
+                } else {
+                    // add the messages to the PgVector store
+                    addMessages(socialService, sMessages, sChannel, mUsers, projectId);
+                }
                 sChannelsDb.add(new SocialChannel(sChannel.channelId(),sChannel.channelName(),sMessages.get(0).ts()));
             } catch (Exception e) {
                 System.out.println("Error getting messages for channel "+sChannel.channelName()+": "+e.getMessage());
@@ -177,11 +220,59 @@ public class SocialController {
         // add the channel to the vector store
         socialChannelRepository.addMissingSocialChannels(sChannelsDb,prId);
 
+        //TODO: add the last message timestamp to the socialchannel
         //Create a new social assistant
-
-        int assistantId=retrieveCreateAssistant("Social Assisant",projectId,vs);
+        if(!request.selfChunk()) {
+            int assistantId=retrieveCreateAssistant("Social Assisant",projectId,vs);
+            System.out.println("Assistant created with id: "+assistantId);
+        }
         return ResponseEntity.ok(pr);
     }
+    /**
+     * Add the messages to the PgVector local vector store
+     * @param socialService 
+     * @param sMessages
+     * @param sChannel
+     * @param mUsers
+     * @param prId
+     * @throws IOException
+     */
+    private void addMessages(
+        SocialService socialService, List<SocialMessage> sMessages, SocialChannel sChannel, 
+        Map<String,SocialUser> mUsers, int projectId
+    ) throws IOException {
+        //Chunk the messages
+        for(SocialMessage sMessage:sMessages){
+            try {
+                String message=sMessage.message();
+
+                if(message==null || message.isEmpty()){
+                    System.out.println("Message is empty, skipping it");
+                    continue;
+                }
+                //Replace the user id with the user name
+                message=replaceUserIdWithName(message, mUsers, socialService);
+                String msgUrl=socialService.getMessageUrl(sMessage, sChannel);
+                CreateVSSocialMessageRequest creaVsRequest=new CreateVSSocialMessageRequest(
+                    "", socialService.platform(), sChannel.channelName(),mUsers.get(sMessage.userId()).fullName(), 
+                    msgUrl,socialService.getTSIso8601(sMessage)
+                );
+                ObjectMapper objectMapper = new ObjectMapper();
+                objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+                message=objectMapper.writeValueAsString(CreateSocialMessage(creaVsRequest.attributes(),message));
+                System.out.println("Message "+message);
+                //sMessage=new SocialMessage(sMessage.userId(), sMessage.ts(), message);
+                List<Chunk> chunks = textChunker.chunk(message,creaVsRequest.attributes());
+                List<EmbeddedChunk> embedded = embeddingService.embedChunks(chunks);
+                pgVectorRepository.saveAll(projectId,Types.social,embedded);
+
+                System.out.println(socialService.platform().toString()+" self chunk message "+msgUrl+" added to social chunks vector store.");
+            } catch (Exception e) {
+                System.out.println("Error adding message "+sMessage.message()+": "+e.getMessage());
+            }
+        }
+    }
+
     private VectorStore getOrCreateVectorStore(int projectId) throws IOException {
         RepoVectorStoreResponse repoVs=vsRepository.getSocialVectorStoreByProjectId(projectId);
         if(repoVs==null){
@@ -232,7 +323,8 @@ public class SocialController {
 
     private static final Pattern NAME_REGEXP = java.util.regex.Pattern.compile("<@([A-Z0-9]+)>");
     private void addMessages(
-        SocialService socialService, List<SocialMessage> sMessages, SocialChannel sChannel, Map<String,SocialUser> mUsers, int prId, VectorStoreFile vsf
+        SocialService socialService, List<SocialMessage> sMessages, SocialChannel sChannel, 
+        Map<String,SocialUser> mUsers, int prId, VectorStoreFile vsf
     ) throws IOException {
 
         for(SocialMessage sMessage:sMessages){
@@ -243,21 +335,8 @@ public class SocialController {
                     System.out.println("Message is empty, skipping it");
                     continue;
                 }
-                // Replace user mentions with real names
-                if (message.contains("<@") && socialService.platform() == SocialPlatforms.slack) {
-                    // Find user mentions pattern <@USERID>
-                    java.util.regex.Matcher matcher = NAME_REGEXP.matcher(message);
-                    StringBuffer sb = new StringBuffer();
-                    
-                    while (matcher.find()) {
-                        String userId = matcher.group(1);
-                        SocialUser user = mUsers.get(userId);
-                        String replacement = user != null ? user.fullName() : matcher.group(0);
-                        matcher.appendReplacement(sb, replacement.replace("$", "\\$"));
-                    }
-                    matcher.appendTail(sb);
-                    message = sb.toString();
-                }
+                //Replace the user id with the user name
+                message=replaceUserIdWithName(message, mUsers, socialService);
                 String msgUrl=socialService.getMessageUrl(sMessage, sChannel);
                 CreateVSSocialMessageRequest creaVsRequest=new CreateVSSocialMessageRequest(
                     "", socialService.platform(), sChannel.channelName(),mUsers.get(sMessage.userId()).fullName(), 
@@ -277,6 +356,24 @@ public class SocialController {
                 System.out.println("Error adding message "+sMessage.message()+": "+e.getMessage());
             }
         }
+    }
+    private String replaceUserIdWithName(String message, Map<String,SocialUser> mUsers, SocialService socialService) {
+        // Replace user mentions with real names
+        if (message.contains("<@") && socialService.platform() == SocialPlatforms.slack) {
+            // Find user mentions pattern <@USERID>
+            java.util.regex.Matcher matcher = NAME_REGEXP.matcher(message);
+            StringBuffer sb = new StringBuffer();
+            
+            while (matcher.find()) {
+                String userId = matcher.group(1);
+                SocialUser user = mUsers.get(userId);
+                String replacement = user != null ? user.fullName() : matcher.group(0);
+                matcher.appendReplacement(sb, replacement.replace("$", "\\$"));
+            }
+            matcher.appendTail(sb);
+            message = sb.toString();
+        }
+        return message;
     }
     private Map<String,Object> CreateSocialMessage(Map<String,String> attributes, String message) {
         Map<String,Object> map=new LinkedHashMap<>();
