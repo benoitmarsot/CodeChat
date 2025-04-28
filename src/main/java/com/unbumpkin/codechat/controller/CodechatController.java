@@ -214,11 +214,16 @@ public class CodechatController {
                     userSecrets.put(Labels.password, new UserSecret(Labels.password, request.password()));
                 }
             }
-                
+            Integer resourceId=projectResourceRepository.getResourceId(projectId, request.seedUrl());
+            ProjectResource resource=null;
             // Create project resource
-            ProjectResource resource = projectResourceRepository.createResource(
-                projectId, request.seedUrl(), ResTypes.web, userSecrets
-            );
+            if(resourceId==null) {
+                resource = projectResourceRepository.createResource(
+                    projectId, request.seedUrl(), ResTypes.web, userSecrets
+                );
+            } else {
+                resource = projectResourceRepository.getResource(resourceId);
+            }
             // Create the web crawler with custom settings if provided
             if (request.maxPages() > 0 || request.maxDepth() > 0 || request.requestsPerMinute() > 0) {
                 int maxPages = request.maxPages() > 0 ? request.maxPages() : 100;
@@ -291,16 +296,19 @@ public class CodechatController {
         //printRequestHeaders(httpRequest);
         int projectId = request.projectId();
         ZipContentManager zipManager = null;
-        
+        Integer resourceId=projectResourceRepository.getResourceId(projectId, request.zipName());
         try {
             zipManager = new ZipContentManager();
             zipManager.extractZip(request.zipContent());
-            
-            // Create project resource
-            ProjectResource resource = projectResourceRepository.createResource(
-                projectId, request.zipName(), ResTypes.zip, null
-            );
-            
+            ProjectResource resource = null;
+            if(resourceId==null) {
+                // Create project resource
+                resource = projectResourceRepository.createResource(
+                    projectId, request.zipName(), ResTypes.zip, null
+                );
+            } else {
+                resource = projectResourceRepository.getResource(resourceId);
+            }
             // Get vector stores for the project
             Map<Types, RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
                 vsRepository.getVectorStoresByProjectId(projectId)
