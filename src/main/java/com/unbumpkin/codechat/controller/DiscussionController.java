@@ -32,6 +32,7 @@ import com.unbumpkin.codechat.model.Message;
 import com.unbumpkin.codechat.model.openai.OaiThread;
 import com.unbumpkin.codechat.repository.DiscussionRepository;
 import com.unbumpkin.codechat.repository.MessageRepository;
+import com.unbumpkin.codechat.repository.ProjectRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
 import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
@@ -62,10 +63,10 @@ public class DiscussionController {
     private OaiThreadRepository threadRepository;
     @Autowired
     private ObjectMapper objectMapper;
-    @Autowired 
-    private OaiThreadService oaiThreadService;
     @Autowired
     private OaiFileRepository oaiFileRepository;
+    @Autowired
+    private ProjectRepository projectRepository;
     @Autowired
     private PgVectorRepository pgVectorRepository;
 
@@ -201,15 +202,38 @@ public class DiscussionController {
         discussionRepository.deleteDiscussion(did);
         return ResponseEntity.ok().build();
     }
+    // private String askPgVectorStoreReference(
+    //     String messageTxt, Discussion discussion
+    // ) throws IOException {
+    //     boolean havePgVector=pgVectorRepository.haveContent(
+    //         discussion.projectId(), Types.social
+    //     );
+
+    //     if (!havePgVector) {
+    //         projectRepository.deleteProject(discussion.projectId());
+    //         System.out.println("No local social vector store found for project " + discussion.projectId());
+    //         return null;
+    //     }
+
+    //     List<RepoVectorStoreResponse> vectorStores = pgVectorRepository.getAllVectorStoresByProjectId(projectId);
+    //     Map<Types, RepoVectorStoreResponse> vectorStoreMap = CCProjectFileManager.getVectorStoretMap(vectorStores);
+    //     RepoVectorStoreResponse vectorStore = vectorStoreMap.get(type);
+    //     if (vectorStore == null) {
+    //         System.out.println("No vector store found for project " + projectId + " and type " + type);
+    //         return null;
+    //     }
+    //     return vectorStore.getContent(content);
+    // }
     private String askSocialAssistantInsights(String messageTxt, Discussion discussion) throws IOException {
         try {
             // Get all messages for the discussion 
             SocialAssistant socialAssistant = socialAssistantRepository.getAssistantByProjectId(
                 discussion.projectId()
             );
-            boolean havePgVector=pgVectorRepository.haveContent(
-                discussion.projectId(), Types.social
-            );
+            if (socialAssistant == null) {
+                System.out.println("No social assistant found for project " + discussion.projectId());
+                return null;
+            }
             List<Message> messages = messageRepository.getAllMessagesByDiscussionId(discussion.did());
             
             Message sysMessage = new Message( 0,
