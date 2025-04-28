@@ -182,7 +182,7 @@ public class ProjectResourceRepository {
     public ProjectResource getResource(int prId) {
         // Get the project resource
         ProjectResource resource = jdbcTemplate.queryForObject(
-            "SELECT prid, projectid, uri FROM projectresource WHERE prid = ?",
+            "SELECT prid, projectid, uri, restype FROM projectresource WHERE prid = ?",
             (rs, rowNum) -> new ProjectResource(
                 rs.getInt("prid"),
                 rs.getInt("projectid"),

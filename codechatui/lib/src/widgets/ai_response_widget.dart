@@ -375,7 +375,7 @@ class AIResponseWidget extends StatelessWidget {
                 ),
               ],
             ),
-// Social Media
+          // Social Media
           if (answer.socialAnswer != null &&
               answer.socialAnswer!.isNotEmpty &&
               answer.socialAnswer != "\"\"")
