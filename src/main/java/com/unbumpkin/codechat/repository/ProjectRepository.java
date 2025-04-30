@@ -78,11 +78,10 @@ public class ProjectRepository {
                 p.projectid, p.name, p.description, p.authorid, 
                 a.aid, a.model, a.description as assistant_description,
                 COALESCE(json_agg(pr.uri ) FILTER (WHERE pr.uri IS NOT NULL), '[]'::json) as resources
-
-            FROM project p
-            INNER JOIN assistant a ON a.projectid = p.projectid
-            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
-            LEFT JOIN projectresource pr ON p.projectid = pr.projectid
+            FROM core.project p
+            INNER JOIN core.assistant a ON a.projectid = p.projectid
+            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            LEFT JOIN core.projectresource pr ON p.projectid = pr.projectid
             WHERE p.isdeleted=false AND p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             GROUP BY p.projectid, p.name, p.description, p.authorid, a.aid, a.model, a.description
             """;
@@ -133,9 +132,9 @@ public class ProjectRepository {
             SELECT 
                 p.projectid, p.name, p.description, p.authorid, 
                 a.aid
-            FROM project p
-            INNER JOIN assistant a ON a.projectid = p.projectid
-            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+            FROM core.project p
+            INNER JOIN core.assistant a ON a.projectid = p.projectid
+            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.isdeleted=false AND p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             """;
         
@@ -155,9 +154,9 @@ public class ProjectRepository {
     public List<Project> getAllProjects() {
         String sql = """
             SELECT p.projectid, p.name, p.description, p.authorid, a.aid
-            FROM project p
-                INNER JOIN Assistant a ON a.projectid = p.projectid
-                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+            FROM core.project p
+                INNER JOIN core.Assistant a ON a.projectid = p.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.isdeleted=false and (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
@@ -176,10 +175,10 @@ public class ProjectRepository {
      */
     public void updateProject(Project project) {
         String sql = """
-            UPDATE project
+            UPDATE core.project
             SET name = ?, description = ?
             WHERE isdeleted=false and projectid = ? AND (authorid = ? OR EXISTS (
-                SELECT 1 FROM sharedproject
+                SELECT 1 FROM core.sharedproject
                 WHERE projectid = ? AND userid = ?
             ))
         """;
@@ -194,7 +193,7 @@ public class ProjectRepository {
      */
     public void deleteProject(int projectId) {
         String sql = """
-            DELETE FROM project
+            DELETE FROM core.project
             WHERE projectid = ? AND authorid = ?
         """;
         try {
@@ -213,7 +212,7 @@ public class ProjectRepository {
      */
     public void markForDeletion(int projectId) {
         String sql = """
-            UPDATE project
+            UPDATE core.project
             SET isdeleted = true
             WHERE projectid = ? AND authorid = ?
         """;
@@ -234,8 +233,8 @@ public class ProjectRepository {
     public List<Integer> getUsersWithAccess(int projectId) {
         String sql = """
             SELECT sp.userid
-            FROM sharedproject sp
-            JOIN project p ON sp.projectid = p.projectid
+            FROM core.sharedproject sp
+            JOIN core.project p ON sp.projectid = p.projectid
             WHERE p.isdeleted=false and sp.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
@@ -249,10 +248,10 @@ public class ProjectRepository {
      */
     public void grantUserAccessToProject(int projectId, int targetUserId) {
         String sql = """
-            INSERT INTO sharedproject (projectid, userid)
+            INSERT INTO core.sharedproject (projectid, userid)
             SELECT ?, ?
-            FROM project p
-            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+            FROM core.project p
+            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int currentUserId = getCurrentUserId();
@@ -266,10 +265,10 @@ public class ProjectRepository {
      */
     public void revokeUserAccessFromProject(int projectId, int targetUserId) {
         String sql = """
-            DELETE FROM sharedproject
+            DELETE FROM core.sharedproject
             WHERE projectid = ? AND userid = ? AND EXISTS (
-                SELECT 1 FROM project p
-                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+                SELECT 1 FROM core.project p
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
                 WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             )
         """;
@@ -291,19 +290,19 @@ public class ProjectRepository {
         }
 
         // Delete all records in the sharedproject table
-        String deleteSharedProjectsSql = "DELETE FROM sharedproject";
+        String deleteSharedProjectsSql = "DELETE FROM core.sharedproject";
         jdbcTemplate.update(deleteSharedProjectsSql);
 
         // Delete all records in the discussion table
-        String deleteDiscussionsSql = "DELETE FROM discussion";
+        String deleteDiscussionsSql = "DELETE FROM core.discussion";
         jdbcTemplate.update(deleteDiscussionsSql);
 
         // Delete all records in the project table
-        String deleteProjectsSql = "DELETE FROM project";
+        String deleteProjectsSql = "DELETE FROM core.project";
         jdbcTemplate.update(deleteProjectsSql);
 
         // Delete all records in usersecret table
-        String deleteSecretsSql = "DELETE FROM usersecret";
+        String deleteSecretsSql = "DELETE FROM core.usersecret";
         jdbcTemplate.update(deleteSecretsSql);
     }
 }

@@ -91,10 +91,10 @@ public class ProjectResourceRepository {
     
     public void deleteResource(int prId) {
         // Delete associated secrets first (cascading delete should handle this, but being explicit)
-        jdbcTemplate.update("DELETE FROM usersecret WHERE prid = ?", prId);
+        jdbcTemplate.update("DELETE FROM core.usersecret WHERE prid = ?", prId);
         
         // Delete the resource
-        jdbcTemplate.update("DELETE FROM projectresource WHERE prid = ?", prId);
+        jdbcTemplate.update("DELETE FROM core.projectresource WHERE prid = ?", prId);
     }
     /**
      * Get all resources uri for a project
@@ -103,7 +103,7 @@ public class ProjectResourceRepository {
      */
     public List<String> getProjectResourcesUri(int projectId) {
         return jdbcTemplate.query(
-            "SELECT pr.uri FROM projectresource pr WHERE pr.projectid = ?",
+            "SELECT pr.uri FROM core.projectresource pr WHERE pr.projectid = ?",
             (rs, rowNum) -> rs.getString("uri"),
             projectId
         );
@@ -117,7 +117,7 @@ public class ProjectResourceRepository {
     public Integer getResourceId(int projectId, String uri) {
         try {
             return jdbcTemplate.queryForObject(
-                "SELECT prid FROM projectresource WHERE projectid = ? AND uri = ?",
+                "SELECT prid FROM core.projectresource WHERE projectid = ? AND uri = ?",
                 Integer.class,
                 projectId, uri
             );
@@ -134,7 +134,7 @@ public class ProjectResourceRepository {
     public List<ProjectResource> getResources(int projectId) {
         // First get all resources
         List<ProjectResource> resources = jdbcTemplate.query(
-            "SELECT prid, projectid, uri, restype FROM projectresource WHERE projectid = ?",
+            "SELECT prid, projectid, uri, restype FROM core.projectresource WHERE projectid = ?",
             (rs, rowNum) -> new ProjectResource(
                 rs.getInt("prid"),
                 rs.getInt("projectid"),
@@ -151,7 +151,7 @@ public class ProjectResourceRepository {
             
             // Get the secrets for this resource
             List<UserSecret> secretsList = jdbcTemplate.query(
-                "SELECT userid, label, value FROM usersecret WHERE prid = ?",
+                "SELECT userid, label, value FROM core.usersecret WHERE prid = ?",
                 (rs, rowNum) -> new UserSecret(
                     rs.getInt("userid"),
                     Labels.valueOf(rs.getString("label")),
@@ -182,7 +182,7 @@ public class ProjectResourceRepository {
     public ProjectResource getResource(int prId) {
         // Get the project resource
         ProjectResource resource = jdbcTemplate.queryForObject(
-            "SELECT prid, projectid, uri, restype FROM projectresource WHERE prid = ?",
+            "SELECT prid, projectid, uri, restype FROM core.projectresource WHERE prid = ?",
             (rs, rowNum) -> new ProjectResource(
                 rs.getInt("prid"),
                 rs.getInt("projectid"),
@@ -196,7 +196,7 @@ public class ProjectResourceRepository {
         if (resource != null) {
             // Get the secrets for this resource
             List<UserSecret> secretsList = jdbcTemplate.query(
-                "SELECT userid, label, value FROM usersecret WHERE prid = ?",
+                "SELECT userid, label, value FROM core.usersecret WHERE prid = ?",
                 (rs, rowNum) -> new UserSecret(
                     rs.getInt("userid"),
                     Labels.valueOf(rs.getString("label")),
@@ -231,14 +231,14 @@ public class ProjectResourceRepository {
         }
         int userId = getCurrentUserId();
         jdbcTemplate.update(
-            "UPDATE usersecret SET value = ? WHERE prid = ? AND userid = ? AND label = ?",
+            "UPDATE core.usersecret SET value = ? WHERE prid = ? AND userid = ? AND label = ?",
             encryptValue(value), prId, userId, label.toString()
         );
     }
     
     public void deleteSecret(int prId, Labels label) {
         jdbcTemplate.update(
-            "DELETE FROM usersecret WHERE prid = ? AND label = ?",
+            "DELETE FROM core.usersecret WHERE prid = ? AND label = ?",
             prId, label.toString()
         );
     }
@@ -249,7 +249,7 @@ public class ProjectResourceRepository {
         }
         int userId = getCurrentUserId();
         jdbcTemplate.update(
-            "INSERT INTO usersecret (userid, prid, label, value) VALUES (?, ?, ?, ?) " +
+            "INSERT INTO core.usersecret (userid, prid, label, value) VALUES (?, ?, ?, ?) " +
             "ON CONFLICT (userid, prid, label) DO UPDATE SET value = EXCLUDED.value",
             userId, prId, label.toString(), encryptValue(value)
         );
@@ -257,7 +257,7 @@ public class ProjectResourceRepository {
 
     public void removeProjectResourceSecrets(int prId) {
         jdbcTemplate.update(
-            "DELETE FROM usersecret WHERE prid = ?",
+            "DELETE FROM core.usersecret WHERE prid = ?",
             prId
         );
     }

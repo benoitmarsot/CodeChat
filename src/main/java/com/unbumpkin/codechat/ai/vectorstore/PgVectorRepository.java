@@ -24,7 +24,7 @@ public class PgVectorRepository implements LocalVectorStore {
         if (chunks == null || chunks.isEmpty()) {
             return;
         }
-        StringBuilder sql = new StringBuilder("INSERT INTO chunk (projectid, chunktype, content, embedding, metadata) VALUES ");
+        StringBuilder sql = new StringBuilder("INSERT INTO core.chunk (projectid, chunktype, content, embedding, metadata) VALUES ");
         for (int i = 0; i < chunks.size(); i++) {
             sql.append("(?, ?, ?, ?::vector, ?::jsonb)");
             if (i < chunks.size() - 1) {
@@ -59,7 +59,7 @@ public class PgVectorRepository implements LocalVectorStore {
     @Override
     public List<EmbeddedChunk> search(int projectId, Types chunkType, float[] embedding, int topK) {
         // Implement cosine similarity search with pgvector SQL
-        String sql = "SELECT chunkid, content, metadata FROM chunk WHERE projectid = ? AND chunktype = ? ORDER BY embedding <-> ?::vector LIMIT ?";
+        String sql = "SELECT chunkid, content, metadata FROM core.chunk WHERE projectid = ? AND chunktype = ? ORDER BY embedding <-> ?::vector LIMIT ?";
         String embeddingJson = null;
         try {
             embeddingJson = mapper.writeValueAsString(embedding);
@@ -95,7 +95,7 @@ public class PgVectorRepository implements LocalVectorStore {
     }
     @Override
     public boolean haveContent(int projectId, Types chunkType) {
-        String sql = "select 1 from chunk where projectid = ? and chunktype = ? limit 1";
+        String sql = "select 1 from core.chunk where projectid = ? and chunktype = ? limit 1";
         List<Integer> result = jdbcTemplate.query(
             sql,
             (rs, rowNum) -> rs.getInt(1),

@@ -1,6 +1,6 @@
-SET search_path TO ${schema},public;
+SET search_path TO public;
 
-create table if not exists users (
+create table if not exists core.users (
     userid serial,
     name varchar(50) not null,
     email varchar(100) not null,
@@ -8,21 +8,21 @@ create table if not exists users (
     role varchar(20) default 'user'
 );
 
-create table if not exists usersecret (
+create table if not exists core.usersecret (
     userid int not null,
     prid int not null,
     label varchar(25) not null,
     value varchar(255) not null
 );
 
-create table projectresource (
+create table core.projectresource (
     prid serial,
     projectid int not null,
     uri varchar(512) not null,
     restype varchar(20) not null -- git, file, zip, slack, web, etc, ...
 );
 
-create table if not exists oaifile (
+create table if not exists core.oaifile (
     fid serial,
     prid int not null,
     oai_f_id varchar(30) not null,
@@ -33,7 +33,7 @@ create table if not exists oaifile (
     linecount int not null
 );
 
-create table if not exists vectorstore (
+create table if not exists core.vectorstore (
     vsid serial,
     oai_vs_id text not null,
     projectid int not null,
@@ -44,25 +44,25 @@ create table if not exists vectorstore (
     type varchar(20) not null --: code, markup, config, full
 );
 
-create table if not exists vectorstore_oaifile (
+create table if not exists core.vectorstore_oaifile (
     vsid int not null,
     fid int not null
 );
 
-create table if not exists socialuser (
+create table if not exists core.socialuser (
     userid varchar(32) not null,
     prid int not null,
     fname varchar(50) not null,
     email varchar(320) null
 );
 
-create table if not exists socialchannel (
+create table if not exists core.socialchannel (
     channelid varchar(20) not null,
     prid int not null,
     channelname varchar(50) not null,
     lastmessagets varchar(30) not null
 );
-create table if not exists socialassistant (
+create table if not exists core.socialassistant (
     aid serial,
     oai_aid varchar(30) not null,
     projectid int not null,
@@ -77,7 +77,7 @@ create table if not exists socialassistant (
     created timestamp not null default now()
 );
 
-create table if not exists assistant (
+create table if not exists core.assistant (
     aid serial,
     oai_aid varchar(30) not null,
     projectid int not null,
@@ -96,7 +96,7 @@ create table if not exists assistant (
     created timestamp not null default now()
 );
 
-create table if not exists thread (
+create table if not exists core.thread (
     threadid serial,
     oai_threadid varchar(31) not null,
     vsid int null,
@@ -108,7 +108,7 @@ create table if not exists thread (
 -- - the internal msgid will be used to identify the message
 -- - the openai msgid is different for each thread and is not keeped in the database
 -- the msgid of the db is kept in the openai metadata of the message
-create table if not exists message (
+create table if not exists core.message (
     msgid serial,
     did int not null, -- discussion id
     role varchar(20) not null, -- system, user or assistant
@@ -117,7 +117,7 @@ create table if not exists message (
     created timestamp DEFAULT now()
 );
 
-create table if not exists project (
+create table if not exists core.project (
     projectid serial,
     name varchar(256) not null,
     description varchar(512) null,
@@ -125,7 +125,7 @@ create table if not exists project (
     isdeleted boolean default false
 );
 
-create table if not exists discussion (
+create table if not exists core.discussion (
     did serial,
     projectid int not null,
     name varchar(256) null,
@@ -135,12 +135,12 @@ create table if not exists discussion (
     created timestamp DEFAULT now()
 );
 
-create table if not exists sharedproject (
+create table if not exists core.sharedproject (
     projectid int not null,
     userid int not null
 );
 
-create table chunk (
+create table core.chunk (
     chunkid serial,
     projectid int not null,
     chunktype varchar(20) not null, -- code, markup, config, full, social, image

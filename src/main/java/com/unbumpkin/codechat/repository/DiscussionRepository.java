@@ -52,10 +52,10 @@ public class DiscussionRepository {
      */
     public Discussion addDiscussion(Discussion discussion) {
         String sql = """
-            INSERT INTO discussion (projectid, name, description, assistanttype)
+            INSERT INTO core.discussion (projectid, name, description, assistanttype)
             SELECT ?, ?, ?, ?
-            FROM project p
-            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+            FROM core.project p
+            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             RETURNING did, projectid, name, description, isfavorite, assistanttype, created
             """;
@@ -92,9 +92,9 @@ public class DiscussionRepository {
     public Discussion getDiscussionById(int did) {
         String sql = """
             SELECT d.*
-            FROM discussion d
-            JOIN project p ON d.projectid = p.projectid
-            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+            FROM core.discussion d
+            JOIN core.project p ON d.projectid = p.projectid
+            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
         int userId = getCurrentUserId();
@@ -109,9 +109,9 @@ public class DiscussionRepository {
     public List<Discussion> getAllDiscussionsByProjectId(int projectId) {
         String sql = """
                 SELECT d.*
-                FROM discussion d
-                JOIN project p ON d.projectid = p.projectid
-                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+                FROM core.discussion d
+                JOIN core.project p ON d.projectid = p.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
                 WHERE d.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
                 order by d.created desc
         """;
@@ -133,10 +133,10 @@ public class DiscussionRepository {
      */
     public Discussion updateDiscussion(DiscussionUpdateRequest updateRequest) {
         String sql = """
-            UPDATE discussion d
+            UPDATE core.discussion d
             SET name = ?, description = ?, isfavorite = ?, assistanttype = ?
-            FROM project p
-            LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+            FROM core.project p
+            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND d.projectid = p.projectid AND (p.authorid = ? OR sp.userid = ?)
             RETURNING d.did, d.projectid, d.name, d.description, d.isfavorite, d.assistanttype, d.created
         """;
@@ -155,20 +155,20 @@ public class DiscussionRepository {
     public void deleteDiscussion(int did) {
         String sql = """
             WITH auth_check AS (
-                SELECT 1 FROM discussion d
-                JOIN project p ON d.projectid = p.projectid
-                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+                SELECT 1 FROM core.discussion d
+                JOIN core.project p ON d.projectid = p.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
                 WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
             )
-            DELETE FROM message WHERE did = ? AND EXISTS (SELECT 1 FROM auth_check);
+            DELETE FROM core.message WHERE did = ? AND EXISTS (SELECT 1 FROM core.auth_check);
             
             WITH auth_check AS (
-                SELECT 1 FROM discussion d
-                JOIN project p ON d.projectid = p.projectid
-                LEFT JOIN sharedproject sp ON p.projectid = sp.projectid
+                SELECT 1 FROM core.discussion d
+                JOIN core.project p ON d.projectid = p.projectid
+                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
                 WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
             )
-            DELETE FROM discussion WHERE did = ? AND EXISTS (SELECT 1 FROM auth_check);
+            DELETE FROM core.discussion WHERE did = ? AND EXISTS (SELECT 1 FROM core.auth_check);
         """;
         int userId = getCurrentUserId();
         jdbcTemplate.update(sql, did, userId, userId, did, did, userId, userId, did);
@@ -188,7 +188,7 @@ public class DiscussionRepository {
         }
 
         // Delete all records in the discussion table
-        String deleteDiscussionsSql = "DELETE FROM discussion";
+        String deleteDiscussionsSql = "DELETE FROM core.discussion";
         jdbcTemplate.update(deleteDiscussionsSql);
     }
     

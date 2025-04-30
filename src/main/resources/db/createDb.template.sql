@@ -10,7 +10,7 @@ GRANT USAGE ON SCHEMA public TO ${DB_CODECHAT_USERNAME};
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO ${DB_CODECHAT_USERNAME};
 GRANT USAGE ON TYPE vector TO ${DB_CODECHAT_USERNAME};
 
-ALTER ROLE ${DB_CODECHAT_USERNAME} SET search_path TO ${DB_CODECHAT_SCHEMA}, public;
+ALTER ROLE ${DB_CODECHAT_USERNAME} SET search_path TO public;
 
 -- db creation script
 -- cat createDb.template.sql | envsubst > createDb.sql

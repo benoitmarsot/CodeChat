@@ -45,29 +45,29 @@ public class UserRepository  {
     }
     
     public User findById(int id) {
-        String sql = "SELECT * FROM users WHERE userid = ?";
+        String sql = "SELECT * FROM core.users WHERE userid = ?";
         List<User> users = jdbcTemplate.query(sql, userRowMapper, id);
         return users.isEmpty() ? null : users.get(0);
     }
     
     public User findByEmail(String email) {
-        String sql = "SELECT * FROM users WHERE email = lower(?)";
+        String sql = "SELECT * FROM core.users WHERE email = lower(?)";
         List<User> users = jdbcTemplate.query(sql, userRowMapper, email);
         return users.isEmpty() ? null : users.get(0);
     }
 
     public void deleteById(int id) {
-        String sql = "DELETE FROM users WHERE userid = ?";
+        String sql = "DELETE FROM core.users WHERE userid = ?";
         jdbcTemplate.update(sql, id);
     }
 
     public void deleteByEmail(String email) {
-        String sql = "DELETE FROM users WHERE email = lower(?)";
+        String sql = "DELETE FROM core.users WHERE email = lower(?)";
         jdbcTemplate.update(sql, email);
     }
 
     public void deleteAll() {
-        String sql = "DELETE FROM users";
+        String sql = "DELETE FROM core.users";
         jdbcTemplate.update(sql);
     }
 
@@ -101,7 +101,7 @@ public class UserRepository  {
      * @return the first user id in the database or 0 if no user is found
      */
     public int findFirstUserId() {
-        String sql = "SELECT userid as out_userid FROM users LIMIT 1";
+        String sql = "SELECT userid as out_userid FROM core.users LIMIT 1";
         Integer id= jdbcTemplate.queryForObject(sql, userIdRowMapper);
         return id != null ? id : 0;
     }
