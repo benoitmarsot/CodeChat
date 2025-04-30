@@ -35,7 +35,7 @@ public class UserRepository  {
             throw new RuntimeException("Error converting user to JSON", e);
         }
     
-        String sql = "call createuser(?::json)";
+        String sql = "call core.createuser(?::json)";
         List<Integer> userIds = jdbcTemplate.query(
             sql,
             userIdRowMapper,
@@ -72,25 +72,25 @@ public class UserRepository  {
     }
 
     public boolean existsById(int id) {
-        String sql = "SELECT COUNT(1) FROM users WHERE userid = ?";
+        String sql = "SELECT COUNT(1) FROM core.users WHERE userid = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, id);
         return count != null && count > 0;
     }
 
     public boolean existsByEmail(String email) {
-        String sql = "SELECT COUNT(1) FROM users WHERE email = lower(?)";
+        String sql = "SELECT COUNT(1) FROM core.users WHERE email = lower(?)";
         // Use queryForObject with SqlParameterValue or simply pass the parameter
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, email);
         return count != null && count > 0;
     }
 
     public Iterable<User> findAll() {
-        String sql = "SELECT * FROM users";
+        String sql = "SELECT * FROM core.users";
         return jdbcTemplate.query(sql, userRowMapper);
     }
 
     public int count() {
-        String sql = "SELECT COUNT(1) FROM users";
+        String sql = "SELECT COUNT(1) FROM core.users";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
         return count != null ? count : 0;
     }

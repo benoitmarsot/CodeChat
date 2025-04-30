@@ -54,7 +54,7 @@ public class ProjectResourceRepository {
         
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                "INSERT INTO projectresource (projectid, uri, restype) VALUES (?, ?, ?)",
+                "INSERT INTO core.projectresource (projectid, uri, restype) VALUES (?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS
             );
             ps.setInt(1, projectId);
@@ -81,7 +81,7 @@ public class ProjectResourceRepository {
     
     public ProjectResource updateResource(int prId, String uri, ResTypes resType) {
         jdbcTemplate.update(
-            "UPDATE projectresource SET uri = ?, restype=? WHERE prid = ?",
+            "UPDATE core.projectresource SET uri = ?, restype=? WHERE prid = ?",
             uri, resType.toString(), prId
         );
         

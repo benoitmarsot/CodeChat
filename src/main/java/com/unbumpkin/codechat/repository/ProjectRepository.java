@@ -54,7 +54,7 @@ public class ProjectRepository {
      * @return The generated project ID.
      */
     public int addProject(String name, String description) {
-        String sql = "INSERT INTO project (name, description, authorid) VALUES (?, ?, ?) RETURNING projectid";
+        String sql = "INSERT INTO core.project (name, description, authorid) VALUES (?, ?, ?) RETURNING projectid";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);

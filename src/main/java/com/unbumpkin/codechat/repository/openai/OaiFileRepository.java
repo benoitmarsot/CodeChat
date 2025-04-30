@@ -51,7 +51,7 @@ public class OaiFileRepository {
         ObjectMapper mapper = new ObjectMapper();
         String json = mapper.writeValueAsString(file);
 
-        String sql = "call createoaifile(?::json,?)";
+        String sql = "call core.createoaifile(?::json,?)";
         jdbcTemplate.update(sql, json, prId);
     }
     public List<OaiFile> getOaiFileByPath(String path, int projectId) {

@@ -3,6 +3,7 @@ package com.unbumpkin.codechat.ai.vectorstore;
 import java.util.List;
 
 import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
+
 import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
  
 public interface LocalVectorStore {
