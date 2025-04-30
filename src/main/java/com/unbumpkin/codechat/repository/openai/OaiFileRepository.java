@@ -55,8 +55,8 @@ public class OaiFileRepository {
         jdbcTemplate.update(sql, json, prId);
     }
     public List<OaiFile> getOaiFileByPath(String path, int projectId) {
-        String sql = "SELECT o.* FROM oaifile o " +
-                     "JOIN projectresource pr ON o.prid = pr.prid " +
+        String sql = "SELECT o.* FROM core.oaifile o " +
+                     "JOIN core.projectresource pr ON o.prid = pr.prid " +
                      "WHERE o.filepath = ? AND pr.projectid = ?";
         try {
             return jdbcTemplate.query(
@@ -87,7 +87,7 @@ public class OaiFileRepository {
         Long result = jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
             try {
                 CopyManager copyManager = new CopyManager(connection.unwrap(BaseConnection.class));
-                String sql = "COPY oaifile (prid, oai_f_id, file_name, rootdir, filepath, purpose, linecount) "
+                String sql = "COPY core.oaifile (prid, oai_f_id, file_name, rootdir, filepath, purpose, linecount) "
                            + "FROM STDIN WITH (FORMAT csv, HEADER true, NULL 'null')";
                 try (InputStream inputStream = new ByteArrayInputStream(csvData.getBytes())) {
                     return copyManager.copyIn(sql, inputStream);
@@ -104,7 +104,7 @@ public class OaiFileRepository {
      * @param fileIds The list of file IDs to be deleted.
      */
     public void deleteFiles(List<String> fileIds) {
-        String sql = "DELETE FROM oaifile WHERE oai_f_id = ANY(?)";
+        String sql = "DELETE FROM core.oaifile WHERE oai_f_id = ANY(?)";
         jdbcTemplate.update(sql, (Object) fileIds.toArray(new String[0]));
     }
 
@@ -114,7 +114,7 @@ public class OaiFileRepository {
      * @return True if the file exists, false otherwise.
      */
     public boolean fileExists(String fileId) {
-        String sql = "SELECT COUNT(*) FROM oaifile WHERE oai_f_id = ?";
+        String sql = "SELECT COUNT(*) FROM core.oaifile WHERE oai_f_id = ?";
         return Objects.requireNonNullElse(
             jdbcTemplate.queryForObject(sql, Integer.class, fileId), 0
         ) > 0;
@@ -125,7 +125,7 @@ public class OaiFileRepository {
      * @return The number of files in the database.
      */
     public int countFiles() {
-        String sql = "SELECT COUNT(*) FROM oaifile";
+        String sql = "SELECT COUNT(*) FROM core.oaifile";
         return Objects.requireNonNullElse(jdbcTemplate.queryForObject(sql, Integer.class), 0);
     }
 
@@ -134,7 +134,7 @@ public class OaiFileRepository {
      * @param fileId The file ID to be deleted.
      */
     public void deleteFile(String fileId) {
-        String sql = "DELETE FROM oaifile WHERE oai_f_id = ?";
+        String sql = "DELETE FROM core.oaifile WHERE oai_f_id = ?";
         jdbcTemplate.update(sql, fileId);
     }
 
@@ -149,9 +149,9 @@ public class OaiFileRepository {
         }
 
         List<String> fileIds = jdbcTemplate.queryForList(
-            "SELECT oai_f_id FROM oaifile", String.class
+            "SELECT oai_f_id FROM core.oaifile", String.class
         );
-        String sql = "DELETE FROM oaifile";
+        String sql = "DELETE FROM core.oaifile";
         jdbcTemplate.update(sql);
         return fileIds;
     }
@@ -162,7 +162,7 @@ public class OaiFileRepository {
      * @return A list of OaiFiles.
      */
     public List<OaiFile> retrieveFiles(String[] fileIds) {
-        String sql = "SELECT * FROM oaifile WHERE oai_f_id = ANY(?)";
+        String sql = "SELECT * FROM core.oaifile WHERE oai_f_id = ANY(?)";
         return jdbcTemplate.query(
             sql,
             ps -> ps.setArray(1, ps.getConnection().createArrayOf("text", fileIds)),
@@ -177,8 +177,8 @@ public class OaiFileRepository {
      * @return A list of OaiFiles.
      */
     public List<OaiFile> retrieveFiles(String rootDir, int projectId) {
-        String sql = "SELECT o.* FROM oaifile o " +
-            "JOIN projectresource pr ON o.prid = pr.prid " +
+        String sql = "SELECT o.* FROM core.oaifile o " +
+            "JOIN core.projectresource pr ON o.prid = pr.prid " +
             "WHERE o.rootdir = ? AND pr.projectid = ?";
         return jdbcTemplate.query(sql, ps -> {
             ps.setString(1, rootDir);
@@ -192,8 +192,8 @@ public class OaiFileRepository {
      * @return A list of OaiFiles.
      */
     public List<OaiFile> listAllFiles(int projectId) {
-        String sql = "SELECT o.* FROM oaifile o " +
-            "JOIN projectresource pr ON o.prid = pr.prid " +
+        String sql = "SELECT o.* FROM core.oaifile o " +
+            "JOIN core.projectresource pr ON o.prid = pr.prid " +
             "WHERE pr.projectid = ?";
         return jdbcTemplate.query(sql, (rs, rowNum) -> OaiFileFrom(rs), projectId);
     }
@@ -204,7 +204,7 @@ public class OaiFileRepository {
      * @return The OaiFile corresponding to the file ID.
      */
     public OaiFile retrieveFile(String fileId) {
-        String sql = "SELECT * FROM oaifile WHERE oai_f_id = ?";
+        String sql = "SELECT * FROM core.oaifile WHERE oai_f_id = ?";
         return jdbcTemplate.queryForObject(
             sql,
             (rs, rowNum) -> OaiFileFrom(rs),

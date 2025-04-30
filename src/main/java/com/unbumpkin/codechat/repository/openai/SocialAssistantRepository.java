@@ -51,7 +51,7 @@ public class SocialAssistantRepository {
      */
     public int addAssistant(SocialAssistant assistant) {
         String sql = """
-            INSERT INTO socialassistant (
+            INSERT INTO core.socialassistant (
                 oai_aid, projectid, name, description, instruction, reasoningeffort, 
                 model, temperature, maxresults, vsid
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -81,7 +81,7 @@ public class SocialAssistantRepository {
      */
     public void updateAssistant(SocialAssistant assistant) {
         String sql = """
-            UPDATE socialassistant
+            UPDATE core.socialassistant
             SET oai_aid = ?, projectid = ?, name = ?, description = ?, instruction = ?, 
                 reasoningeffort = ?, model = ?, temperature = ?, maxresults = ?,
                 vsid = ?
@@ -110,7 +110,7 @@ public class SocialAssistantRepository {
     public SocialAssistant getAssistantById(int aid) {
         String sql = """
             SELECT a.*
-            FROM socialassistant a
+            FROM core.socialassistant a
             WHERE a.aid = ?
         """;
         return jdbcTemplate.queryForObject(sql, rowMapper, aid);
@@ -123,7 +123,7 @@ public class SocialAssistantRepository {
     public SocialAssistant getAssistantByProjectId(int projectId) {
         String sql = """
             SELECT a.*
-            FROM socialassistant a
+            FROM core.socialassistant a
             WHERE a.projectid = ?
         """;
         try {
@@ -140,7 +140,7 @@ public class SocialAssistantRepository {
     public List<SocialAssistant> getAllAssistants() {
         String sql = """
             SELECT a.*
-            FROM socialassistant a
+            FROM core.socialassistant a
         """;
         return jdbcTemplate.query(sql, rowMapper);
     }
@@ -151,7 +151,7 @@ public class SocialAssistantRepository {
      */
     public void deleteAssistant(int aid) {
         String sql = """
-            DELETE FROM socialassistant
+            DELETE FROM core.socialassistant
             WHERE aid = ?
         """;
         jdbcTemplate.update(sql, aid);
@@ -163,7 +163,7 @@ public class SocialAssistantRepository {
             throw new IllegalStateException("Only admins can delete all social assistants!");
         }
         // Delete all records in the assistant table
-        String deleteAssistantsSql = "DELETE FROM socialassistant";
+        String deleteAssistantsSql = "DELETE FROM core.socialassistant";
         jdbcTemplate.update(deleteAssistantsSql);
     }
 }

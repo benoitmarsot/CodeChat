@@ -37,7 +37,7 @@ public class OaiThreadRepository {
     public void addThread(AddOaiThreadRequest request) {
         try {
             String sql = """
-                INSERT INTO thread ( oai_threadid, vsid, did, type)
+                INSERT INTO core.thread ( oai_threadid, vsid, did, type)
                 VALUES (?, ?, ?, ?)
                 """;
             System.out.println("request.oaiThreadId(): " + request.oaiThreadId());
@@ -56,7 +56,7 @@ public class OaiThreadRepository {
     public OaiThread getThreadById(int threadid) {
         String sql = """
             SELECT t.*
-            FROM thread t
+            FROM core.thread t
             WHERE t.threadid = ?
             """;
         return jdbcTemplate.queryForObject(sql, rowMapper, threadid);
@@ -70,7 +70,7 @@ public class OaiThreadRepository {
     public Map<Types,OaiThread> getAllThreadsByDiscussionId(int discussionId) {
         String sql = """
             SELECT t.*
-            FROM thread t
+            FROM core.thread t
             WHERE t.did = ?
             """;
         List<OaiThread> threadList= jdbcTemplate.query(sql, rowMapper, discussionId);
@@ -87,7 +87,7 @@ public class OaiThreadRepository {
      */
     public void updateThread(OaiThread thread) {
         String sql = """
-            UPDATE thread
+            UPDATE core.thread
             SET oai_threadid = ?, vsid = ?, did = ?, type = ?
             WHERE threadid = ?
         """;
@@ -100,7 +100,7 @@ public class OaiThreadRepository {
      */
     public void deleteThread(int threadid) {
         String sql = """
-            DELETE FROM thread
+            DELETE FROM core.thread
             WHERE threadid = ?
         """;
         jdbcTemplate.update(sql, threadid);
@@ -124,7 +124,7 @@ public class OaiThreadRepository {
             throw new IllegalStateException("Only admins can delete all messages");
         }
         // Delete all records in the thread table
-        String deleteThreadsSql = "DELETE FROM thread";
+        String deleteThreadsSql = "DELETE FROM core.thread";
         jdbcTemplate.update(deleteThreadsSql);
     }
 }
