@@ -31,7 +31,7 @@ public class SocialChannelRepository {
     };
 
     public SocialChannel addSocialChannel(SocialChannel channel, int prId) {
-        String sql = "INSERT INTO socialchannel (channelid, prid, channelname, lastmessagets) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO core.socialchannel (channelid, prid, channelname, lastmessagets) VALUES (?, ?, ?, ?)";
         jdbcTemplate.update(sql, channel.channelId(), prId, channel.channelName(), channel.lastMessageTs());
         return channel;
     }
@@ -41,7 +41,7 @@ public class SocialChannelRepository {
         // If not, you should add: ALTER TABLE socialchannel ADD CONSTRAINT unique_channel UNIQUE (channelid, prid);
         
         String sql = """
-            INSERT INTO socialchannel (channelid, prid, channelname, lastmessagets)
+            INSERT INTO core.socialchannel (channelid, prid, channelname, lastmessagets)
             VALUES (?, ?, ?, ?)
             ON CONFLICT (channelid, prid) DO NOTHING
             """;
@@ -57,17 +57,17 @@ public class SocialChannelRepository {
     }
     
     public SocialChannel getSocialChannelById(String channelId, int prId) {
-        String sql = "SELECT * FROM socialchannel WHERE channelid = ? AND prid = ?";
+        String sql = "SELECT * FROM core.socialchannel WHERE channelid = ? AND prid = ?";
         return jdbcTemplate.queryForObject(sql, rowMapper, channelId, prId);
     }
 
     public List<SocialChannel> getAllSocialChannels(int prId) {
-        String sql = "SELECT * FROM socialchannel WHERE prid = ?";
+        String sql = "SELECT * FROM core.socialchannel WHERE prid = ?";
         return jdbcTemplate.query(sql, rowMapper, prId);
     }
 
     public int deleteSocialChannel(String channelId, int prId) {
-        String sql = "DELETE FROM socialchannel WHERE channelid = ? AND prid = ?";
+        String sql = "DELETE FROM core.socialchannel WHERE channelid = ? AND prid = ?";
         return jdbcTemplate.update(sql, channelId, prId);
     }
     public void deleteAll() {
@@ -75,7 +75,7 @@ public class SocialChannelRepository {
         if (currentUser == null || !currentUser.isAdmin()) {
             throw new IllegalStateException("Only admins can delete all social channels");
         }
-        String sql = "DELETE FROM socialchannel";
+        String sql = "DELETE FROM core.socialchannel";
         jdbcTemplate.update(sql);
     }
     

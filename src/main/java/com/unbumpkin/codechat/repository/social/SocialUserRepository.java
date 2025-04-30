@@ -31,7 +31,7 @@ public class SocialUserRepository {
         }
     };
     public SocialUser addSocialUser(SocialUser socialUser, int prId) {
-        String sql = "INSERT INTO socialuser (userid, prid, fname, email) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO core.socialuser (userid, prid, fname, email) VALUES (?, ?, ?, ?)";
         jdbcTemplate.update(sql, socialUser.userId(), prId, socialUser.fullName(), socialUser.email());
         return socialUser;
     }
@@ -40,7 +40,7 @@ public class SocialUserRepository {
         // If not, you should add: ALTER TABLE socialuser ADD CONSTRAINT unique_social_user UNIQUE (userid, prid);
         
         String sql = """
-            INSERT INTO socialuser (userid, prid, fname, email)
+            INSERT INTO core.socialuser (userid, prid, fname, email)
             VALUES (?, ?, ?, ?)
             ON CONFLICT (userid, prid) DO NOTHING
             """;
@@ -55,21 +55,21 @@ public class SocialUserRepository {
         }
     }
     public SocialUser getSocialUserByUserId(String userid) {
-        String sql = "SELECT * FROM socialuser WHERE userid = ?";
+        String sql = "SELECT * FROM core.socialuser WHERE userid = ?";
         return jdbcTemplate.queryForObject(sql, rowMapper, userid);
     }
 
     public List<SocialUser> getAllSocialUsers(int prId) {
-        String sql = "SELECT * FROM socialuser WHERE prid = ?";
+        String sql = "SELECT * FROM core.socialuser WHERE prid = ?";
         return jdbcTemplate.query(sql, rowMapper, prId);
     }
 
     public int deleteSocialUser(String userid) {
-        String sql = "DELETE FROM socialuser WHERE userid = ?";
+        String sql = "DELETE FROM core.socialuser WHERE userid = ?";
         return jdbcTemplate.update(sql, userid);
     }
     public int deleteAll(int prId) {
-        String sql = "DELETE FROM socialuser WHERE prid = ?";
+        String sql = "DELETE FROM core.socialuser WHERE prid = ?";
         return jdbcTemplate.update(sql, prId);
     }
     public int deleteAll() {
@@ -79,7 +79,7 @@ public class SocialUserRepository {
             throw new IllegalStateException("Only administrators can delete all social users");
         }
         
-        String sql = "DELETE FROM socialuser";
+        String sql = "DELETE FROM core.socialuser";
         return jdbcTemplate.update(sql);
     }
 
