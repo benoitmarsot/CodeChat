@@ -1,3 +1,4 @@
+import 'package:codechatui/src/models/social_references.dart';
 import 'package:flutter/material.dart';
 import 'package:codechatui/src/models/message.dart';
 import 'package:flutter_syntax_view/flutter_syntax_view.dart';
@@ -138,7 +139,43 @@ class AIResponseWidget extends StatelessWidget {
                   // Process each answer item
                   ...aiResponse.answers
                       .map((answer) => _buildAnswerItem(context, answer)),
-
+                  // Social Media
+                  if (aiResponse.socialAnswer != null )
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.forum, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: HoverCopyWidget(
+                              text: aiResponse.socialAnswer?.overallDescription ?? '',
+                              child: Container(
+                                width: double.infinity,
+                                child: MarkdownBody(
+                                  data: messageReferences(aiResponse.socialAnswer),
+                                  selectable: true,
+                                  styleSheet: MarkdownStyleSheet(
+                                    p: Theme.of(context).textTheme.bodyMedium,
+                                    code: TextStyle(
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  onTapLink: (text, href, title) {
+                                    openLink(text, href, title, context);
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   // Conversational guidance
                   if (aiResponse.conversationalGuidance != null)
                     const Divider(),
@@ -375,40 +412,6 @@ class AIResponseWidget extends StatelessWidget {
                 ),
               ],
             ),
-          // Social Media
-          if (answer.socialAnswer != null &&
-              answer.socialAnswer!.isNotEmpty &&
-              answer.socialAnswer != "\"\"")
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.forum, size: 16),
-                const SizedBox(height: 8),
-                HoverCopyWidget(
-                  text: answer.socialAnswer!,
-                  child: Container(
-                    width: double.infinity,
-                    child: MarkdownBody(
-                      data: answer.socialAnswer!,
-                      selectable: true,
-                      styleSheet: MarkdownStyleSheet(
-                        p: Theme.of(context).textTheme.bodyMedium,
-                        code: TextStyle(
-                          backgroundColor: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                          fontFamily: 'monospace',
-                          fontSize: 14,
-                        ),
-                      ),
-                      onTapLink: (text, href, title) {
-                        openLink(text, href, title, context);
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
           // References Section
           if (answer.references != null && answer.references!.isNotEmpty)
             Column(
@@ -454,8 +457,20 @@ class AIResponseWidget extends StatelessWidget {
                     )),
               ],
             ),
+
         ],
       ),
     );
+  }
+
+  messageReferences(SocialReferences? socialAnswer) {
+    if (socialAnswer == null) return '';
+
+    String message = socialAnswer.overallDescription;
+    for (var item in socialAnswer.messages) {
+      message += 
+        "\n\n**([${item.name}](${item.url}))**: ${item.description} ";
+    }
+    return message;
   }
 }

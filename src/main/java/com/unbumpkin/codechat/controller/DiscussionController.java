@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.unbumpkin.codechat.ai.dto.SearchChunkResult;
+import com.unbumpkin.codechat.ai.embedder.EmbedderService;
 import com.unbumpkin.codechat.ai.vectorstore.PgVectorRepository;
 import com.unbumpkin.codechat.dto.openai.Assistant;
 import com.unbumpkin.codechat.dto.openai.SocialAssistant;
@@ -27,14 +27,13 @@ import com.unbumpkin.codechat.dto.request.AddOaiThreadRequest;
 import com.unbumpkin.codechat.dto.request.DiscussionNameSuggestion;
 import com.unbumpkin.codechat.dto.request.DiscussionUpdateRequest;
 import com.unbumpkin.codechat.dto.request.MessageCreateRequest;
+import com.unbumpkin.codechat.dto.social.SocialReferences;
 import com.unbumpkin.codechat.model.Discussion;
 import com.unbumpkin.codechat.model.Message;
 import com.unbumpkin.codechat.model.openai.OaiThread;
 import com.unbumpkin.codechat.repository.DiscussionRepository;
 import com.unbumpkin.codechat.repository.MessageRepository;
-import com.unbumpkin.codechat.repository.ProjectRepository;
 import com.unbumpkin.codechat.repository.openai.AssistantRepository;
-import com.unbumpkin.codechat.repository.openai.OaiFileRepository;
 import com.unbumpkin.codechat.repository.openai.OaiThreadRepository;
 import com.unbumpkin.codechat.repository.openai.SocialAssistantRepository;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
@@ -64,11 +63,9 @@ public class DiscussionController {
     @Autowired
     private ObjectMapper objectMapper;
     @Autowired
-    private OaiFileRepository oaiFileRepository;
-    @Autowired
-    private ProjectRepository projectRepository;
-    @Autowired
     private PgVectorRepository pgVectorRepository;
+    @Autowired
+    private EmbedderService embedderService;
 
 
 
@@ -120,7 +117,8 @@ public class DiscussionController {
         String OaiRunId = runService.create();
         System.out.println("Starting OpenAi run " + OaiRunId + "...");
         System.out.println("Waiting for answer...");
-        String socialAnswer=askSocialAssistantInsights(lastMessage.message(), discussion);
+        
+        SocialReferences socialAnswer=askSocialAssistantInsights(lastMessage.message(), discussion);
         runService.waitForAnswer(OaiRunId);
     
         JsonNode jsonNode = msgService.retrieveMessage(msgService.listMessages().get(0));
@@ -150,9 +148,10 @@ public class DiscussionController {
         //answer = answer.replaceAll("[\\p{Cc}&&[^\r\n\t]]", "");
     
         Message message = messageRepository.addMessage(
-            new MessageCreateRequest(did, Roles.assistant.toString(), answer)
+            new MessageCreateRequest(did, Roles.assistant.toString(), answer, socialAnswer)
         );
         message =new Message(message,socialAnswer);
+        System.out.println("Message " + message.msgid() + " created...\n"+objectMapper.writeValueAsString(message));
         return ResponseEntity.ok(message);
     }
 
@@ -195,37 +194,112 @@ public class DiscussionController {
         DiscussionNameSuggestion[] suggestions = objectMapper.readValue(jsonResponse, DiscussionNameSuggestion[].class);
         return ResponseEntity.ok(suggestions);
     }
-    
+
+
 
     @DeleteMapping("/{did}")
     public ResponseEntity<Void> deleteDiscussion(@PathVariable int did) {
         discussionRepository.deleteDiscussion(did);
         return ResponseEntity.ok().build();
     }
-    // private String askPgVectorStoreReference(
-    //     String messageTxt, Discussion discussion
-    // ) throws IOException {
-    //     boolean havePgVector=pgVectorRepository.haveContent(
-    //         discussion.projectId(), Types.social
-    //     );
+    /**
+     * Ask the social assistant for insights on result produced by our pgVector
+     * store.
+     * @param messageTxt
+     * @param discussion
+     * @return a json object with the references in string format
+     * @throws Exception
+     */
+    private SocialReferences getSocialPgVectorStoreReference(
+        String messageTxt, Discussion discussion
+    ) throws Exception {
+        boolean havePgVector=pgVectorRepository.haveContent(
+            discussion.projectId(), Types.social
+        );
 
-    //     if (!havePgVector) {
-    //         projectRepository.deleteProject(discussion.projectId());
-    //         System.out.println("No local social vector store found for project " + discussion.projectId());
-    //         return null;
-    //     }
+        if (!havePgVector) {
+            System.out.println("No local social vector store found for project " + discussion.projectId());
+            return null;
+        }
+        if(messageTxt==null || messageTxt.isEmpty()){
+            System.out.println("Empty message discussion " + discussion.did());
+            return null;
+        }
+        if(EmbedderService.isTokenLimitExceeded(messageTxt)){
+            System.out.println("Message token limit exceeded for discussion " + discussion.did());
+            return null;
+        }
+        float[] vector=embedderService.embed(messageTxt);
+        List<SearchChunkResult> chunks=  pgVectorRepository.search(discussion.projectId(), Types.social, vector, 4,1f);
+        // ask Ai service to make a summary of the chunks
+        if(chunks.isEmpty()){
+            System.out.println("No chunks found for discussion " + discussion.did());
+            return null;
+        }
+        StringBuilder sb=new StringBuilder();
+        for(SearchChunkResult chunk: chunks){
+            sb.append(chunk.content());
+            sb.append("\n");
+        }
+        String message=sb.toString();
+        SocialReferences references=getSocialReferences(message, discussion);
+        return references;
+    }
+    /**
+     * Ask the social assistant for insights on result produced by our pgVector
+     * store+Ai if availabe or Ai SocialVectore if available.
+     * @param messageTxt
+     * @param discussion
+     * @return SocialReferences object with the references and overall description
+     * @throws Exception
+     */
+    private SocialReferences getSocialReferences(
+        String messageTxt, Discussion discussion
+    ) throws IOException {
+        ChatService chatService=new ChatService(
+            Models.gpt_4o, """
+            Give an overall bref description of all the messages, and then a author and a few word description for each. 
+            Your answer should be formatted as a json object: 
+            {
+                "overallDescription":<overall bref description>,
+                "messages": [
+                    {"name": "name1", "description": "description1", "url"="url1"}, 
+                    {"name": "name2", "description": "description2", "url"="url2"}, 
+                    {"name": "name3", "description": "description3", "url"="url3"},
+                    ...
+                ]
+            },
+            name should be less than 25 characters long, and represent a title for the discussion, it can use up to 5 words separated by space.
+            your descriptions should be less than 225 characters long.
+            """,
+            1f
+        );
+        chatService.addMessage("user", messageTxt);
+        String answer=chatService.answer();
+        if(answer.indexOf("```json")>-1) {
+            answer=answer.substring(answer.indexOf("```json")+7, answer.lastIndexOf("```"));
+        }
+        System.out.println("AI social Answer: " + answer);
+        SocialReferences references = objectMapper.readValue(answer, SocialReferences.class);
+        return references;
+    }
 
-    //     List<RepoVectorStoreResponse> vectorStores = pgVectorRepository.getAllVectorStoresByProjectId(projectId);
-    //     Map<Types, RepoVectorStoreResponse> vectorStoreMap = CCProjectFileManager.getVectorStoretMap(vectorStores);
-    //     RepoVectorStoreResponse vectorStore = vectorStoreMap.get(type);
-    //     if (vectorStore == null) {
-    //         System.out.println("No vector store found for project " + projectId + " and type " + type);
-    //         return null;
-    //     }
-    //     return vectorStore.getContent(content);
-    // }
-    private String askSocialAssistantInsights(String messageTxt, Discussion discussion) throws IOException {
+    /**
+     * Ask the social assistant for insights on result produced by our pgVector
+     * store+Ai if availabe or Ai SocialVectore if available.
+     * @param messageTxt
+     * @param discussion
+     * @return a json object with the references in string format
+     * @throws Exception
+     */
+    private SocialReferences askSocialAssistantInsights(String messageTxt, Discussion discussion) throws IOException {
         try {
+            // If pgVector store is available, use it
+            if(pgVectorRepository.haveContent(
+                discussion.projectId(), Types.social
+            )) {
+                return getSocialPgVectorStoreReference(messageTxt, discussion);
+            }
             // Get all messages for the discussion 
             SocialAssistant socialAssistant = socialAssistantRepository.getAssistantByProjectId(
                 discussion.projectId()
@@ -245,7 +319,14 @@ public class DiscussionController {
                 "Search using the original full joined terms (e.g., 'authToken', 'issue_id'), giving the highest weight to exact matches of these joined words.\n" +
                 "To improve retrieval accuracy, preprocess the thread content before searching:\n" +
                 "- Also split compound or joined words (e.g., camelCase, PascalCase, snake_case, kebab-case) into individual tokens. For example, 'authToken' becomes 'auth' and 'token'; 'issue_id' becomes 'issue' and 'id'.\n" +
-                "Return any results that semantically match the thread. Include references (e.g., URLs, message snippets, or ticket IDs) to the original content in your responses.\n"
+                "Return any results that semantically match the thread. answer in that format.\n" +
+                "{\"overallDescription\":<overall bref description>,\n" +
+                "   \"messages\": [" +
+                "       {\"name\": \"name1\", \"description\": \"description1\", \"url\"=\"url1\"}, " +
+                "       {\"name\": \"name2\", \"description\": \"description2\", \"url\"=\"url2\"}, " +
+                "       ..." +
+                "   ]" +
+                "}\n"
                 ,null
             );
             messages.add(0, sysMessage);
@@ -277,13 +358,15 @@ public class DiscussionController {
                 System.out.println("Answer is null");
                 return null;
             }
-            // Decide if the node is textual or structured
             String answer = answerNode.isTextual() 
                 ? answerNode.asText()
                 : objectMapper.writeValueAsString(answerNode);
+            if(answer.indexOf("```json")>-1) {
+                answer=answer.substring(answer.indexOf("```json")+7, answer.lastIndexOf("```"));
+            }
             System.out.println("AI social Answer: " + answer);
-
-            return answer;
+            SocialReferences references = objectMapper.readValue(answer, SocialReferences.class);
+            return references;
         } catch (Exception e) {
             System.out.println("Exception in askSocialAssistantInsights: " + e.getMessage());
             e.printStackTrace();

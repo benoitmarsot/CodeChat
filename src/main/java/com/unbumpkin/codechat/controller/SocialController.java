@@ -17,9 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.slack.api.model.block.element.RichTextSectionElement.Text;
 import com.unbumpkin.codechat.ai.chunker.TextChunker;
 import com.unbumpkin.codechat.ai.dto.Chunk;
 import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
+import com.unbumpkin.codechat.ai.dto.SearchChunkResult;
 import com.unbumpkin.codechat.ai.embedder.EmbedderService;
 import com.unbumpkin.codechat.ai.vectorstore.PgVectorRepository;
 import com.unbumpkin.codechat.dto.FindInPgVectorRequest;
@@ -38,6 +40,7 @@ import com.unbumpkin.codechat.model.UserSecret.Labels;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.VectorStore;
 import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
+import com.unbumpkin.codechat.repository.ProjectRepository;
 import com.unbumpkin.codechat.repository.ProjectResourceRepository;
 import com.unbumpkin.codechat.repository.openai.SocialAssistantRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
@@ -65,6 +68,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RequestMapping("/api/v1/social")
 public class SocialController {
 
+    private final ProjectController projectController;
+
     @Autowired
     private OaiFileService oaiFileService;
     @Autowired
@@ -87,18 +92,28 @@ public class SocialController {
     private TextChunker textChunker;
     @Autowired
     private EmbedderService embeddingService;
+    @Autowired
+    private ProjectRepository projectRepository;
+
+    SocialController(ProjectController projectController) {
+        this.projectController = projectController;
+    }
 
     @PostMapping("find-in-pgvector")
     public ResponseEntity<List<String>> findInPgVector(
         @RequestBody FindInPgVectorRequest request
     ) throws Exception {
+        if(projectRepository.getProjectById(request.projectId())==null){
+            // Project not found
+            return ResponseEntity.badRequest().body(List.of("Project not found"));
+        }
         if(!pgVectorRepository.haveContent(request.projectId(), request.type())){
             // No content in the vector store for the projectId and type
             return ResponseEntity.ok(List.of());
         }
         float[] embededQusetion=embeddingService.embed(request.content());
 
-        List<EmbeddedChunk> chunks=pgVectorRepository.search(request.projectId(), request.type(), embededQusetion, 10);
+        List<SearchChunkResult> chunks=pgVectorRepository.search(request.projectId(), request.type(), embededQusetion, 10, null);
 
         List<String> answers=new ArrayList<>(chunks.size());
         chunks.forEach(chunk -> answers.add(chunk.content()));
@@ -136,8 +151,13 @@ public class SocialController {
             projectId, issueTrackingService.getRessourceUrl(), issueTrackingService.resType(), userSecrets
         );
         prId=pr.prId();
-        VectorStore vs=getOrCreateVectorStore(projectId);
-        VectorStoreFile vsf=new VectorStoreFile(vs.getOaiVsid());
+
+        VectorStore vs=null;
+        VectorStoreFile vsf=null;
+        if(!request.selfChunk()) {
+            vs=getOrCreateVectorStore(projectId);
+            vsf=new VectorStoreFile(vs.getOaiVsid());
+        }
 
         Map<String,SocialUser> mUsers=issueTrackingService.getUsersMap();
         socialUserRepository.addMissingSocialUsers(mUsers.values(),prId);
@@ -148,17 +168,29 @@ public class SocialController {
         List<Issue> issues=issueTrackingService.getAllIssues();
         //String stLastUpdated=issues.get(0).lastUpdated();
         //Transform iso8601 date to milli
-        addIssues(issueTrackingService,issues,mUsers,pr.prId(),vsf);
+        
+
+        if(!request.selfChunk()) {
+            // add the messages to the openai vector store
+            addIssues(issueTrackingService,issues,mUsers,pr.prId(),vsf);
+        } else {
+            // add the messages to the PgVector store
+            addIssues(issueTrackingService,issues,mUsers,pr.prId(),projectId);
+        }
+
+
         List<SocialChannel> sChannelsDb=new ArrayList<>(1);
         sChannelsDb.add(new SocialChannel(
             issueTrackingService.getIssuesChannel(),issueTrackingService.getIssuesChannel(),issues.get(0).lastUpdated()
         ));
+        
         socialChannelRepository.addMissingSocialChannels(sChannelsDb,prId);
-        //TODO: add the last message timestamp to the socialchannel
 
-        //Create a new social assistant if needed
-        int assistantId=retrieveCreateAssistant("Social Assisant",projectId,vs);
-        System.out.println("Assistant created with id: "+assistantId);
+        if(!request.selfChunk()) {
+            //Create a new social assistant if needed
+            int assistantId=retrieveCreateAssistant("Social Assisant",projectId,vs);
+            System.out.println("Assistant created with id: "+assistantId);
+        }
         return ResponseEntity.ok(pr);
     }
     @Transactional
@@ -320,7 +352,40 @@ public class SocialController {
             }
         }
     }
-
+    private void addIssues(
+        IssueTrackingService issueTrackingService, List<Issue> issues, Map<String,SocialUser> mUsers, int prId, int projectId
+    ) throws Exception {
+        for (Issue issue : issues) {
+            try {
+                String body = issue.body();
+                if (body == null || body.isEmpty()) {
+                    System.out.println("Issue body is empty, skipping it");
+                    continue;
+                }
+                String issueUrl = issue.url();
+                CreateVSIssueRequest creaVsRequest = new CreateVSIssueRequest(
+                    "", issueTrackingService.platform(), issueTrackingService.getIssuesChannel(),
+                    mUsers.get(issue.author()).fullName(),
+                    issueUrl, issue.isOpen(), issue.lastUpdated()
+                );
+                ObjectMapper objectMapper = new ObjectMapper();
+                objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+                body = objectMapper.writeValueAsString(CreateSocialMessage(creaVsRequest.attributes(), body));
+                System.out.println("body: " + body);
+    
+                // Chunk and embed
+                List<Chunk> chunks = textChunker.chunk(body, creaVsRequest.attributes());
+                List<EmbeddedChunk> embedded = embeddingService.embedChunks(chunks);
+                pgVectorRepository.saveAll(projectId, Types.social, embedded);
+    
+                System.out.println(issueTrackingService.platform().toString() + " self chunk issue " + issueUrl + " added to social chunks vector store.");
+            } catch (Exception e) {
+                System.out.println("Error adding issue " + issue.Title() + ": " + e.getMessage());
+                e.printStackTrace();
+                throw e;
+            }
+        }
+    }
     private static final Pattern NAME_REGEXP = java.util.regex.Pattern.compile("<@([A-Z0-9]+)>");
     private void addMessages(
         SocialService socialService, List<SocialMessage> sMessages, SocialChannel sChannel, 

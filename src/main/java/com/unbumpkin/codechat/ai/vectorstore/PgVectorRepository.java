@@ -6,10 +6,12 @@ import org.springframework.stereotype.Repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
+import com.unbumpkin.codechat.ai.dto.SearchChunkResult;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
 import java.util.Map;
+import static java.lang.String.format;
 
 @Repository
 public class PgVectorRepository implements LocalVectorStore {
@@ -39,10 +41,8 @@ public class PgVectorRepository implements LocalVectorStore {
                 params[idx++] = projectId;
                 params[idx++] = chunkType.toString();
                 params[idx++] = chunk.content();
-                // Use mapper to serialize embedding as JSON array string, then convert [] to {} for pgvector
                 String embeddingJson = mapper.writeValueAsString(chunk.embedding());
                 params[idx++] = embeddingJson;
-                // Use mapper to serialize metadata as JSON string
                 params[idx++] = mapper.writeValueAsString(chunk.metadata());
             } catch (Exception e) {
                 throw new RuntimeException("Error serializing chunk for DB insert", e);
@@ -57,9 +57,24 @@ public class PgVectorRepository implements LocalVectorStore {
     }
 
     @Override
-    public List<EmbeddedChunk> search(int projectId, Types chunkType, float[] embedding, int topK) {
+    public List<SearchChunkResult> search(int projectId, Types chunkType, float[] embedding, Integer maxRows, Float distanceThreshold) {
+        String maxRowCond="";
+        if(maxRows!= null&& maxRows > 0) {
+            maxRowCond = "LIMIT "+maxRows;
+        }
+        if(distanceThreshold== null || distanceThreshold < 0) {
+            distanceThreshold=2f;
+        }
         // Implement cosine similarity search with pgvector SQL
-        String sql = "SELECT chunkid, content, metadata FROM core.chunk WHERE projectid = ? AND chunktype = ? ORDER BY embedding <-> ?::vector LIMIT ?";
+        String sql = format("""
+            WITH emb AS (SELECT ?::vector AS v)
+            SELECT chunkid, content, metadata, (embedding <-> emb.v) AS distance 
+            FROM core.chunk, emb
+            WHERE projectid = ? AND chunktype = ?
+                AND (embedding <-> emb.v) <= ? 
+            ORDER BY embedding <-> emb.v 
+            %s;
+            """,maxRowCond);
         String embeddingJson = null;
         try {
             embeddingJson = mapper.writeValueAsString(embedding);
@@ -73,19 +88,17 @@ public class PgVectorRepository implements LocalVectorStore {
                     try {
                         String content = rs.getString("content");
                         String metadataJson = rs.getString("metadata");
-                        return new EmbeddedChunk(
+                        float distance = rs.getFloat("distance");
+                        return new SearchChunkResult(
                             content,
-                            embedding,
+                            distance,
                             mapper.readValue(metadataJson, new TypeReference<Map<String, String>>() {})
                         );
                     } catch (Exception e) {
                         throw new RuntimeException("Error deserializing chunk from DB", e);
                     }
                 },
-                projectId,
-                chunkType.toString(),
-                embeddingJson,
-                topK
+                embeddingJson, projectId, chunkType.toString(), distanceThreshold
             );
         } catch (Exception e) {
             System.err.println("Error searching chunks: " + e.getMessage());

@@ -1,10 +1,12 @@
 package com.unbumpkin.codechat.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.unbumpkin.codechat.dto.request.MessageCreateRequest;
 import com.unbumpkin.codechat.model.Message;
 import com.unbumpkin.codechat.repository.MessageRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,7 +26,7 @@ public class MessageController {
     @PostMapping
     public ResponseEntity<Message> addMessage(
         @RequestBody MessageCreateRequest request
-    ) {
+    ) throws DataAccessException, JsonProcessingException {
         Message returnedMessage=messageRepository.addMessage(request);
         return ResponseEntity.ok(returnedMessage);
     }
