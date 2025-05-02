@@ -1,5 +1,6 @@
 package com.unbumpkin.codechat.model;
 
+import java.sql.Timestamp;
 import java.util.Collection;
 import java.util.List;
 
@@ -12,11 +13,16 @@ public record User(
     String name, 
     String email,
     String password,
+    Timestamp created,
     Role role
 ) implements UserDetails {
+    public User(int userid, String name, String email, String password, Role role) {
+        this(userid, name, email, password, null, role);
+    }
+    public static final int nbTrialDays=30;
     
     public enum Role {
-        USER, ADMIN
+        FREE, USER, ADMIN
     }
 
     @Override
@@ -31,8 +37,33 @@ public record User(
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;
+        return (!Role.FREE.equals(role) 
+            || (Role.FREE.equals(role) && trialDaysLeft() > 0));
     }
+
+    public Timestamp getCreated() {
+        return created;
+    }
+    public Timestamp getTrialEnd() {
+        if(created == null) {
+            return null;
+        }
+        return new Timestamp(created.getTime() + nbTrialDays * 24 * 60 * 60 * 1000);
+    }
+    public int trialDaysLeft() {
+        if(created == null) {
+            return 0;
+        }
+        if(Role.FREE.equals(role)) {
+            int total=nbTrialDays - (int) ((System.currentTimeMillis() - created.getTime()) / (1000 * 60 * 60 * 24));
+            return total>0 ? total : 0;
+        }
+        return 0;
+    }
+    public boolean isTrial() {
+        return Role.FREE.equals(role);
+    }
+
 
     @Override
     public boolean isAccountNonLocked() {

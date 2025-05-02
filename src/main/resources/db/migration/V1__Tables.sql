@@ -5,7 +5,8 @@ create table if not exists core.users (
     name varchar(50) not null,
     email varchar(100) not null,
     password varchar(100),
-    role varchar(20) default 'user'
+    role varchar(20) default 'user',
+    created timestamp not null default now()
 );
 
 create table if not exists core.usersecret (

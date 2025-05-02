@@ -16,6 +16,7 @@ DECLARE
     v_name varchar(50);
     v_email varchar(100);
     v_role varchar(20);
+    v_created timestamp;
 BEGIN
     -- check if the user is already registered
     IF EXISTS(SELECT 1 FROM core.users u WHERE u.email = jsonUser->>'email') THEN 
@@ -34,13 +35,15 @@ BEGIN
     ) RETURNING 
         users.userid,
         users.name,
-        lower(users.email)
+        lower(users.email),
+        users.created
     INTO 
         out_userid,
         v_name,
-        v_email;
+        v_email,
+        v_created;
         
-    RAISE NOTICE 'Created user: % name: % with email: % and role: %', out_userid, v_name, v_email, v_role;
+    RAISE NOTICE 'Created user: % name: % with email: % and role: % on %', out_userid, v_name, v_email, v_role, v_created;
 END;
 $$ LANGUAGE plpgsql;
 

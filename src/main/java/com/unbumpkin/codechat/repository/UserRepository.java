@@ -117,6 +117,7 @@ public class UserRepository  {
         rs.getString("name"),
         rs.getString("email"),
         rs.getString("password"),
+        rs.getTimestamp("created"),
         User.Role.valueOf(rs.getString("role").toUpperCase())
     );
 

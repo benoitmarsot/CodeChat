@@ -1,0 +1,68 @@
+{
+	"info": {
+		"_postman_id": "8674f134-f5a7-4696-98eb-24acd25b1f98",
+		"name": "users",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "2213118",
+		"_collection_link": "https://blue-space-88174.postman.co/workspace/CodeChat~f785fba3-2afa-44df-9b91-2a0a307fd214/collection/2213118-8674f134-f5a7-4696-98eb-24acd25b1f98?action=share&source=collection_link&creator=2213118"
+	},
+	"item": [
+		{
+			"name": "users",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{vault:JWT_TOKEN}}"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/users",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get current user",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer YOUR_JWT_TOKEN_HERE"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/users/current-user",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"users",
+						"current-user"
+					]
+				},
+				"description": "Generated from cURL: curl http://localhost:8080/api/v1/users/current-user \\\n  -H \"Authorization: Bearer YOUR_JWT_TOKEN_HERE\""
+			},
+			"response": []
+		}
+	]
+}

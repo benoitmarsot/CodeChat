@@ -41,6 +41,8 @@ public class UserController {
             Map.of("userid", String.valueOf(user.userid()),
             "name", user.name(),
             "email", user.email(),
+            "created", user.created().toString(),
+            "accountNonExpired", user.isAccountNonExpired()?"true":"false",
             "role", user.role().toString()
         ));
 

@@ -1,0 +1,336 @@
+{
+	"info": {
+		"_postman_id": "b33de2ec-b1cd-4721-8009-6c2ffafe0461",
+		"name": "Slack",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "2213118",
+		"_collection_link": "https://blue-space-88174.postman.co/workspace/CodeChat~f785fba3-2afa-44df-9b91-2a0a307fd214/collection/2213118-b33de2ec-b1cd-4721-8009-6c2ffafe0461?action=share&source=collection_link&creator=2213118"
+	},
+	"item": [
+		{
+			"name": "conversations.history",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "oauth2",
+					"oauth2": [
+						{
+							"key": "scope",
+							"value": "channels:read users:read users.profile:read dnd:read bookmarks:read reactions:read team:read emoji:read calls:read im:read groups:read chat:write mpim:history im:history groups:history channels:history",
+							"type": "string"
+						},
+						{
+							"key": "redirect_uri",
+							"value": "https://oauth.pstmn.io/v1/browser-callback",
+							"type": "string"
+						},
+						{
+							"key": "useBrowser",
+							"value": false,
+							"type": "boolean"
+						},
+						{
+							"key": "clientSecret",
+							"value": "79004850b63d1511bc4bc8583c44536f",
+							"type": "string"
+						},
+						{
+							"key": "clientId",
+							"value": "1098912045013.8748538105843",
+							"type": "string"
+						},
+						{
+							"key": "addTokenTo",
+							"value": "header",
+							"type": "string"
+						},
+						{
+							"key": "grant_type",
+							"value": "authorization_code",
+							"type": "string"
+						},
+						{
+							"key": "client_authentication",
+							"value": "header",
+							"type": "string"
+						},
+						{
+							"key": "authUrl",
+							"value": "https://slack.com/oauth/v2/authorize",
+							"type": "string"
+						},
+						{
+							"key": "accessTokenUrl",
+							"value": "https://slack.com/api/oauth.v2.access",
+							"type": "string"
+						},
+						{
+							"key": "tokenName",
+							"value": "Slack API",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://slack.com/api/conversations.history?channel=C060Q5B33F1&oldest=1733162749.083209",
+					"protocol": "https",
+					"host": [
+						"slack",
+						"com"
+					],
+					"path": [
+						"api",
+						"conversations.history"
+					],
+					"query": [
+						{
+							"key": "channel",
+							"value": "C060Q5B33F1"
+						},
+						{
+							"key": "oldest",
+							"value": "1733162749.083209"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "users.list",
+			"request": {
+				"auth": {
+					"type": "oauth2",
+					"oauth2": [
+						{
+							"key": "scope",
+							"value": "channels:read users:read users.profile:read dnd:read bookmarks:read reactions:read team:read emoji:read calls:read im:read groups:read chat:write mpim:history im:history groups:history channels:history",
+							"type": "string"
+						},
+						{
+							"key": "redirect_uri",
+							"value": "https://oauth.pstmn.io/v1/browser-callback",
+							"type": "string"
+						},
+						{
+							"key": "useBrowser",
+							"value": false,
+							"type": "boolean"
+						},
+						{
+							"key": "clientSecret",
+							"value": "79004850b63d1511bc4bc8583c44536f",
+							"type": "string"
+						},
+						{
+							"key": "clientId",
+							"value": "1098912045013.8748538105843",
+							"type": "string"
+						},
+						{
+							"key": "addTokenTo",
+							"value": "header",
+							"type": "string"
+						},
+						{
+							"key": "grant_type",
+							"value": "authorization_code",
+							"type": "string"
+						},
+						{
+							"key": "client_authentication",
+							"value": "header",
+							"type": "string"
+						},
+						{
+							"key": "authUrl",
+							"value": "https://slack.com/oauth/v2/authorize",
+							"type": "string"
+						},
+						{
+							"key": "accessTokenUrl",
+							"value": "https://slack.com/api/oauth.v2.access",
+							"type": "string"
+						},
+						{
+							"key": "tokenName",
+							"value": "Slack API",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer xoxp-your-token-here",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://slack.com/api/users.list",
+					"protocol": "https",
+					"host": [
+						"slack",
+						"com"
+					],
+					"path": [
+						"api",
+						"users.list"
+					]
+				},
+				"description": "Generated from cURL: curl -X GET 'https://slack.com/api/users.list' \\\n  -H 'Authorization: Bearer xoxp-your-token-here'"
+			},
+			"response": []
+		},
+		{
+			"name": "conversation.list",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer xoxp-your-token-here"
+					}
+				],
+				"url": {
+					"raw": "https://slack.com/api/conversations.list?types=public_channel,private_channel,im,mpim",
+					"protocol": "https",
+					"host": [
+						"slack",
+						"com"
+					],
+					"path": [
+						"api",
+						"conversations.list"
+					],
+					"query": [
+						{
+							"key": "types",
+							"value": "public_channel,private_channel,im,mpim"
+						}
+					]
+				},
+				"description": "Generated from cURL: curl -X GET 'https://slack.com/api/conversations.list?types=public_channel,private_channel,im,mpim' \\\n  -H 'Authorization: Bearer xoxp-your-token-here'"
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "oauth2",
+		"oauth2": [
+			{
+				"key": "refreshRequestParams",
+				"value": [],
+				"type": "any"
+			},
+			{
+				"key": "tokenRequestParams",
+				"value": [],
+				"type": "any"
+			},
+			{
+				"key": "authRequestParams",
+				"value": [],
+				"type": "any"
+			},
+			{
+				"key": "tokenName",
+				"value": "Slack API",
+				"type": "string"
+			},
+			{
+				"key": "challengeAlgorithm",
+				"value": "S256",
+				"type": "string"
+			},
+			{
+				"key": "scope",
+				"value": "channels:read users:read users.profile:read dnd:read bookmarks:read reactions:read team:read emoji:read calls:read im:read groups:read chat:write mpim:history im:history groups:history channels:history",
+				"type": "string"
+			},
+			{
+				"key": "redirect_uri",
+				"value": "https://oauth.pstmn.io/v1/browser-callback",
+				"type": "string"
+			},
+			{
+				"key": "grant_type",
+				"value": "authorization_code",
+				"type": "string"
+			},
+			{
+				"key": "clientSecret",
+				"value": "79004850b63d1511bc4bc8583c44536f",
+				"type": "string"
+			},
+			{
+				"key": "clientId",
+				"value": "1098912045013.8748538105843",
+				"type": "string"
+			},
+			{
+				"key": "authUrl",
+				"value": "https://slack.com/oauth/v2/authorize",
+				"type": "string"
+			},
+			{
+				"key": "addTokenTo",
+				"value": "header",
+				"type": "string"
+			},
+			{
+				"key": "client_authentication",
+				"value": "header",
+				"type": "string"
+			},
+			{
+				"key": "accessTokenUrl",
+				"value": "https://slack.com/api/oauth.v2.access",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
