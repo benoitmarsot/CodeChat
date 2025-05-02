@@ -18,14 +18,14 @@ import com.unbumpkin.codechat.model.Project;
 import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.repository.ProjectRepository;
 import com.unbumpkin.codechat.repository.ProjectResourceRepository;
-import com.unbumpkin.codechat.repository.openai.AssistantRepository;
-import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
-import com.unbumpkin.codechat.service.openai.AssistantService;
-import com.unbumpkin.codechat.service.openai.OaiFileService;
+// import com.unbumpkin.codechat.repository.openai.AssistantRepository;
+// import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
+// import com.unbumpkin.codechat.service.openai.AssistantService;
+// import com.unbumpkin.codechat.service.openai.OaiFileService;
 
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+// import org.springframework.web.bind.annotation.GetMapping;
+// import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -35,15 +35,15 @@ public class ProjectController {
     private ProjectRepository projectRepository;
     @Autowired
     private ProjectResourceRepository projectResourceRepository;
-    @Autowired
-    private AssistantRepository assistantRepository;
-    @Autowired
-    private VectorStoreRepository vectorStoreRepository;
-    @Autowired
-    private OaiFileService oaiFileService;
+    // @Autowired
+    // private AssistantRepository assistantRepository;
+    // @Autowired
+    // private VectorStoreRepository vectorStoreRepository;
+    // @Autowired
+    // private OaiFileService oaiFileService;
 
-    @Autowired
-    private AssistantService assistantService;
+    // @Autowired
+    // private AssistantService assistantService;
 
     @PostMapping
     public ResponseEntity<Void> createProject(@RequestBody Project project) {

@@ -4,7 +4,6 @@ import java.util.List;
 
 import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
 import com.unbumpkin.codechat.ai.dto.SearchChunkResult;
-import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 
 import static com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
  

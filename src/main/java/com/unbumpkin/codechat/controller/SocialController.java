@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.slack.api.model.block.element.RichTextSectionElement.Text;
 import com.unbumpkin.codechat.ai.chunker.TextChunker;
 import com.unbumpkin.codechat.ai.dto.Chunk;
 import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
@@ -68,8 +67,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RequestMapping("/api/v1/social")
 public class SocialController {
 
-    private final ProjectController projectController;
-
     @Autowired
     private OaiFileService oaiFileService;
     @Autowired
@@ -94,10 +91,6 @@ public class SocialController {
     private EmbedderService embeddingService;
     @Autowired
     private ProjectRepository projectRepository;
-
-    SocialController(ProjectController projectController) {
-        this.projectController = projectController;
-    }
 
     @PostMapping("find-in-pgvector")
     public ResponseEntity<List<String>> findInPgVector(
