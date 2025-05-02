@@ -41,17 +41,17 @@ public class HuggingfaceEmbedderService extends EmbedderService {
         Criteria<String, float[]> criteria = Criteria.builder()
             .setTypes(String.class, float[].class)
             .optApplication(Application.NLP.TEXT_EMBEDDING)
-            .optEngine("PyTorch") // or "OnnxRuntime" if you have ONNX model
+            .optEngine("PyTorch")
             .optModelUrls("djl://ai.djl.huggingface.pytorch/BAAI/bge-base-en-v1.5")
             .build();
-
-        try (Predictor<String, float[]> predictor = ModelZoo.loadModel(criteria).newPredictor()) {
+    
+        try (var model = ModelZoo.loadModel(criteria);
+             Predictor<String, float[]> predictor = model.newPredictor()) {
             float[] embedding = predictor.predict(text);
             return embedding;
         } catch (Exception e) {
             throw new RuntimeException("Error during embedding: " + e.getMessage(), e);
         }
-
     }
 
 }

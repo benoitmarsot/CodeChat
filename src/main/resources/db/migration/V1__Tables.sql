@@ -114,6 +114,7 @@ create table if not exists core.message (
     role varchar(20) not null, -- system, user or assistant
     authorid int not null,
     message text not null,
+    socialreference jsonb null, -- JSON representation of SocialReference
     created timestamp DEFAULT now()
 );
 

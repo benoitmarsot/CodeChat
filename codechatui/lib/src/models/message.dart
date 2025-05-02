@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:codechatui/src/models/social_references.dart';
 import 'package:flutter_syntax_view/flutter_syntax_view.dart';
 
 class Message {
@@ -8,7 +9,7 @@ class Message {
   final String role; // 'user', 'assistant', etc.
   final int authorid;
   final String text; // this corresponds to 'message' in Java
-  final String? socialAnswer; // this is the answer from the social network assistant
+  final SocialReferences? socialAnswer; // this is the answer from the social network assistant
   bool isLoading = false;
   final DateTime timestamp; // kept for compatibility
 
@@ -30,7 +31,9 @@ class Message {
       msgid: json['msgid'] ?? 0,
       discussionId: json['discussionId'] ?? 0,
       text: json['message'] ?? json['text'] ?? '',
-      socialAnswer: json['socialAnswer'],
+      socialAnswer: json['socialAnswer'] != null
+          ? SocialReferences.fromJson(json['socialAnswer'])
+          : null,
       role: json['role'] ??
           (json['isUserMessage'] == true ? 'user' : 'assistant'),
       authorid: json['authorid'] ?? 0,
@@ -68,15 +71,19 @@ class Message {
 
 class AIResponse {
   final List<AIAnswerItem> answers;
-  final String? conversationalGuidance; // Add this line
-
-  AIResponse({required this.conversationalGuidance, required this.answers});
+  final String? conversationalGuidance; 
+  final SocialReferences? socialAnswer; // This is the answer from the social network assistant
   
-  factory AIResponse.fromJson(Map<String, dynamic> json, String? socialAnswer) {
+  AIResponse({required this.conversationalGuidance, required this.answers, required this.socialAnswer});
+  
+  factory AIResponse.fromJson(Map<String, dynamic> json, SocialReferences? socialAnswer) {
     return AIResponse(
       answers: (json['answers'] as List)
-          .map((item) => AIAnswerItem.fromJson(item,socialAnswer))
-          .toList(),
+        .map((item) => AIAnswerItem.fromJson(item))
+        .toList(),
+      socialAnswer: json['socialAnswer'] != null
+        ? SocialReferences.fromJson(json['socialAnswer'])
+        : socialAnswer,
       conversationalGuidance: json['conversationalGuidance'],
     );
   }
@@ -86,7 +93,6 @@ class AIAnswerItem {
   final String explanation;
   final String? language;
   final String? code;
-  final String? socialAnswer; // This is the answer from the social network assistant
   final List<String>? references; // Make this field optional
   final String? codeExplanation;
 
@@ -94,16 +100,14 @@ class AIAnswerItem {
       {required this.explanation,
       this.language,
       this.code,
-      this.socialAnswer,
       this.references, // Update constructor
       this.codeExplanation});
 
-  factory AIAnswerItem.fromJson(Map<String, dynamic> json, String? socialAnswer) {
+  factory AIAnswerItem.fromJson(Map<String, dynamic> json) {
     return AIAnswerItem(
       explanation: json['explanation'],
       language: json['language'],
       code: json['code'],
-      socialAnswer: socialAnswer,
       references: json['references'] != null
           ? (json['references'] as List).map((e) => e.toString()).toList()
           : null, // Handle null case
