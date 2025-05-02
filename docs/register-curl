@@ -1,0 +1,9 @@
+# example of registering an admin user via curl. Change names and emails.
+curl --location 'http://localhost:8080/api/v1/auth/register' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+           "name": "Fyodor Schadenfreude",
+           "email": "fschaden@geemail.com",
+           "password": "Password1@",
+           "role": "ADMIN"
+         }'

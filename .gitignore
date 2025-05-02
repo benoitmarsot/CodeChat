@@ -64,3 +64,6 @@ Thumbs.db
 
 node_modules
 package-lock.json
+
+# FVM Version Cache
+.fvm/
