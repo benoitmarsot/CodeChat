@@ -138,37 +138,37 @@ class CodechatService {
     }
   }
 
-  Future<Project> createProject(String name, String description, String repoURL,
-      String branchName, String? clientId,
-      [String? username, String? password]) async {
-    final Map<String, dynamic> requestBody = {
-      'name': name,
-      'description': description,
-      'repoURL': repoURL,
-      'branch': branchName,
-    };
+  // Future<Project> createProject(String name, String description, String repoURL,
+  //     String branchName, String? clientId,
+  //     [String? username, String? password]) async {
+  //   final Map<String, dynamic> requestBody = {
+  //     'name': name,
+  //     'description': description,
+  //     'repoURL': repoURL,
+  //     'branch': branchName,
+  //   };
 
-    // Add authentication parameters only if provided
-    if (username != null && username.isNotEmpty) {
-      requestBody['username'] = username;
-      if (password != null && password.isNotEmpty) {
-        requestBody['password'] = password;
-      }
-    }
+  //   // Add authentication parameters only if provided
+  //   if (username != null && username.isNotEmpty) {
+  //     requestBody['username'] = username;
+  //     if (password != null && password.isNotEmpty) {
+  //       requestBody['password'] = password;
+  //     }
+  //   }
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/create-project'),
-      headers: getHeader(clientId),
-      body: json.encode(requestBody),
-    );
+  //   final response = await http.post(
+  //     Uri.parse('$baseUrl/create-project'),
+  //     headers: getHeader(clientId),
+  //     body: json.encode(requestBody),
+  //   );
 
-    if (response.statusCode == 200) {
-      return Project.fromJson(json.decode(utf8.decode(response.bodyBytes)));
-    } else {
-      throw Exception(
-          'Failed to create project: ${utf8.decode(response.bodyBytes)}');
-    }
-  }
+  //   if (response.statusCode == 200) {
+  //     return Project.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+  //   } else {
+  //     throw Exception(
+  //         'Failed to create project: ${utf8.decode(response.bodyBytes)}');
+  //   }
+  // }
 
   Future<ProjectResource> addProjectWeb(
       {required int projectId,
@@ -204,6 +204,44 @@ class CodechatService {
     // Send the POST request
     final response = await http.post(
       Uri.parse('$baseUrl/add-project-web'),
+      headers: headers,
+      body: json.encode(requestBody),
+    );
+
+    // Check the response status
+    if (response.statusCode == 200) {
+      return ProjectResource.fromJson(
+          json.decode(utf8.decode(response.bodyBytes)));
+    } else {
+      throw Exception(
+          'Failed to add project web resource: ${utf8.decode(response.bodyBytes)}');
+    }
+  }
+
+  Future<ProjectResource> addProjectRepo(
+      {required int projectId,
+      required String repoUrl,
+      required String branchName,
+      String? userName,
+      String? password,
+      String? clientId}) async {
+    final Map<String, dynamic> requestBody = {
+      'projectId': projectId,
+      'repoURL': repoUrl,
+      'branch': branchName,
+    };
+
+    // Add optional parameters if provided
+    if (userName != null && userName.isNotEmpty) {
+      requestBody['userName'] = userName;
+      if (password != null && password.isNotEmpty) {
+        requestBody['password'] = password;
+      }
+    }
+    var headers = getHeader(clientId);
+    // Send the POST request
+    final response = await http.post(
+      Uri.parse('$baseUrl/add-project-repo'),
       headers: headers,
       body: json.encode(requestBody),
     );

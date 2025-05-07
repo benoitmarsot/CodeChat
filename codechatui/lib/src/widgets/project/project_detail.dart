@@ -1,12 +1,7 @@
 import 'dart:async';
-// import 'package:sse_client/sse_client.dart';
-//import 'package:eventsource/eventsource.dart';
-//import 'package:flutter_client_sse/flutter_client_sse.dart';
-//import 'package:flutter_client_sse/constants/sse_request_type_enum.dart'
 import 'package:codechatui/src/config/app_config.dart';
 import 'package:codechatui/src/models/exceptions.dart';
 import 'package:codechatui/src/models/project.dart';
-import 'package:codechatui/src/models/project_resources.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:codechatui/src/services/codechat_service.dart';
 import 'package:codechatui/src/services/project_service.dart';
@@ -341,10 +336,10 @@ class _ProjectDetailState extends State<ProjectDetail>
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final codechatService = CodechatService(authProvider: authProvider);
     String? clientId;
-
+    _buildLoadingDialog();
     try {
       clientId = await subscribeToMessages();
-      _buildLoadingDialog();
+
       await codechatService.refreshRepo(_projectId!, clientId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -510,12 +505,14 @@ class _ProjectDetailState extends State<ProjectDetail>
   Widget _buildProjectDetail() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _buildProjectInfo(),
-      // _showDetails || _isEditing
-      _buildDataSourceChoice(),
       _showDetails || _isEditing
-          ? _buildDataSourceForm()
+          ? Column(
+              children: [
+                _buildDataSourceChoice(),
+                _buildDataSourceForm(),
+              ],
+            )
           : const SizedBox.shrink(),
-
       _buildBottomButtons(),
       _buildDebugMessagesWidget()
     ]);
@@ -635,7 +632,7 @@ class _ProjectDetailState extends State<ProjectDetail>
                 message:
                     'The system will clone the repo, parse relevant files,\n and index the content to train the AI with your codebase or documentation',
                 child: ChoiceButton(
-                  text: 'File(s)',
+                  text: 'Zip File',
                   icon: Icons.archive,
                   isSelected: _selectedDataSource == DataSourceType.zip,
                   onPressed: () {
@@ -788,7 +785,7 @@ class _ProjectDetailState extends State<ProjectDetail>
 
   Future<void> addProject() async {
     if (_selectedDataSource == DataSourceType.github) {
-      await addProjectGithub();
+      await addProjectRepo();
     }
     // else if (_selectedDataSource == DataSourceType.zip) {
     //   await _addProjectZip();
@@ -799,74 +796,74 @@ class _ProjectDetailState extends State<ProjectDetail>
     return;
   }
 
-  Future<void> addProjectGithub() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final codechatService = CodechatService(authProvider: authProvider);
+  // Future<void> addProjectGithub() async {
+  //   final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  //   final codechatService = CodechatService(authProvider: authProvider);
 
-    String? clientId;
-    setState(() {
-      _loadingFiles = true;
-      _errorMessage = null; // Clear previous error
-    });
+  //   String? clientId;
+  //   setState(() {
+  //     _loadingFiles = true;
+  //     _errorMessage = null; // Clear previous error
+  //   });
 
-    try {
-      clientId = await subscribeToMessages();
-      // Handle authentication parameters
-      String? username;
-      String? password;
+  //   try {
+  //     clientId = await subscribeToMessages();
+  //     // Handle authentication parameters
+  //     String? username;
+  //     String? password;
 
-      if (_userNameController.text.isEmpty && _patController.text.isNotEmpty) {
-        // If username is empty but PAT is provided, use PAT as username
-        username = _patController.text;
-      } else if (_userNameController.text.isNotEmpty) {
-        // If username is provided, use username and password
-        username = _userNameController.text;
-        password = _userPswController.text;
-      }
-      _buildLoadingDialog();
-      final project = await codechatService.createProject(
-        _prjNameController.text,
-        _prjDescController.text,
-        _webURLController.text,
-        _branchNameController.text,
-        clientId,
-        username,
-        password,
-      );
-      if (mounted) {
-        Navigator.of(context).pop();
+  //     if (_userNameController.text.isEmpty && _patController.text.isNotEmpty) {
+  //       // If username is empty but PAT is provided, use PAT as username
+  //       username = _patController.text;
+  //     } else if (_userNameController.text.isNotEmpty) {
+  //       // If username is provided, use username and password
+  //       username = _userNameController.text;
+  //       password = _userPswController.text;
+  //     }
+  //     _buildLoadingDialog();
+  //     final project = await codechatService.createProject(
+  //       _prjNameController.text,
+  //       _prjDescController.text,
+  //       _webURLController.text,
+  //       _branchNameController.text,
+  //       clientId,
+  //       username,
+  //       password,
+  //     );
+  //     if (mounted) {
+  //       Navigator.of(context).pop();
 
-        _buildSuccessDialog();
-      }
-      _selectedProject = project as Project?;
-      //onSave!();
-    } catch (e) {
-      setState(() {
-        String errorMsg = e.toString();
-        if (errorMsg.length > 300) {
-          errorMsg = errorMsg.substring(0, 300);
-        }
-        _errorMessage = 'Failed to creat project: $errorMsg';
-      });
-    } finally {
-      // Dismiss loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-      if (mounted) {
-        setState(() {
-          _loadingFiles = false;
-        });
-        if (_errorMessage != null && _errorMessage!.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(_errorMessage ?? ''),
-            duration: const Duration(seconds: 5),
-            backgroundColor: Colors.red,
-          ));
-        }
-      }
-    }
-  }
+  //       _buildSuccessDialog();
+  //     }
+  //     _selectedProject = project as Project?;
+  //     //onSave!();
+  //   } catch (e) {
+  //     setState(() {
+  //       String errorMsg = e.toString();
+  //       if (errorMsg.length > 300) {
+  //         errorMsg = errorMsg.substring(0, 300);
+  //       }
+  //       _errorMessage = 'Failed to creat project: $errorMsg';
+  //     });
+  //   } finally {
+  //     // Dismiss loading dialog
+  //     if (mounted) {
+  //       Navigator.of(context).pop();
+  //     }
+  //     if (mounted) {
+  //       setState(() {
+  //         _loadingFiles = false;
+  //       });
+  //       if (_errorMessage != null && _errorMessage!.isNotEmpty) {
+  //         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //           content: Text(_errorMessage ?? ''),
+  //           duration: const Duration(seconds: 5),
+  //           backgroundColor: Colors.red,
+  //         ));
+  //       }
+  //     }
+  //   }
+  // }
 
   Future<void> addFilesToProject(String content, String fileName) async {
     showDialog(
@@ -914,10 +911,10 @@ class _ProjectDetailState extends State<ProjectDetail>
         _errorMessage = null; // Clear previous error
       });
       // Show loading dialog
-
+      _buildLoadingDialog();
       try {
         clientId = await subscribeToMessages();
-        _buildLoadingDialog();
+
         await codechatService.addProjectWeb(
             projectId: _projectId!,
             seedUrl: _webURLController.text,
@@ -930,7 +927,6 @@ class _ProjectDetailState extends State<ProjectDetail>
 
         // Dismiss loading dialog
         if (mounted) {
-          Navigator.of(context).pop();
           _buildSuccessDialog();
         }
         Navigator.of(context).pop();
@@ -947,6 +943,64 @@ class _ProjectDetailState extends State<ProjectDetail>
         if (mounted) {
           Navigator.of(context).pop();
         }
+        if (mounted) {
+          setState(() {
+            _loadingFiles = false;
+          });
+          if (_errorMessage != null && _errorMessage!.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(_errorMessage ?? ''),
+              duration: const Duration(seconds: 5),
+              backgroundColor: Colors.red,
+            ));
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> addProjectRepo() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final codechatService = CodechatService(authProvider: authProvider);
+    String? clientId;
+
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _loadingFiles = true;
+        _errorMessage = null;
+      });
+
+      // Show loading dialog
+      _buildLoadingDialog();
+
+      try {
+        clientId = await subscribeToMessages();
+
+        if (clientId == null) {
+          throw Exception('Failed to subscribe to messages.');
+        }
+
+        await codechatService.addProjectRepo(
+            projectId: _projectId!,
+            repoUrl: _webURLController.text,
+            branchName: _branchNameController.text,
+            userName: _userNameController.text,
+            password: _userPswController.text,
+            clientId: clientId);
+
+        if (mounted) {
+          _buildSuccessDialog();
+        }
+      } catch (e) {
+        setState(() {
+          String errorMsg = e.toString();
+          if (errorMsg.length > 250) {
+            errorMsg = errorMsg.substring(0, 250);
+          }
+          _errorMessage = 'Failed to create project: $errorMsg';
+        });
+      } finally {
+        // *Ensure loading state is updated and error is shown in finally block*
         if (mounted) {
           setState(() {
             _loadingFiles = false;
@@ -1000,7 +1054,6 @@ class _ProjectDetailState extends State<ProjectDetail>
 
       // Dismiss loading dialog
       if (mounted) {
-        Navigator.of(context).pop();
         _buildSuccessDialog();
       }
     } catch (e) {
@@ -1064,8 +1117,13 @@ class _ProjectDetailState extends State<ProjectDetail>
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                Navigator.of(context).pop(); // Navigate
+                if (mounted) {
+                  Navigator.of(context).pop(); //close
+                  Navigator.of(context).pushReplacementNamed('/');
+                  if (_onSave != null) {
+                    _onSave!();
+                  }
+                }
               },
               child: Text('View Projects'),
             ),
