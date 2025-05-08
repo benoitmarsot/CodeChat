@@ -7,13 +7,11 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
 import com.unbumpkin.codechat.dto.request.AddOaiThreadRequest;
 import com.unbumpkin.codechat.model.openai.OaiThread;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 
 @Repository
@@ -21,6 +19,8 @@ public class OaiThreadRepository {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private CurrentUserProvider currentUserProvider;
 
     private final RowMapper<OaiThread> rowMapper = (rs, rowNum) -> new OaiThread(
         rs.getInt("threadid"),
@@ -107,20 +107,12 @@ public class OaiThreadRepository {
     }
     
 
-    private CustomAuthentication getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication);
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
-
     /**
      * Delete all threads.
      */
     public void deleteAll() {
-        CustomAuthentication currentUser = getCurrentUser();
-        if (currentUser == null || !currentUser.isAdmin()) {
+        
+        if (!currentUserProvider.getCurrentUser().isAdmin()) {
             throw new IllegalStateException("Only admins can delete all messages");
         }
         // Delete all records in the thread table

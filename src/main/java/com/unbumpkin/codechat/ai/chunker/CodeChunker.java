@@ -3,6 +3,8 @@ package com.unbumpkin.codechat.ai.chunker;
 import org.springframework.stereotype.Component;
 
 import com.unbumpkin.codechat.ai.dto.Chunk;
+import com.unbumpkin.codechat.ai.embedder.HuggingfaceEmbedderService;
+import static com.unbumpkin.codechat.ai.embedder.HuggingfaceEmbedderService.MAX_TOKENS;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -16,7 +18,9 @@ import ai.serenade.treesitter.Node;
 import ai.serenade.treesitter.Languages;
 
 @Component
-public class CodeChunker {
+public class CodeChunker extends Chunker {
+
+    final static int MAX_NB_CHARS = 2000; // characters, ~4 chars/chunk, adjust as needed
 
     /**
      * Returns true is the extension and false extension is not supported.
@@ -69,7 +73,8 @@ public class CodeChunker {
             default -> -1L;
         };
     }
-    public List<Chunk> chunk(String code,String extension, Map<String,String> metadata) throws UnsupportedEncodingException {
+    @Override
+    public List<Chunk> chunk(String code, String extension, Map<String, String> metadata) throws UnsupportedEncodingException {
         long lang = getLanguageByExtension(extension);
         if (lang == -1L) {
             throw new UnsupportedEncodingException("Unsupported file extension: " + extension);
@@ -77,48 +82,118 @@ public class CodeChunker {
         List<Chunk> chunks = new ArrayList<>();
         Parser parser = new Parser();
         parser.setLanguage(lang);
-
+        
         Tree tree = parser.parseString(code);
         Node root = tree.getRootNode();
-
-        // Traverse the AST and extract method declarations
-        
-        //extractMethods(root, code, chunks);
-        // Package/imports
-        // Each class/interface/enum
-        //   Each method/function
-        extractMethods(root, code, metadata, chunks); 
-        //   (Optionally) fields
+    
+        // Start recursive chunking
+        chunkNodeRecursively(root, code, metadata, chunks);
+    
         parser.close();
         tree.close();
         return chunks;
     }
-    /**
-     * Extracts all method/function nodes from the AST and adds them as chunks.
-     * Each chunk contains the method's source code and metadata.
-     */
-    private void extractMethods(Node root, String code, Map<String,String> metadata, List<Chunk> chunks) {
-        int childCount = root.getChildCount();
-        metadata.put("type", "method");
-        for (int i = 0; i < childCount; i++) {
-            Node child = root.getChild(i);
-            String type = child.getType();
-            // TODO: need to find the method name
-            String name= ""; // child.getFieldName();
+    @Override
+    public String reconstituteDocument(List<Chunk> chunks) {
+        // Sort chunks by their original start offset (from metadata)
+        chunks.sort((a, b) -> {
+            int startA = Integer.parseInt(a.metadata().getOrDefault("start", "0"));
+            int startB = Integer.parseInt(b.metadata().getOrDefault("start", "0"));
+            return Integer.compare(startA, startB);
+        });
 
-            // For Java, method_declaration and constructor_declaration are common
-            if ("method_declaration".equals(type) || "constructor_declaration".equals(type) || "function_declaration".equals(type)) {
-                int start = child.getStartByte();
-                int end = child.getEndByte();
-                String methodSource = code.substring(start, end);
-                //child.getChildByFieldName("name").getText(code);
-                metadata.put("name", name);
-                chunks.add(new Chunk(methodSource, metadata));
-            }
-
-            // Recursively search in child nodes
-            //extractMethods(child, code, metadata, chunks);
+        StringBuilder document = new StringBuilder();
+        for (Chunk chunk : chunks) {
+            document.append(chunk.content());
         }
+        return document.toString();
+    }
+
+    /**
+     * Recursively chunk nodes at class, method, or block level, or by size.
+     */
+    private void chunkNodeRecursively(Node node, String code, Map<String, String> parentMetadata, List<Chunk> chunks) {
+        String type = node.getType();
+        int start = node.getStartByte();
+        int end = node.getEndByte();
+        String stChunk = code.substring(start, end);
+    
+        // If node is small enough, chunk as is
+        if (!isTokenLimitExceeded(stChunk) ) {
+            Map<String, String> chunkMetadata = new java.util.HashMap<>(parentMetadata);
+            chunkMetadata.put("node_type", type);
+            chunkMetadata.put("start", String.valueOf(start));
+            chunkMetadata.put("end", String.valueOf(end));
+            if ("class_declaration".equals(type) || "interface_declaration".equals(type) || "enum_declaration".equals(type)) {
+                chunkMetadata.put("chunk_level", "class");
+            } else if ("method_declaration".equals(type) || "constructor_declaration".equals(type) || "function_declaration".equals(type)) {
+                chunkMetadata.put("chunk_level", "method");
+            } else if ("block".equals(type)) {
+                chunkMetadata.put("chunk_level", "block");
+            } else {
+                chunkMetadata.put("chunk_level", "other");
+            }
+            chunks.add(new Chunk(stChunk, chunkMetadata));
+            return;
+        }
+    
+        // Try to chunk children at logical boundaries
+        boolean chunked = false;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            Node child = node.getChild(i);
+            String childType = child.getType();
+            if (
+                "class_declaration".equals(childType) ||
+                "interface_declaration".equals(childType) ||
+                "enum_declaration".equals(childType) ||
+                "method_declaration".equals(childType) ||
+                "constructor_declaration".equals(childType) ||
+                "function_declaration".equals(childType) ||
+                "block".equals(childType)
+            ) {
+                chunkNodeRecursively(child, code, parentMetadata, chunks);
+                chunked = true;
+            }
+        }
+    
+        // If no logical children were chunked, or node is still too large, split by size
+        if (!chunked) {
+            // Fallback: split by size
+            int pos = start;
+            while (pos < end) {
+                int chunkEnd = Math.min(pos + MAX_NB_CHARS, end);
+                String chunk=code.substring(pos, chunkEnd); 
+                int nbTokens=HuggingfaceEmbedderService.getTokenCount(chunk);
+                if(nbTokens>MAX_TOKENS) {
+                    chunkEnd -= (nbTokens-MAX_TOKENS)*4; // Adjust chunkEnd based on token count
+                }
+
+                Map<String, String> chunkMetadata = new java.util.HashMap<>(parentMetadata);
+                chunkMetadata.put("node_type", type);
+                chunkMetadata.put("chunk_level", "size");
+                chunkMetadata.put("start", String.valueOf(pos));
+                chunkMetadata.put("end", String.valueOf(chunkEnd));
+                chunks.add(new Chunk(code.substring(pos, chunkEnd), chunkMetadata));
+                pos = chunkEnd;
+            }
+        }
+    }
+    private boolean isTokenLimitExceeded(String text) {
+        // Check if the token limit is exceeded
+        return HuggingfaceEmbedderService.isTokenLimitExceeded(text);
+    }
+    @SuppressWarnings("unused")
+    private String getNodeName(Node node, String code) {
+        // Get the name of the node (e.g., method name)
+        String name = "";
+        for (int i = 0; i < node.getChildCount(); i++) {
+            Node possibleName = node.getChild(i);
+            if ("identifier".equals(possibleName.getType())) {
+                name = code.substring(possibleName.getStartByte(), possibleName.getEndByte());
+                break;
+            }
+        }
+        return name;
     }
 
     

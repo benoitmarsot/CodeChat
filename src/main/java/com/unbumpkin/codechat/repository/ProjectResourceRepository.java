@@ -4,13 +4,12 @@ import com.unbumpkin.codechat.model.ProjectResource;
 import com.unbumpkin.codechat.model.UserSecret;
 import com.unbumpkin.codechat.model.ProjectResource.ResTypes;
 import com.unbumpkin.codechat.model.UserSecret.Labels;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
 import javax.crypto.Cipher;
@@ -25,12 +24,15 @@ import java.util.Map;
 
 @Repository
 public class ProjectResourceRepository {
+    @Autowired
+    private CurrentUserProvider currentUserProvider;
     
-    private final JdbcTemplate jdbcTemplate;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private final String encryptionKey; 
     
-    public ProjectResourceRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public ProjectResourceRepository() {
         if( System.getenv("USER_SECRET_KEY")!=null) {
             this.encryptionKey = System.getenv("USER_SECRET_KEY");
         } else {
@@ -40,14 +42,6 @@ public class ProjectResourceRepository {
         }
     }
 
-    private int getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication).getUserId();
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
-    
     public ProjectResource createResource(int projectId, String uri, ResTypes resType, Map<Labels, UserSecret> secrets) {
         // Insert the project resource
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -229,7 +223,7 @@ public class ProjectResourceRepository {
             deleteSecret(prId, label);
             return;
         }
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         jdbcTemplate.update(
             "UPDATE core.usersecret SET value = ? WHERE prid = ? AND userid = ? AND label = ?",
             encryptValue(value), prId, userId, label.toString()
@@ -247,7 +241,7 @@ public class ProjectResourceRepository {
         if(value == null) {
             return;
         }
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         jdbcTemplate.update(
             "INSERT INTO core.usersecret (userid, prid, label, value) VALUES (?, ?, ?, ?) " +
             "ON CONFLICT (userid, prid, label) DO UPDATE SET value = EXCLUDED.value",

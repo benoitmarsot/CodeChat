@@ -1,6 +1,7 @@
 package com.unbumpkin.codechat.controller;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -284,17 +285,26 @@ public class SocialController {
                 );
                 ObjectMapper objectMapper = new ObjectMapper();
                 objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
-                message=objectMapper.writeValueAsString(CreateSocialMessage(creaVsRequest.attributes(),message));
+                //message=objectMapper.writeValueAsString(CreateSocialMessage(creaVsRequest.attributes(),message));
                 System.out.println("Message "+message);
                 //sMessage=new SocialMessage(sMessage.userId(), sMessage.ts(), message);
-                List<Chunk> chunks = textChunker.chunk(message,creaVsRequest.attributes());
+                List<Chunk> chunks = textChunker.chunk(message, "txt", creaVsRequest.attributes());
                 List<EmbeddedChunk> embedded = embeddingService.embedChunks(chunks);
-                pgVectorRepository.saveAll(projectId,Types.social,embedded);
+                pgVectorRepository.saveAll( projectId, Types.social, embedded);
 
                 System.out.println(socialService.platform().toString()+" self chunk message "+msgUrl+" added to social chunks vector store.");
             } catch (Exception e) {
                 System.out.println("Error adding message "+sMessage.message()+": "+e.getMessage());
             }
+        }
+    }
+    @SuppressWarnings("unused")
+    private String getMsgFName(SocialMessage sMessage, SocialChannel sChannel) {
+        try {
+            String fName = URLEncoder.encode(sChannel.channelName() + "_author_" + sMessage.ts() + ".txt", "UTF-8");
+            return fName;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to encode message filename", e);
         }
     }
 
@@ -315,6 +325,7 @@ public class SocialController {
         
         return new VectorStore(repoVs.id(), repoVs.vsid(), projectId, repoVs.name(), repoVs.description(), repoVs.dayskeep(), repoVs.type());
     }
+    
     private void addIssues(
         IssueTrackingService issueTrackingService, List<Issue> issues, Map<String,SocialUser> mUsers, int prId, VectorStoreFile vsf
     ) throws IOException {
@@ -363,11 +374,12 @@ public class SocialController {
                 );
                 ObjectMapper objectMapper = new ObjectMapper();
                 objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
-                body = objectMapper.writeValueAsString(CreateSocialMessage(creaVsRequest.attributes(), body));
+                //body = objectMapper.writeValueAsString(CreateSocialMessage(creaVsRequest.attributes(), body));
                 System.out.println("body: " + body);
     
+                //String issueFName = getIssueFName(issue);
                 // Chunk and embed
-                List<Chunk> chunks = textChunker.chunk(body, creaVsRequest.attributes());
+                List<Chunk> chunks = textChunker.chunk(body, "txt", creaVsRequest.attributes());
                 List<EmbeddedChunk> embedded = embeddingService.embedChunks(chunks);
                 pgVectorRepository.saveAll(projectId, Types.social, embedded);
     
@@ -379,6 +391,12 @@ public class SocialController {
             }
         }
     }
+    @SuppressWarnings("unused")
+    private String getIssueFName(Issue issue) {
+        String fName = "issue_" + issue.number() + ".txt";
+        return fName;
+    }
+
     private static final Pattern NAME_REGEXP = java.util.regex.Pattern.compile("<@([A-Z0-9]+)>");
     private void addMessages(
         SocialService socialService, List<SocialMessage> sMessages, SocialChannel sChannel, 
@@ -454,7 +472,7 @@ public class SocialController {
             ## 🧠 Assistant Instructions
 
             <Function: You are a smart, multi-platform message search assistant. You have access to a vector store of all internal and external communications across platforms like Slack, Discord, MS Teams, and Facebook. Your job is to help users find important messages, decisions, or patterns across these platforms using natural language queries.>
-            Each documents (messages or tickets) contains metadata such as `platform`, `channel`, `author`, `messageUrl`, and `timestamp` (in ISO 8601 format).
+            Each documents (messages or tickets) contains metadata such as `platform`, `channel`, `author`, `url`, and `timestamp` (in ISO 8601 format).
 
             ---
 

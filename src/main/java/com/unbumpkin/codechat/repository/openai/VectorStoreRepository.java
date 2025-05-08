@@ -12,13 +12,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.model.openai.VectorStore;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 
 @Repository
@@ -29,6 +27,9 @@ public class VectorStoreRepository {
 
     @Autowired 
     ObjectMapper objectMapper;
+
+    @Autowired
+    private CurrentUserProvider currentUserProvider;
 
     public record RepoVectorStoreResponse( 
         int id,
@@ -41,13 +42,6 @@ public class VectorStoreRepository {
         Types type
     ) { }
 
-    private CustomAuthentication getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication);
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
 
 
     private final RowMapper<RepoVectorStoreResponse> rowMapper = (rs, rowNum) -> {
@@ -298,8 +292,7 @@ public class VectorStoreRepository {
         return jdbcTemplate.queryForList(sql, String.class, vsOaiId);
     }
     public void deleteAll() {
-        CustomAuthentication user = getCurrentUser();
-        if (user == null || !user.isAdmin()) {
+        if (!currentUserProvider.getCurrentUser().isAdmin()) {
             throw new IllegalStateException("Only admins can delete all messages");
         }
 

@@ -12,20 +12,20 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
 import com.unbumpkin.codechat.dto.openai.AssistantTypes;
 import com.unbumpkin.codechat.dto.request.DiscussionUpdateRequest;
 import com.unbumpkin.codechat.model.Discussion;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 
 @Repository
 public class DiscussionRepository {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private CurrentUserProvider currentUserProvider;
 
     private final RowMapper<Discussion> rowMapper = (rs, rowNum) -> new Discussion(
         rs.getInt("did"),
@@ -36,14 +36,6 @@ public class DiscussionRepository {
         AssistantTypes.valueOf(rs.getString("assistanttype")),
         rs.getTimestamp("created")
     );
-
-    private int getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication).getUserId();
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
 
     /**
      * Add a discussion to the database and return the generated ID.
@@ -60,7 +52,7 @@ public class DiscussionRepository {
             RETURNING did, projectid, name, description, isfavorite, assistanttype, created
             """;
     
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         KeyHolder keyHolder = new GeneratedKeyHolder();
     
         jdbcTemplate.update(connection -> {
@@ -97,7 +89,7 @@ public class DiscussionRepository {
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         return jdbcTemplate.queryForObject(sql, rowMapper, did, userId, userId);
     }
 
@@ -115,7 +107,7 @@ public class DiscussionRepository {
                 WHERE d.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
                 order by d.created desc
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         List<Discussion> discussions ;
         try {
             discussions = jdbcTemplate.query(sql, rowMapper, projectId, userId, userId);
@@ -140,7 +132,7 @@ public class DiscussionRepository {
             WHERE d.did = ? AND d.projectid = p.projectid AND (p.authorid = ? OR sp.userid = ?)
             RETURNING d.did, d.projectid, d.name, d.description, d.isfavorite, d.assistanttype, d.created
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         return jdbcTemplate.queryForObject(
             sql, rowMapper, updateRequest.name(), updateRequest.description(), 
             updateRequest.isFavorite(), updateRequest.assistantType().toString(), 
@@ -170,20 +162,12 @@ public class DiscussionRepository {
             )
             DELETE FROM core.discussion WHERE did = ? AND EXISTS (SELECT 1 FROM core.auth_check);
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         jdbcTemplate.update(sql, did, userId, userId, did, did, userId, userId, did);
-    }
-    private CustomAuthentication getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication);
-        }
-        throw new IllegalStateException("No authenticated user found");
     }
 
     public void deleteAll() {
-        CustomAuthentication currentUser = getCurrentUser();
-        if (currentUser == null || !currentUser.isAdmin()) {
+        if (!currentUserProvider.getCurrentUser().isAdmin()) {
             throw new IllegalStateException("Only admins can delete all messages");
         }
 

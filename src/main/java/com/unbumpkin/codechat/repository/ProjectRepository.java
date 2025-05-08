@@ -11,8 +11,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,13 +18,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.dto.response.ProjectWithResource;
 import com.unbumpkin.codechat.model.Project;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 
 @Repository
 public class ProjectRepository {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private CurrentUserProvider currentUserProvider;
 
     private final RowMapper<Project> rowMapper = (rs, rowNum) -> new Project(
         rs.getInt("projectid"),
@@ -35,14 +35,6 @@ public class ProjectRepository {
         rs.getInt("authorid"),
         rs.getInt("aid")
     );
-
-    private int getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication).getUserId();
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
 
     /**
      * Add a project to the database.
@@ -60,7 +52,7 @@ public class ProjectRepository {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, name);
             ps.setString(2, description);
-            ps.setInt(3, getCurrentUserId());
+            ps.setInt(3, currentUserProvider.getCurrentUser().getUserId());
             return ps;
         }, keyHolder);
         Number key = keyHolder.getKey();
@@ -86,7 +78,7 @@ public class ProjectRepository {
             GROUP BY p.projectid, p.name, p.description, p.authorid, a.aid, a.model, a.description
             """;
         
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         
         try {
             return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
@@ -138,7 +130,7 @@ public class ProjectRepository {
             WHERE p.isdeleted=false AND p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             """;
         
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();;
         
         try {
             return jdbcTemplate.queryForObject(sql, rowMapper, projectId, userId, userId);
@@ -159,7 +151,7 @@ public class ProjectRepository {
                 LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.isdeleted=false and (p.authorid = ? OR sp.userid = ?)
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         try {
             List<Project> projects = jdbcTemplate.query(sql, rowMapper, userId, userId);
             return projects;
@@ -182,7 +174,7 @@ public class ProjectRepository {
                 WHERE projectid = ? AND userid = ?
             ))
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         jdbcTemplate.update(sql, project.name(), project.description(),  
             project.projectId(), userId, project.projectId(), userId);
     }
@@ -197,7 +189,7 @@ public class ProjectRepository {
             WHERE projectid = ? AND authorid = ?
         """;
         try {
-            int userId = getCurrentUserId();
+            int userId = currentUserProvider.getCurrentUser().getUserId();
             jdbcTemplate.update(sql, projectId, userId, projectId, userId);
         } catch (Exception e) {
             e.printStackTrace();
@@ -217,7 +209,7 @@ public class ProjectRepository {
             WHERE projectid = ? AND authorid = ?
         """;
         try {
-            int userId = getCurrentUserId();
+            int userId = currentUserProvider.getCurrentUser().getUserId();
             jdbcTemplate.update(sql, projectId, userId);
         } catch (Exception e) {
             e.printStackTrace();
@@ -237,7 +229,7 @@ public class ProjectRepository {
             JOIN core.project p ON sp.projectid = p.projectid
             WHERE p.isdeleted=false and sp.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         return jdbcTemplate.queryForList(sql, Integer.class, projectId, userId, userId);
     }
 
@@ -254,7 +246,7 @@ public class ProjectRepository {
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
         """;
-        int currentUserId = getCurrentUserId();
+        int currentUserId = currentUserProvider.getCurrentUser().getUserId();
         jdbcTemplate.update(sql, projectId, targetUserId, projectId, currentUserId, currentUserId);
     }
 
@@ -272,20 +264,12 @@ public class ProjectRepository {
                 WHERE p.projectid = ? AND (p.authorid = ? OR sp.userid = ?)
             )
         """;
-        int currentUserId = getCurrentUserId();
+        int currentUserId = currentUserProvider.getCurrentUser().getUserId();
         jdbcTemplate.update(sql, projectId, targetUserId, projectId, currentUserId, currentUserId);
-    }
-    private CustomAuthentication getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication);
-        }
-        throw new IllegalStateException("No authenticated user found");
     }
 
     public void deleteAll() {
-        CustomAuthentication currentUser = getCurrentUser();
-        if (currentUser == null || !currentUser.isAdmin()) {
+        if (!currentUserProvider.getCurrentUser().isAdmin()) {
             throw new IllegalStateException("Only admins can delete all messages");
         }
 

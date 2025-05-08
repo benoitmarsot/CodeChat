@@ -9,9 +9,14 @@ import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
 import com.unbumpkin.codechat.ai.dto.SearchChunkResult;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
 import com.fasterxml.jackson.core.type.TypeReference;
+
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import static java.lang.String.format;
+
+import java.sql.Timestamp;
+
 
 @Repository
 public class PgVectorRepository implements LocalVectorStore {
@@ -21,29 +26,36 @@ public class PgVectorRepository implements LocalVectorStore {
     @Autowired
     ObjectMapper mapper;
 
+    /**
+     * Saves a list of embedded chunks to the database for one document.
+     */
     @Override
     public void saveAll(int projectId, Types chunkType, List<EmbeddedChunk> chunks) {
         if (chunks == null || chunks.isEmpty()) {
             return;
         }
-        StringBuilder sql = new StringBuilder("INSERT INTO core.chunk (projectid, chunktype, content, embedding, metadata) VALUES ");
+        StringBuilder sql = new StringBuilder("INSERT INTO core.chunk (projectid, uri, authorid, chunktype, content, start, embedding, metadata, created_at) VALUES ");
         for (int i = 0; i < chunks.size(); i++) {
-            sql.append("(?, ?, ?, ?::vector, ?::jsonb)");
+            sql.append("(?, ?, ?, ?, ?, ?, ?::vector, ?::jsonb, ?)");
             if (i < chunks.size() - 1) {
                 sql.append(", ");
             }
         }
     
-        Object[] params = new Object[chunks.size() * 5];
+        Object[] params = new Object[chunks.size() * 9];
         int idx = 0;
         for (EmbeddedChunk chunk : chunks) {
             try {
                 params[idx++] = projectId;
+                params[idx++] = chunk.metadata().get("url");
+                params[idx++] = chunk.metadata().get("author");
                 params[idx++] = chunkType.toString();
                 params[idx++] = chunk.content();
+                params[idx++] = Integer.parseInt(chunk.metadata().get("start"));
                 String embeddingJson = mapper.writeValueAsString(chunk.embedding());
                 params[idx++] = embeddingJson;
                 params[idx++] = mapper.writeValueAsString(chunk.metadata());
+                params[idx++] = getTimestampFromIso8601(chunk.metadata().get("timestamp"));
             } catch (Exception e) {
                 throw new RuntimeException("Error serializing chunk for DB insert", e);
             }
@@ -54,6 +66,10 @@ public class PgVectorRepository implements LocalVectorStore {
             System.err.println("Error saving chunks: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    private static Timestamp getTimestampFromIso8601(String iso8601) {
+        Instant instant = Instant.parse(iso8601);
+        return Timestamp.from(instant);
     }
 
     @Override

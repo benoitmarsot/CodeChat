@@ -1,5 +1,10 @@
 package com.unbumpkin.codechat.ai.embedder;
 
+import com.knuddels.jtokkit.Encodings;
+import com.knuddels.jtokkit.api.Encoding;
+import com.knuddels.jtokkit.api.EncodingRegistry;
+import com.knuddels.jtokkit.api.IntArrayList;
+import com.knuddels.jtokkit.api.ModelType;
 import com.unbumpkin.codechat.ai.dto.Chunk;
 import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
 import com.unbumpkin.codechat.service.openai.OaiEmbeddingService;
@@ -14,6 +19,25 @@ import java.util.List;
 public class OaiEmbedderService extends EmbedderService {
     static public final int MAX_TOKENS = 8192;
 
+    public static int getTokenCount(String text) {
+        // Tokenize the text using jtokkit
+        IntArrayList tokens = enc.encode(text);
+        return tokens.size();
+    }
+    public static boolean isTokenLimitExceeded(String text) {
+        int tokenCount = getTokenCount(text);
+        return tokenCount > MAX_TOKENS; // Adjust the limit as needed
+    }
+    static final Encoding enc;
+    static final EncodingRegistry registry;
+
+    static {
+        // Initialize the encoding registry
+        registry = Encodings.newDefaultEncodingRegistry();
+        // Register the encoding for the model
+        enc = registry.getEncodingForModel(ModelType.TEXT_EMBEDDING_ADA_002);
+
+   }
     @Autowired
     private OaiEmbeddingService oaiEmbeddingService;
 

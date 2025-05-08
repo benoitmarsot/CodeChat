@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.ai.dto.SearchChunkResult;
 import com.unbumpkin.codechat.ai.embedder.EmbedderService;
+import com.unbumpkin.codechat.ai.embedder.HuggingfaceEmbedderService;
 import com.unbumpkin.codechat.ai.vectorstore.PgVectorRepository;
 import com.unbumpkin.codechat.dto.openai.Assistant;
 import com.unbumpkin.codechat.dto.openai.SocialAssistant;
@@ -225,7 +226,7 @@ public class DiscussionController {
             System.out.println("Empty message discussion " + discussion.did());
             return null;
         }
-        if(EmbedderService.isTokenLimitExceeded(messageTxt)){
+        if(HuggingfaceEmbedderService.isTokenLimitExceeded(messageTxt)){
             System.out.println("Message token limit exceeded for discussion " + discussion.did());
             return null;
         }

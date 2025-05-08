@@ -15,8 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +22,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.model.openai.OaiFile;
 import com.unbumpkin.codechat.model.openai.OaiFile.Purposes;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 
 /**
  * Repository for OaiFile objects.
@@ -33,14 +31,9 @@ import com.unbumpkin.codechat.security.CustomAuthentication;
 public class OaiFileRepository {
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private CurrentUserProvider currentUserProvider;
 
-    private CustomAuthentication getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication);
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
     /**
      * Uploads a file to the database.
      * @param file: The file to be uploaded.
@@ -143,8 +136,7 @@ public class OaiFileRepository {
      * @return A list of deleted file IDs.
      */
     public List<String> deleteAll() {
-        CustomAuthentication user = getCurrentUser();
-        if (user == null || !user.isAdmin()) {
+        if (!currentUserProvider.getCurrentUser().isAdmin()) {
             throw new IllegalStateException("Only admins can delete all messages");
         }
 

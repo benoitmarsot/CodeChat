@@ -22,6 +22,7 @@ public class UserRepository  {
 
     @Autowired
     private ObjectMapper objectMapper;
+
     public UserRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;

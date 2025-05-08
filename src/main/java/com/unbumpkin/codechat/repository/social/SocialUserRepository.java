@@ -8,17 +8,17 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Repository;
 
 import com.unbumpkin.codechat.dto.social.SocialUser;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 
 @Repository
 public class SocialUserRepository {
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private CurrentUserProvider currentUserProvider;
 
     private final RowMapper<SocialUser> rowMapper = new RowMapper<SocialUser>() {
         @Override
@@ -74,8 +74,7 @@ public class SocialUserRepository {
     }
     public int deleteAll() {
         // Check if current user is admin
-        CustomAuthentication currentUser = getCurrentUser();
-        if (currentUser == null || !currentUser.isAdmin()) {
+        if (!currentUserProvider.getCurrentUser().isAdmin()) {
             throw new IllegalStateException("Only administrators can delete all social users");
         }
         
@@ -83,12 +82,5 @@ public class SocialUserRepository {
         return jdbcTemplate.update(sql);
     }
 
-    private CustomAuthentication getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return (CustomAuthentication) authentication;
-        }
-        return null;
-    }
 
 }

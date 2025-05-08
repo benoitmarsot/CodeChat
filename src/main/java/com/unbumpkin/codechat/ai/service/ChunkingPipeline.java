@@ -32,11 +32,17 @@ public class ChunkingPipeline {
     }
 
     public void process(
-        int projectId, Types chunkType, String content, String extension,Map<String,String> metadata
+        int projectId, Types chunkType, String content, String extension, Map<String,String> metadata
     )  throws Exception {
+        if (extension == null || extension.isEmpty()) {
+            throw new IllegalArgumentException("File extension cannot be null or empty");
+        }
+        if (content == null || content.isEmpty()) {
+            throw new IllegalArgumentException("Content cannot be null or empty");
+        }
         List<Chunk> chunks = CodeChunker.isSupportedExtension(extension)
             ? codeChunker.chunk(content,extension,metadata) 
-            : textChunker.chunk(content,metadata);
+            : textChunker.chunk(content,extension, metadata);
         List<EmbeddedChunk> embedded = embeddingService.embedChunks(chunks);
         pgVectorRepository.saveAll(projectId,chunkType,embedded);
     }

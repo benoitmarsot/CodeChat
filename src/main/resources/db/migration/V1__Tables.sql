@@ -145,8 +145,11 @@ create table if not exists core.sharedproject (
 create table core.chunk (
     chunkid serial,
     projectid int not null,
+    uri varchar(2048) not null,
+    authorid varchar(128) not null,  
     chunktype varchar(20) not null, -- code, markup, config, full, social, image
     content text not null,
+    start int not null,
     embedding vector(768), -- assuming openai's ada-002 model
     metadata jsonb,         -- metadata like {"type": "method", "language": "java"}
     created_at timestamp default current_timestamp

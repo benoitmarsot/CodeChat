@@ -16,8 +16,6 @@ import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -74,7 +72,7 @@ import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.repository.social.SocialChannelRepository;
 import com.unbumpkin.codechat.repository.social.SocialUserRepository;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -117,15 +115,9 @@ public class CodechatController {
     private SocialChannelRepository socialChannelRepository;
     @Autowired
     private SseService sseService;
+    @Autowired
+    CurrentUserProvider currentUserProvider;
     
-    private int getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication).getUserId();
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
-
     @DeleteMapping("delete-all")
     public ResponseEntity<String> deleteAll(
     ) throws IOException {
@@ -184,7 +176,7 @@ public class CodechatController {
         writeMessage(clientId,"Create assistant...");
         int assistantId=createAssistant(request.name(), projectId, vectorStoreMap);
         writeMessage(clientId,"Assistant created with id: "+assistantId);
-        Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
+        Project project = new Project(projectId, request.name(), request.description(), currentUserProvider.getCurrentUser().getUserId(), assistantId);
         return ResponseEntity.ok(project);
     }
     private void writeMessage(String clientId,String message) {
@@ -521,7 +513,7 @@ public class CodechatController {
             writeMessage(clientId,"Create assistant...");
             int assistantId=createAssistant(request.name(), projectId, vsMap);
             writeMessage(clientId,"Assistant created with id: "+assistantId);
-            Project project = new Project(projectId, request.name(), request.description(), this.getCurrentUserId(), assistantId);
+            Project project = new Project(projectId, request.name(), request.description(), currentUserProvider.getCurrentUser().getUserId(), assistantId);
             return ResponseEntity.ok(project);
         } catch (Exception e) {
             e.printStackTrace();

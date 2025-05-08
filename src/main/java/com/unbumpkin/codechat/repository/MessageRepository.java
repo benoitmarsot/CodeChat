@@ -7,9 +7,8 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import com.unbumpkin.codechat.security.CustomAuthentication;
+
+import com.unbumpkin.codechat.security.CurrentUserProvider;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +23,8 @@ public class MessageRepository {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private CurrentUserProvider currentUserProvider;
 
     private final RowMapper<Message> rowMapper = (rs, rowNum) -> {
         SocialReferences socialreferences = null;
@@ -46,21 +47,6 @@ public class MessageRepository {
             );
     };
 
-    private int getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication).getUserId();
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
-
-    private CustomAuthentication getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof CustomAuthentication) {
-            return ((CustomAuthentication) authentication);
-        }
-        throw new IllegalStateException("No authenticated user found");
-    }
 
     /**
      * Add a message to the database.
@@ -81,7 +67,7 @@ public class MessageRepository {
             )
             RETURNING msgid, did, role, authorid, message, socialreference, created
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         //( int did, String role, int authorid, String message) {
         return jdbcTemplate.queryForObject(
             sql, rowMapper, createRequest.did(), createRequest.role(),  userId, createRequest.message(), 
@@ -104,7 +90,7 @@ public class MessageRepository {
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             WHERE m.msgid = ? AND (sp.userid = ? OR p.authorid = ?)
         """;
-        return jdbcTemplate.queryForObject(sql, rowMapper, msgid, getCurrentUserId(), getCurrentUserId());
+        return jdbcTemplate.queryForObject(sql, rowMapper, msgid, currentUserProvider.getCurrentUser().getUserId(), currentUserProvider.getCurrentUser().getUserId());
     }
 
     /**
@@ -122,7 +108,7 @@ public class MessageRepository {
             WHERE m.did = ? AND (sp.userid = ? OR p.authorid = ?)
             order by m.msgid asc
         """;
-        return jdbcTemplate.query(sql, rowMapper, did, getCurrentUserId(), getCurrentUserId());
+        return jdbcTemplate.query(sql, rowMapper, did, currentUserProvider.getCurrentUser().getUserId(), currentUserProvider.getCurrentUser().getUserId());
     }
 
     /**
@@ -141,7 +127,7 @@ public class MessageRepository {
                 WHERE d.did = ? AND (sp.userid = ? OR p.authorid = ?)
             )
         """;
-        int userId = getCurrentUserId();
+        int userId = currentUserProvider.getCurrentUser().getUserId();
         jdbcTemplate.update(sql, message.role(), message.authorid(), message.message(), message.msgid(), message.discussionId(), userId, userId);
     }
 
@@ -160,15 +146,14 @@ public class MessageRepository {
                 WHERE d.did = message.did AND (sp.userid = ? OR p.authorid = ?)
             )
         """;
-        jdbcTemplate.update(sql, msgid, getCurrentUserId(), getCurrentUserId());
+        jdbcTemplate.update(sql, msgid, currentUserProvider.getCurrentUser().getUserId(), currentUserProvider.getCurrentUser().getUserId());
     }
 
     /**
      * Delete all messages.
      */
     public void deleteAll() {
-        CustomAuthentication user = getCurrentUser();
-        if (user == null || !user.isAdmin()) {
+        if (!currentUserProvider.getCurrentUser().isAdmin()) {
             throw new IllegalStateException("Only admins can delete all messages");
         }
         String sql = "DELETE FROM core.message";

@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unbumpkin.codechat.dto.request.CreateVSFileRequest;
 import com.unbumpkin.codechat.model.openai.VectorStore;
-import com.unbumpkin.codechat.model.openai.VectorStore.VectorStoreResponse;
+import com.unbumpkin.codechat.model.openai.VectorStoreResponse;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository;
 import com.unbumpkin.codechat.repository.openai.VectorStoreRepository.RepoVectorStoreResponse;
 import com.unbumpkin.codechat.service.openai.CCProjectFileManager.Types;
