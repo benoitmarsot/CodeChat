@@ -238,11 +238,14 @@ public class DiscussionController {
             return null;
         }
         StringBuilder sb=new StringBuilder();
+        sb.append("Here are the messages with their URLs:\n\n");
+    
         for(SearchChunkResult chunk: chunks){
-            sb.append(chunk.content());
-            sb.append("\n");
+            sb.append("URL: ").append(chunk.metadata().get("url")).append("\n");
+            sb.append("Author: ").append(chunk.metadata().get("author")).append("\n");
+            sb.append("Content: ").append(chunk.content()).append("\n\n");
         }
-        String message=sb.toString();
+            String message=sb.toString();
         SocialReferences references=getSocialReferences(message, discussion);
         return references;
     }
@@ -259,18 +262,18 @@ public class DiscussionController {
     ) throws IOException {
         ChatService chatService=new ChatService(
             Models.gpt_4o, """
-            Give an overall bref description of all the messages, and then a author and a few word description for each. 
+            Give an overall bref description of all the messages, and then use the author and a few word description for each. 
             Your answer should be formatted as a json object: 
             {
                 "overallDescription":<overall bref description>,
                 "messages": [
-                    {"name": "name1", "description": "description1", "url"="url1"}, 
-                    {"name": "name2", "description": "description2", "url"="url2"}, 
-                    {"name": "name3", "description": "description3", "url"="url3"},
+                    {"name": "author1; name1", "description": "description1", "url"="url1"}, 
+                    {"name": "author2; name2", "description": "description2", "url"="url2"}, 
+                    {"name": "author3; name3", "description": "description3", "url"="url3"},
                     ...
                 ]
             },
-            name should be less than 25 characters long, and represent a title for the discussion, it can use up to 5 words separated by space.
+            name should be less than 25 characters long, and represent a title for the message, it can use up to 7 words separated by space.
             your descriptions should be less than 225 characters long.
             """,
             1f
