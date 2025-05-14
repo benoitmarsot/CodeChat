@@ -326,8 +326,8 @@ public class DiscussionController {
                 "Return any results that semantically match the thread. answer in that format.\n" +
                 "{\"overallDescription\":<overall bref description>,\n" +
                 "   \"messages\": [" +
-                "       {\"name\": \"name1\", \"description\": \"description1\", \"url\"=\"url1\"}, " +
-                "       {\"name\": \"name2\", \"description\": \"description2\", \"url\"=\"url2\"}, " +
+                "       {\"name\": \"author1; name1\", \"description\": \"description1\", \"url\"=\"url1\"}, " +
+                "       {\"name\": \"author2; name2\", \"description\": \"description2\", \"url\"=\"url2\"}, " +
                 "       ..." +
                 "   ]" +
                 "}\n"

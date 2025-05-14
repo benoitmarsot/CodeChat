@@ -13,6 +13,8 @@ import java.util.Set;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +45,12 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.unbumpkin.codechat.ai.chunker.CodeChunker;
+import com.unbumpkin.codechat.ai.chunker.TextChunker;
+import com.unbumpkin.codechat.ai.dto.Chunk;
+import com.unbumpkin.codechat.ai.dto.EmbeddedChunk;
+import com.unbumpkin.codechat.ai.embedder.EmbedderService;
+import com.unbumpkin.codechat.ai.vectorstore.PgVectorRepository;
 import com.unbumpkin.codechat.dto.FileRenameDescriptor;
 import com.unbumpkin.codechat.dto.GitHubChangeTracker;
 import com.unbumpkin.codechat.dto.openai.Assistant;
@@ -117,7 +125,15 @@ public class CodechatController {
     private SseService sseService;
     @Autowired
     CurrentUserProvider currentUserProvider;
-    
+    @Autowired
+    TextChunker textChunker;
+    @Autowired
+    CodeChunker codeChunker;
+    @Autowired
+    EmbedderService embeddingService;
+    @Autowired
+    PgVectorRepository pgVectorRepository;
+
     @DeleteMapping("delete-all")
     public ResponseEntity<String> deleteAll(
     ) throws IOException {
@@ -370,18 +386,28 @@ public class CodechatController {
             ProjectResource resource=projectResourceRepository.createResource(
                 request.projectId(), request.repoURL(), ResTypes.git, userSecrets
             );
-            Map<Types,RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
-                vsRepository.getVectorStoresByProjectId(projectId)
-            );
-            Map<Types, VectorStoreFile> vsfServicesMap = getVsfServicesMap(vsMap);
+
+            Map<Types, VectorStoreFile> vsfServicesMap=null;
+            if(!request.selfChunk()) {
+                Map<Types,RepoVectorStoreResponse> vsMap = CCProjectFileManager.getVectorStoretMap(
+                    vsRepository.getVectorStoresByProjectId(projectId)
+                );
+                vsfServicesMap = getVsfServicesMap(vsMap);
+            }
             int tempDirLength=pfc.getTempDir().length();
             Set<File> files = pfc.getAllFiles();
-             writeMessage(clientId,"Found " + files.size() + " files to process.");
-            for (File file : pfc.getAllFiles()) {
+            writeMessage(clientId,"Found " + files.size() + " files to process.");
+            for (File file : files) {
                 try {
-                    addFile(pfc.getTempDir(),pfc.getRootUrl(),
-                        pfc.getRootUrl()+file.getPath().substring(tempDirLength + 1),
-                        file.getPath(), resource.prId(), vsfServicesMap,clientId);
+                    if(!request.selfChunk()) {
+                        addFile(pfc.getTempDir(),pfc.getRootUrl(),
+                            pfc.getRootUrl()+file.getPath().substring(tempDirLength + 1),
+                            file.getPath(), resource.prId(), vsfServicesMap, clientId);
+                    } else {
+                        addFile(pfc.getTempDir(),pfc.getRootUrl(),
+                            pfc.getRootUrl()+file.getPath().substring(tempDirLength + 1),
+                            file.getPath(), projectId, clientId);
+                    }
                 } catch (Exception e) {
                     writeMessage(clientId,"The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
                 }   
@@ -739,6 +765,57 @@ public class CodechatController {
         }
         return wasDeleted;
     }
+    /**
+     * Add the self chunking file to the postgreSql vector store, using BGE (BAAI General Embedding) base-en-v1.5 model
+     * @param tempDirPath
+     * @param rootDirUrl
+     * @param fileUrl
+     * @param filePath
+     * @param prId
+     * @param vsfServicesMap
+     * @param clientId
+     * @throws Exception 
+     */
+    private void addFile(String tempDirPath, String rootDirUrl, String fileUrl, String filePath, int projectId,
+        String clientId
+    ) throws Exception {
+        File file = new File(filePath);
+
+        int tempDirLength=tempDirPath.length();
+        Types fileType=getFileType(file);
+        FileRenameDescriptor desc;
+        try {
+            desc = getFileRenameDescriptor(file,fileType,clientId);
+        } catch (Exception e) {
+           writeMessage(clientId,"The file "+file.getPath().substring(tempDirLength+1)+" could not be added: "+e.getMessage());
+            return;
+        }
+        System.out.println("File "+file.getName()+" will be added to the local pg vector store.");
+        
+        Map<String,String> requestAttr = getVSFileattributes( desc, fileUrl, clientId);
+        String content = Files.readString(desc.newFile().toPath(), StandardCharsets.UTF_8);
+        String extension= FileUtils.getFileExtension(desc.oldFileName());
+        List<Chunk> chunks=CodeChunker.isSupportedExtension(extension)
+            ?codeChunker.chunk(content,  fileUrl, requestAttr)
+            :textChunker.chunk(content, fileUrl, requestAttr);
+        
+        List<EmbeddedChunk> embedded = embeddingService.embedChunks(chunks);
+        pgVectorRepository.saveAll(projectId, Types.social, embedded);
+    
+        writeMessage(clientId,"File url "+fileUrl+" added to local pg vector store.");
+    }
+
+    /**
+     * Add the file to the vector store and upload it to the OAI
+     * @param tempDirPath The path to the temporary directory
+     * @param rootDirUrl The root directory URL
+     * @param fileUrl The URL of the file
+     * @param filePath The path to the file
+     * @param prId The project resource id
+     * @param vsfServicesMap The map of vector store files services
+     * @param clientId The client id
+     * @throws IOException
+     */
     private void addFile(String tempDirPath, String rootDirUrl, String fileUrl, String filePath, int prId,
         Map<Types,VectorStoreFile> vsfServicesMap, String clientId
     ) throws IOException {
@@ -754,8 +831,9 @@ public class CodechatController {
             return;
         }
         OaiFile oaiFile = oaiFileService.uploadFile(desc.newFile().getAbsolutePath(), tempDirLength+1, Purposes.assistants, prId);
-       writeMessage(clientId,"file "+file.getName()+" uploaded with id "+oaiFile.fileId());
-        CreateVSFileRequest request = getCreateVSFileRequest( desc, fileUrl, oaiFile, tempDirLength, clientId);
+        writeMessage(clientId,"file "+file.getName()+" uploaded with id "+oaiFile.fileId());
+        CreateVSFileRequest request = getCreateVSFileRequest( desc, fileUrl, oaiFile, clientId);
+
         if(fileType!=Types.image&&fileType!=Types.social){
             vsfServicesMap.get(fileType).addFile( request);
         }
@@ -771,22 +849,28 @@ public class CodechatController {
       writeMessage(clientId,"File id "+oaiFile.fileId()+" added to "+fileType.toString()+" vector store ");
     }
     private CreateVSFileRequest getCreateVSFileRequest( 
-        FileRenameDescriptor desc, String fileUrl, OaiFile oaiFile, int tempDirLength, String clientId
+        FileRenameDescriptor desc, String fileUrl, OaiFile oaiFile, String clientId
+    ) throws IOException {
+        writeMessage(clientId,"URL:" + fileUrl);
+        CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
+            oaiFile.fileId(), getVSFileattributes(desc, fileUrl, clientId)
+        );
+        return creaVsRequest;
+    }
+    private Map<String,String> getVSFileattributes(
+        FileRenameDescriptor desc, String fileUrl, String clientId
     ) throws IOException {
         String oldExt = FileUtils.getFileExtension(desc.oldFileName());
         Types fileType=getFileType(desc.oldFileName());
-        writeMessage(clientId,"URL:" + fileUrl);
-        CreateVSFileRequest creaVsRequest = new CreateVSFileRequest(
-            oaiFile.fileId(), new HashMap<>() {{
-                put("name", desc.oldFileName());
-                put("fileUrl", fileUrl);
-                put("extension", oldExt);
-                put("mime-type", ExtMimeType.getMimeType(oldExt));
-                put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
-                put("type", fileType.name());
-            }}
-        );
-        return creaVsRequest;
+
+        return new HashMap<String,String>() {{
+            put("name", desc.oldFileName());
+            put("fileUrl", fileUrl);
+            put("extension", oldExt);
+            put("mime-type", ExtMimeType.getMimeType(oldExt));
+            put("nbLines", String.valueOf(FileUtils.countLines(desc.newFile())));
+            put("type", fileType.name());
+        }};
     }
 
     private FileRenameDescriptor getFileRenameDescriptor(File file, Types fileType, String clientId) throws Exception {

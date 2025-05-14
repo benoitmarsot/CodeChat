@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.annotation.PreDestroy;
 
@@ -27,7 +28,7 @@ public class HuggingfaceEmbedderService extends EmbedderService {
 
     static {
         try {
-            BGE_TOKENIZER = HuggingFaceTokenizer.newInstance("BAAI/bge-base-en-v1.5");
+            BGE_TOKENIZER = HuggingFaceTokenizer.newInstance("BAAI/bge-base-en-v1.5",Map.of("maxLength","512"));
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize BGE tokenizer", e);
         }
