@@ -205,238 +205,261 @@ class _AssistantFormState extends State<AssistantForm> {
   @override
   Widget build(BuildContext context) {
     final inputColor = Theme.of(context).colorScheme.surfaceContainerLowest;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8.0),
-        TextField(
-          controller: _assistantNameController,
-          decoration: InputDecoration(
-            fillColor: inputColor,
-            filled: true,
-            labelText: 'Assistant Name:',
-          ),
-        ),
-        const SizedBox(height: 16.0),
-        Row(children: [
-          Column(children: [
-            Row(children: [
-              Text(
-                'Temperature:',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Tooltip(
-                message:
-                    'Controls randomness in the model’s output and can limit hallucination',
-                child: const Icon(
-                  Icons.info_outline,
-                  size: 18.0,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(width: 8.0),
-              SizedBox(
-                width: 200,
-                child: isAttributeSupported(_selectedModel, 'temperature')
-                    ? Slider(
-                        value: _temperature,
-                        min: 0.0,
-                        max: 2.0,
-                        divisions:
-                            20, // Optional: Divides the slider into steps
-                        label: _temperature
-                            .toStringAsFixed(1), // Display the value
-                        onChanged: (double value) {
-                          setState(() {
-                            _temperature = value;
-                            _temperatureController.text =
-                                value.toStringAsFixed(1);
-                          });
-                        },
-                      )
-                    : Slider(
-                        value: 0.0, // Default value when disabled
-                        min: 0.0,
-                        max: 2.0,
-                        divisions: 20,
-                        label: 'Disabled for the current model',
-                        onChanged: null, // Disable the slider
-                      ),
-              ),
-            ]),
-          ]),
-          // Column(children: [
-          //   Row(
-          //     children: [
-          //       const SizedBox(width: 16.0),
-          //       SizedBox(
-          //         width: 200,
-          //         child: TextField(
-          //           controller: _maxResultsController,
-          //           keyboardType: TextInputType.number,
-          //           decoration: const InputDecoration(
-          //             labelText: 'Max Results',
-          //           ),
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ]),
-          Column(children: [
-            Row(children: [
-              const SizedBox(height: 16.0),
-              Column(children: [
-                Row(
+    return Card.filled(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        elevation: 0,
+        child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 1200),
+            child: Padding(
+                padding: const EdgeInsets.all(30.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Reasoning Effort:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 8.0),
+                    TextField(
+                      controller: _assistantNameController,
+                      decoration: InputDecoration(
+                        fillColor: inputColor,
+                        filled: true,
+                        labelText: 'Assistant Name:',
                       ),
                     ),
-                    const SizedBox(width: 4.0),
-                    Tooltip(
-                      message:
-                          'How hard should the assistant try to reason things through before replying?',
-                      child: const Icon(
-                        Icons.info_outline,
-                        size: 18.0,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(width: 8.0),
-                    const SizedBox(width: 8.0),
-                    isAttributeSupported(_selectedModel, 'reasoningEffort')
-                        ? SegmentedButton<Reasoning>(
-                            segments: const <ButtonSegment<Reasoning>>[
-                              ButtonSegment<Reasoning>(
-                                  value: Reasoning.low, label: Text('Low')),
-                              ButtonSegment<Reasoning>(
-                                  value: Reasoning.medium,
-                                  label: Text('Medium')),
-                              ButtonSegment<Reasoning>(
-                                  value: Reasoning.high, label: Text('High')),
-                            ],
-                            selected: _selectedReasoning,
-                            onSelectionChanged: (Set<Reasoning> newSelection) {
-                              setState(() {
-                                _selectedReasoning = newSelection;
-                              });
-                            },
-                          )
-                        : SegmentedButton<Reasoning>(
-                            segments: const <ButtonSegment<Reasoning>>[
-                                ButtonSegment<Reasoning>(
-                                    value: Reasoning.low, label: Text('Low')),
-                                ButtonSegment<Reasoning>(
-                                    value: Reasoning.medium,
-                                    label: Text('Medium')),
-                                ButtonSegment<Reasoning>(
-                                    value: Reasoning.high, label: Text('High')),
+                    const SizedBox(height: 16.0),
+                    Row(children: [
+                      Column(children: [
+                        Row(children: [
+                          Text(
+                            'Temperature:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                          Tooltip(
+                            message:
+                                'Controls randomness in the model’s output and can limit hallucination',
+                            child: const Icon(
+                              Icons.info_outline,
+                              size: 18.0,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(width: 8.0),
+                          SizedBox(
+                            width: 200,
+                            child: isAttributeSupported(
+                                    _selectedModel, 'temperature')
+                                ? Slider(
+                                    value: _temperature,
+                                    min: 0.0,
+                                    max: 2.0,
+                                    divisions:
+                                        20, // Optional: Divides the slider into steps
+                                    label: _temperature.toStringAsFixed(
+                                        1), // Display the value
+                                    onChanged: (double value) {
+                                      setState(() {
+                                        _temperature = value;
+                                        _temperatureController.text =
+                                            value.toStringAsFixed(1);
+                                      });
+                                    },
+                                  )
+                                : Slider(
+                                    value: 0.0, // Default value when disabled
+                                    min: 0.0,
+                                    max: 2.0,
+                                    divisions: 20,
+                                    label: 'Disabled for the current model',
+                                    onChanged: null, // Disable the slider
+                                  ),
+                          ),
+                        ]),
+                      ]),
+                      // Column(children: [
+                      //   Row(
+                      //     children: [
+                      //       const SizedBox(width: 16.0),
+                      //       SizedBox(
+                      //         width: 200,
+                      //         child: TextField(
+                      //           controller: _maxResultsController,
+                      //           keyboardType: TextInputType.number,
+                      //           decoration: const InputDecoration(
+                      //             labelText: 'Max Results',
+                      //           ),
+                      //         ),
+                      //       ),
+                      //     ],
+                      //   ),
+                      // ]),
+                      Column(children: [
+                        Row(children: [
+                          const SizedBox(height: 16.0),
+                          Column(children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Reasoning Effort:',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 4.0),
+                                Tooltip(
+                                  message:
+                                      'How hard should the assistant try to reason things through before replying?',
+                                  child: const Icon(
+                                    Icons.info_outline,
+                                    size: 18.0,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                const SizedBox(width: 8.0),
+                                const SizedBox(width: 8.0),
+                                isAttributeSupported(
+                                        _selectedModel, 'reasoningEffort')
+                                    ? SegmentedButton<Reasoning>(
+                                        segments: const <ButtonSegment<
+                                            Reasoning>>[
+                                          ButtonSegment<Reasoning>(
+                                              value: Reasoning.low,
+                                              label: Text('Low')),
+                                          ButtonSegment<Reasoning>(
+                                              value: Reasoning.medium,
+                                              label: Text('Medium')),
+                                          ButtonSegment<Reasoning>(
+                                              value: Reasoning.high,
+                                              label: Text('High')),
+                                        ],
+                                        selected: _selectedReasoning,
+                                        onSelectionChanged:
+                                            (Set<Reasoning> newSelection) {
+                                          setState(() {
+                                            _selectedReasoning = newSelection;
+                                          });
+                                        },
+                                      )
+                                    : SegmentedButton<Reasoning>(
+                                        segments: const <ButtonSegment<
+                                            Reasoning>>[
+                                            ButtonSegment<Reasoning>(
+                                                value: Reasoning.low,
+                                                label: Text('Low')),
+                                            ButtonSegment<Reasoning>(
+                                                value: Reasoning.medium,
+                                                label: Text('Medium')),
+                                            ButtonSegment<Reasoning>(
+                                                value: Reasoning.high,
+                                                label: Text('High')),
+                                          ],
+                                        selected: _selectedReasoning,
+                                        onSelectionChanged: null),
                               ],
-                            selected: _selectedReasoning,
-                            onSelectionChanged: null),
+                            ),
+                          ]),
+                        ]),
+                      ]),
+                    ]),
+                    const SizedBox(height: 25.0),
+                    Row(
+                      children: [
+                        Text(
+                          'LLM Model:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 8.0),
+                        DropdownButton<String>(
+                          value: _selectedModel,
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedModel = newValue!;
+                            });
+                          },
+                          items: languageModel
+                              .toSet() // Ensure unique values
+                              .map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(8.0),
+                      margin: const EdgeInsets.only(bottom: 16.0, top: 24.0),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primaryContainer
+                            .withOpacity(0.1),
+                        border: Border.all(color: Colors.orangeAccent),
+                        borderRadius: BorderRadius.circular(4.0),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning, color: Colors.orangeAccent),
+                          const SizedBox(width: 8.0),
+                          Expanded(
+                            child: Text(
+                              'Warning: Changing the LLM model may lead to unexpected behavior, performance issues, or incompatibility with existing project configurations. Proceed with caution.',
+                              style: TextStyle(color: Colors.orangeAccent),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24.0),
+                    (_currentUser != null && _currentUser!.role == 'ADMIN')
+                        ? TextField(
+                            controller: _contextController,
+                            maxLines: 5,
+                            maxLength: 2048,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: inputColor,
+                              labelText: 'AI Context:',
+                              //border: OutlineInputBorder(),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                    const SizedBox(height: 32.0),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton(
+                            onPressed: _cancelEdit,
+                            style: ElevatedButton.styleFrom(
+                              textStyle: const TextStyle(fontSize: 20),
+                            ),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _saveChanges,
+                            style: ElevatedButton.styleFrom(
+                              textStyle: const TextStyle(fontSize: 20),
+                            ),
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
-                ),
-              ]),
-            ]),
-          ]),
-        ]),
-        const SizedBox(height: 25.0),
-        Row(
-          children: [
-            Text(
-              'LLM Model:',
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 8.0),
-            DropdownButton<String>(
-              value: _selectedModel,
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedModel = newValue!;
-                });
-              },
-              items: languageModel
-                  .toSet() // Ensure unique values
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.all(8.0),
-          margin: const EdgeInsets.only(bottom: 16.0, top: 24.0),
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color:
-                Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1),
-            border: Border.all(color: Colors.orangeAccent),
-            borderRadius: BorderRadius.circular(4.0),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.warning, color: Colors.orangeAccent),
-              const SizedBox(width: 8.0),
-              Expanded(
-                child: Text(
-                  'Warning: Changing the LLM model may lead to unexpected behavior, performance issues, or incompatibility with existing project configurations. Proceed with caution.',
-                  style: TextStyle(color: Colors.orangeAccent),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24.0),
-        (_currentUser != null && _currentUser!.role == 'ADMIN')
-            ? TextField(
-                controller: _contextController,
-                maxLines: 5,
-                maxLength: 2048,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: inputColor,
-                  labelText: 'AI Context:',
-                  //border: OutlineInputBorder(),
-                ),
-              )
-            : const SizedBox.shrink(),
-        const SizedBox(height: 32.0),
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: _cancelEdit,
-                style: ElevatedButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 20),
-                ),
-                child: const Text('Cancel'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _saveChanges,
-                style: ElevatedButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 20),
-                ),
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+                ))));
   }
 }

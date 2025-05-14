@@ -7,7 +7,7 @@ class AboutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('About Codechat'),
+        title: const Text('About Augmentera'), // Changed title
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -15,23 +15,39 @@ class AboutPage extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-              color:
-                  Color(0xFF1E4396), //  Theme.of(context).colorScheme.primary,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primaryContainer,
+                    Theme.of(context).colorScheme.surfaceContainer,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
               child: Column(
                 children: [
-                  Text(
-                    'Empowering Developers with AI-Powered Coding Assistance',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                  // Augmentera Logo
+                  Image.asset(
+                    'assets/augmentera_logo.png', // Replace with your logo asset path
+                    height: 100, // Adjust as needed
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Unlock the full potential of AI-assisted coding',
+                    'Democratize AI with your authentic brand voice', // Blurb
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Augmentera makes advanced retrieval-augmented generation (RAG) accessible to any team — no need for expensive infrastructure, in-house AI experts, or custom engineering.', // Blurb
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: Colors.white,
                         ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -42,23 +58,23 @@ class AboutPage extends StatelessWidget {
               child: Column(children: [
                 _buildSection(
                   context,
-                  'How CodeChat Works',
+                  'How Augmentera Works', // Changed title
                   [
-                    'Upload Your Project – CodeChat processes and indexes your codebase, creating an intelligent understanding of your system.',
-                    'Ask Questions – Get immediate, context-aware responses about functions, dependencies, and best practices.',
-                    'AI-Powered Coding – Automate documentation, generate new features, and debug issues with AI assistance.',
-                    'Integrate with Your Workflow – Works seamlessly with VS Code, JetBrains, and other development environments.',
+                    'Upload Your Knowledge Base – Augmentera processes and indexes your data, creating an intelligent understanding of your content.', // Changed text
+                    'Ask Questions – Get immediate, context-aware responses tailored to your data.', // Changed text
+                    'AI-Powered Insights – Automate content generation, improve customer support, and enhance decision-making with AI assistance.', // Changed text
+                    'Integrate with Your Workflow – Works seamlessly with your existing systems and processes.', // Changed text
                   ],
                 ),
                 const SizedBox(height: 30),
                 _buildSection(
                   context,
-                  'Why CodeChat?',
+                  'Why Augmentera?', // Changed title
                   [
-                    'Deep Code Understanding – Leverages AI-powered Retrieval-Augmented Generation (RAG) to provide answers tailored to your project.',
-                    'Boost Productivity – Reduce debugging time, accelerate onboarding, and enhance collaboration.',
+                    'Deep Content Understanding – Leverages AI-powered Retrieval-Augmented Generation (RAG) to provide answers tailored to your specific knowledge base.', // Changed text
+                    'Boost Productivity – Reduce information retrieval time, accelerate onboarding, and enhance collaboration.', // Changed text
                     'Secure & Private – Designed to prioritize security, with optional on-premise deployment for enterprises.',
-                    'Future-Ready – Continuously evolving to support predictive bug fixing, AI-enhanced auto-coding, and real-time collaboration.',
+                    'Future-Ready – Continuously evolving to support predictive analytics, AI-enhanced automation, and real-time insights.', // Changed text
                   ],
                 ),
                 const SizedBox(height: 30),
@@ -73,7 +89,7 @@ class AboutPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: Text(
-                      'Join the future of AI-powered software development with CodeChat. Whether you\'re an individual developer or an enterprise team, CodeChat is here to supercharge your coding experience.',
+                      'Join the future of AI-powered knowledge management with Augmentera. Whether you\'re an individual or an enterprise team, Augmentera is here to supercharge your access to information and insights.', // Changed text
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.bold,

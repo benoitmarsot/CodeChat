@@ -60,9 +60,9 @@ class _MainPage extends State<MainPage> {
       case 1:
         page = AboutPage();
         break;
-      case 2:
-        page = PricingPage();
-        break;
+      // case 2:
+      //   page = PricingPage();
+      //   break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
@@ -84,12 +84,12 @@ class _MainPage extends State<MainPage> {
                         ),
                         NavigationRailDestination(
                           icon: Icon(Icons.info_outline),
-                          label: Text('About Codechat'),
+                          label: Text('About Augmentera'),
                         ),
-                        NavigationRailDestination(
-                          icon: Icon(Icons.workspace_premium),
-                          label: Text('Upgrade'),
-                        ),
+                        // NavigationRailDestination(
+                        //   icon: Icon(Icons.workspace_premium),
+                        //   label: Text('Upgrade'),
+                        // ),
                         NavigationRailDestination(
                           icon: Icon(Icons.logout),
                           label: Text('Logout'),
