@@ -122,4 +122,15 @@ class ProjectService {
       throw Exception('Failed to revoke access');
     }
   }
+
+  Future<void> deleteResource(int resourceId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/resources/$resourceId'),
+      headers: _headers,
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete the resource.');
+    }
+  }
 }

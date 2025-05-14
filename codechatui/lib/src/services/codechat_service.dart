@@ -173,6 +173,7 @@ class CodechatService {
   Future<ProjectResource> addProjectWeb(
       {required int projectId,
       required String seedUrl,
+      List<String>? projectUrls,
       int? maxPages,
       int? maxDepth,
       int? requestsPerMinute,
