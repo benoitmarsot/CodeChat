@@ -1,6 +1,6 @@
 package com.unbumpkin.codechat.dto.response;
-
 import java.util.List;
+import java.util.Map;
 
 public record ProjectWithResource(
     int projectId, 
@@ -10,7 +10,7 @@ public record ProjectWithResource(
     int assistantId,
     String assistantModel,
     String assistantDescription,
-    List<String> resourceUris
+    List<Map<String, String>> resources
 ) {
     
 }

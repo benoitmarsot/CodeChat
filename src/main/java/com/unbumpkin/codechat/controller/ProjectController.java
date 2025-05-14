@@ -137,4 +137,9 @@ public class ProjectController {
         List<ProjectResource> resources = projectResourceRepository.getResources(projectId);
         return ResponseEntity.ok(resources);
     }
+    @DeleteMapping("/resources/{resourceId}")
+    public ResponseEntity<Void> deleteResource(@PathVariable int resourceId) {
+        projectResourceRepository.deleteResource(resourceId);
+        return ResponseEntity.ok().build();
+    }
 }

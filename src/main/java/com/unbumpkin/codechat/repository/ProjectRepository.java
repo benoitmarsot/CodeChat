@@ -3,7 +3,9 @@ package com.unbumpkin.codechat.repository;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -69,8 +71,8 @@ public class ProjectRepository {
             SELECT 
                 p.projectid, p.name, p.description, p.authorid, 
                 a.aid, a.model, a.description as assistant_description,
-                COALESCE(json_agg(pr.uri ) FILTER (WHERE pr.uri IS NOT NULL), '[]'::json) as resources
-            FROM core.project p
+                COALESCE(json_agg(json_build_object('prid', prid, 'uri', pr.uri, 'restype', pr.restype)) FILTER (WHERE pr.uri IS NOT NULL), '[]'::json) as resources
+            FROM core.project p 
             INNER JOIN core.assistant a ON a.projectid = p.projectid
             LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
             LEFT JOIN core.projectresource pr ON p.projectid = pr.projectid
@@ -83,21 +85,25 @@ public class ProjectRepository {
         try {
             return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
                 // Parse the JSON array of resources to a Java List
-                List<String> resourceUris = new ArrayList<>();
+                List<Map<String, String>> resourceObjects = new ArrayList<>();
                 String resourcesJson = rs.getString("resources");
                 if (resourcesJson != null && !resourcesJson.equals("[]")) {
                     try {
                         JsonNode resourcesNode = new ObjectMapper().readTree(resourcesJson);
                         if (resourcesNode.isArray()) {
                             for (JsonNode node : resourcesNode) {
-                                resourceUris.add(node.asText());
+                                Map<String, String> resourceMap = new HashMap<>();
+                                resourceMap.put("prid", node.get("prid").asText());
+                                resourceMap.put("uri", node.get("uri").asText());
+                                resourceMap.put("restype", node.get("restype").asText());
+                                resourceObjects.add(resourceMap);
                             }
                         }
                     } catch (JsonProcessingException e) {
-                        // Handle JSON parsing error
                         e.printStackTrace();
                     }
                 }
+                
                 
                 return new ProjectWithResource(
                     rs.getInt("projectid"),
@@ -107,7 +113,7 @@ public class ProjectRepository {
                     rs.getInt("aid"),
                     rs.getString("model"),
                     rs.getString("assistant_description"),
-                    resourceUris
+                    resourceObjects
                 );
             }, projectId, userId, userId);
         } catch (EmptyResultDataAccessException e) {
