@@ -140,6 +140,9 @@ public class ProjectController {
     @DeleteMapping("/resources/{resourceId}")
     public ResponseEntity<Void> deleteResource(@PathVariable int resourceId) {
         projectResourceRepository.deleteResource(resourceId);
+        //TODO: Delete ressources from the vector store
+        //TODO: Delete the files from openai (if needed)
+        //TODO: Delete the files from oaifile (if needed)
         return ResponseEntity.ok().build();
     }
 }

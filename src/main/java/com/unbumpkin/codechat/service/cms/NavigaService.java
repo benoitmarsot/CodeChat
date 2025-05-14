@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.unbumpkin.codechat.dto.cms.Article;
+import com.unbumpkin.codechat.dto.cms.SearchedArticle;
 
 @Service
 public class NavigaService {
@@ -43,7 +43,7 @@ public class NavigaService {
      * @return raw JSON response as String
      * @throws IOException on network / I/O errors
      */
-    public List<Article> search(String query, int start, int limit) throws IOException {
+    public List<SearchedArticle> search(String query, int start, int limit) throws IOException {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString());
         String url = String.format(
             "%s/opencontent/search?start=%d&limit=%d&deleted=false&q=%s",
@@ -77,10 +77,10 @@ public class NavigaService {
     /**
      * Parse the full response JSON and extract a list of Articles.
      */
-    public List<Article> parseArticles(String responseJson) throws IOException {
+    public List<SearchedArticle> parseArticles(String responseJson) throws IOException {
         JsonNode root = mapper.readTree(responseJson);
         JsonNode hits = root.path("hits").path("hits");
-        List<Article> list = new ArrayList<>();
+        List<SearchedArticle> list = new ArrayList<>();
 
         for (JsonNode hit : hits) {
             JsonNode props = hit.path("versions").get(0).path("properties");
@@ -115,7 +115,7 @@ public class NavigaService {
             String name = names.isEmpty() ? "" : names.get(0);
 
             // create article
-            Article a = new Article(title, teaserBody, bodyRaw, name, primary, originalUrls, publicationdate, authors, images);
+            SearchedArticle a = new SearchedArticle(title, teaserBody, bodyRaw, name, primary, originalUrls, publicationdate, authors, images);
             // add to list
             list.add(a);
         }
