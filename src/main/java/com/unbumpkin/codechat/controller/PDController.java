@@ -45,6 +45,7 @@ public class PDController {
         @RequestBody PDSearchRequest request
     ) throws IOException {
         List<SearchedArticle> results=navigaService.search( request.query(), request.start(), request.limit());
+        System.out.println("Naviga results: \n" + objectMapper.writeValueAsString(results));
         ArticleReferences references=getAiReferences(request.query(), results);
         
         return ResponseEntity.ok(references);
@@ -62,26 +63,37 @@ public class PDController {
         String query, List<SearchedArticle> articles
     ) throws IOException {
         ChatService chatService=new ChatService(
+            // Seem to get all the authors but is 2x slower, so?
+            // Maybe we should look at other vendors? Gemini? Anthropic?, 
+            // Models.gpt_4_turbo, """
+            // Models.gpt_4o_realtime, """
             Models.gpt_4_1_nano, """
-            Give an overall bref description of all the articles answering the query, and then use the authors and a few word description for each. 
-            Your answer should be formatted as a json object: 
-            {
-                "overallDescription":<overall bref description>,
-                "articles": [
-                    {"publicationDate":"publicationdate1","author": "author1", "name": "name1", "description": "description1", "primary"=["primary1","primary2",..], "urls"=["originalUrls1",""originalUrls2",...], "images"=["image1","image2",...]}, 
-                    {"publicationDate":"publicationdate1","author": "author1", "name": "name1", "description": "description1", "primary"=["primary1","primary2",..], "urls"=["originalUrls1",""originalUrls2",...], "images"=["image1","image2",...]},
-                    {"publicationDate":"publicationdate3","author": "author3", "name": "name3", "description": "description3", "primary"=["primary1","primary2",..], "urls"=["originalUrls1",""originalUrls2",...], "images"=["image1","image2",...]},
-                    ...
-                ]
-            },
-            name should be less than 25 characters long, and represent a title for the message, 
-            it can use up to 7 words separated by space. It is created using the teaserBody or the body of the article.
+            Provide a brief overall description summarizing the articles that answer the query. Then list metadata for each article. Your response must be a well-formatted JSON object with the following structure:
 
-            If authors are not present, try to find the authors in the body of the article,
-            
-            your descriptions should be less than 225 characters long. it is the title property if present, if not present use the teaserBody and body of the article to create an headline style title.
-            """,
-            1f
+            {
+            "overallDescription": "<brief overall summary>",
+            "articles": [
+                {
+                "publicationDate": "YYYY-MM-DDTHH:MM:SSZ",  // ISO 8601 UTC timestamp
+                "author": "Author Name",
+                "name": "Short title (max 25 chars, max 7 words)",
+                "description": "Headline-style summary (max 225 characters)",
+                "primary": ["primary1", "primary2", ...],
+                "urls": ["https://originalurl1", "https://originalurl2", ...],
+                "images": ["image1", "image2", ...]
+                },
+                ...
+            ]
+            }
+
+            Formatting rules:
+            - If 'title' is available, use it for 'description'. Otherwise, create a headline-style summary from 'teaserBody' or the article 'body'.
+            - If the author is not directly provided, extract it from the article body or contact section using terms such as by, written by, columnist, journalist, reporter, editor, writer, staff writer, or by detecting email addresses, phone numbers, or named social handles associated with a person. When an author name is found in a phrase such as “Contact Columnist name…” or ”…reach name at…”, use the name as the author.
+            - 'name' must be created from 'teaserBody' or 'body', and must be no longer than 25 characters or 7 words.
+            - All strings must be clean of HTML and properly quoted.
+
+            Ensure all values conform to the types and constraints above.
+            """, 1f
         );
         Map<String, Object> messageMap=new HashMap<>();
         messageMap.put("query", query);
@@ -92,7 +104,7 @@ public class PDController {
         if(answer.indexOf("```json")>-1) {
             answer=answer.substring(answer.indexOf("```json")+7, answer.lastIndexOf("```"));
         }
-        System.out.println("AI social Answer: " + answer);
+        //System.out.println("AI Answer: " + answer);
         ArticleReferences references = objectMapper.readValue(answer, ArticleReferences.class);
         return references;
     }

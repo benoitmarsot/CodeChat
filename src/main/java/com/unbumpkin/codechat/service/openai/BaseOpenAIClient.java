@@ -24,7 +24,7 @@ public abstract class BaseOpenAIClient {
         gpt_4_5_preview("gpt-4.5-preview"),
         gpt_4_vision_preview("gpt-4-vision-preview"),
         gpt_4_turbo("gpt-4-turbo"),
-        gpt_4o_realtime_preview("gpt-4o-realtime-preview"),
+        gpt_4o_realtime("gpt-4o-realtime"),
         o3_mini("o3-mini"),
         o4_mini("o4-mini"),
         o1("o1"),
