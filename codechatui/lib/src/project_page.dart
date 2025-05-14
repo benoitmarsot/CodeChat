@@ -5,7 +5,6 @@ import 'package:codechatui/src/services/openai/assistant_service.dart';
 import 'package:codechatui/src/services/auth_provider.dart';
 import 'package:codechatui/src/widgets/project/project_form.dart';
 import 'package:codechatui/src/widgets/status_tag.dart';
-import 'package:codechatui/src/widgets/data_table.dart';
 import 'package:flutter/material.dart';
 
 import 'package:codechatui/src/widgets/project/project_detail.dart';
