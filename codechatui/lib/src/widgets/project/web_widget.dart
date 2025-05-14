@@ -98,7 +98,7 @@ class _WebFormState extends State<WebForm> {
                         ),
                       ),
                     ),
-                    SizedBox(width: 12.0),
+                    SizedBox(width: 16.0),
                     Expanded(
                       flex: 2,
                       child: TextFormField(

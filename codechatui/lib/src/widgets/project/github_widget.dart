@@ -110,6 +110,7 @@ class _GithubFormState extends State<GithubForm> {
                   ),
                 ],
               ),
+              SizedBox(height: 16.0),
               Row(
                 children: [
                   Expanded(

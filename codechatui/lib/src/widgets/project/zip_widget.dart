@@ -51,7 +51,7 @@ class _ZipFormState extends State<ZipForm> {
     return Column(
       children: [
         Container(
-          height: 150,
+          height: 250,
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey),
             borderRadius: BorderRadius.circular(8.0),
