@@ -32,6 +32,12 @@ public class PDController {
     @Autowired
     ObjectMapper objectMapper;
 
+    /**
+     * Search for articles in Naviga Cloud.
+     * @param request the search request
+     * @return a list of articles matching the search criteria
+     * @throws IOException on network / I/O errors
+     */
     @PostMapping("/search")
     public ResponseEntity<List<SearchedArticle>> search(
         @RequestBody PDSearchRequest request
@@ -40,6 +46,12 @@ public class PDController {
         
         return ResponseEntity.ok(results);
     }
+    /**
+     * Ask the social assistant for insights on result produced by naviga 
+     * elastic searh + Ai.
+     * @param request the search request
+     * @return ArticlelReferences object with the references and overall description
+     */
     @PostMapping("/ai-search")
     public ResponseEntity<ArticleReferences> aiSearch(
         @RequestBody PDSearchRequest request
@@ -56,18 +68,21 @@ public class PDController {
      * store+Ai if availabe or Ai SocialVectore if available.
      * @param query the question asked
      * @param articles the list of articles return as an answer from elasticsearch
-     * @return SocialReferences object with the references and overall description
-     * @throws Exception
+     * @return ArticlelReferences object with the references and overall description
      */
     private ArticleReferences getAiReferences(
         String query, List<SearchedArticle> articles
     ) throws IOException {
         ChatService chatService=new ChatService(
-            // Seem to get all the authors but is 2x slower, so?
             // Maybe we should look at other vendors? Gemini? Anthropic?, 
-            // Models.gpt_4_turbo, """
-            // Models.gpt_4o_realtime, """
-            Models.gpt_4_1_nano, """
+            // Models.gpt_4o_realtime
+            // Do not get all authors, but faster, 11-24 seconds, 
+            Models.gpt_4_1_nano
+            // Seem to get all the authors but is 2x slower, so?, 30-40 seconds
+            // Models.gpt_4_turbo
+            //very good output but slow 60-120 seconds
+            // Models.o4_mini
+            , """
             Provide a brief overall description summarizing the articles that answer the query. Then list metadata for each article. Your response must be a well-formatted JSON object with the following structure:
 
             {
