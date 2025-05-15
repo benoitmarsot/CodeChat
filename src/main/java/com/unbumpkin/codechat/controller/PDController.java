@@ -79,9 +79,9 @@ public class PDController {
             // Do not get all authors, but faster, 11-24 seconds, 
             Models.gpt_4_1_nano
             // Seem to get all the authors but is 2x slower, so?, 30-40 seconds
-            // Models.gpt_4_turbo
-            //very good output but slow 60-120 seconds
-            // Models.o4_mini
+            // Models.gpt_4_turbo // $$$
+            // very good output but slow 60-120 seconds
+            // Models.o4_mini 
             , """
             Provide a brief overall description summarizing the articles that answer the query. Then list metadata for each article. Your response must be a well-formatted JSON object with the following structure:
 
@@ -110,10 +110,10 @@ public class PDController {
             Ensure all values conform to the types and constraints above.
             """, 1f
         );
-        Map<String, Object> messageMap=new HashMap<>();
-        messageMap.put("query", query);
-        messageMap.put("articles", articles);
-        String messageTxt=objectMapper.writeValueAsString(messageMap);
+        Map<String, Object> articleMap=new HashMap<>();
+        articleMap.put("query", query);
+        articleMap.put("articles", articles);
+        String messageTxt=objectMapper.writeValueAsString(articleMap);
         chatService.addMessage("user", messageTxt);
         String answer=chatService.answer();
         if(answer.indexOf("```json")>-1) {

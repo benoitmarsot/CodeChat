@@ -47,7 +47,16 @@ public class ChatService extends BaseOpenAIClient {
                 .build();
 
         JsonNode response=this.executeRequest(request);
-        return response.get("choices").get(0).get("message").get("content").asText();
+        if (response.get("error") != null) {
+                throw new IOException("Error: " + response.get("error").get("message").asText());
+        }
+
+        JsonNode choices=response.get("choices");
+        if (!choices.isEmpty()) {
+            return choices.get(0).get("message").get("content").asText();
+        }
+        return response.get("Body").asText();
+        
     }
     public void addMessage(ChatMessage message) {
         this.chatMessages.add(message);
