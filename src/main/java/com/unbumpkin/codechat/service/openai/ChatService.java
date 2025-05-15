@@ -55,7 +55,7 @@ public class ChatService extends BaseOpenAIClient {
         if (!choices.isEmpty()) {
             return choices.get(0).get("message").get("content").asText();
         }
-        return response.get("Body").asText();
+        return response.get("body").asText();
         
     }
     public void addMessage(ChatMessage message) {

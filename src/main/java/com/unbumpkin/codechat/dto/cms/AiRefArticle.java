@@ -9,9 +9,9 @@ import java.util.List;
 public record AiRefArticle(
     String name,
     String description,
-    String author,
+    List<String> authors,
     List<String> primary,
-    List<String> urls,
+    List<String> originalUrls,
     String publicationDate,
     List<String> images
 ) {
