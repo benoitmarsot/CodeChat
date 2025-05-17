@@ -157,6 +157,57 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "primary url sample",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{vault:DP_NAVIGA_PW}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://xlibris.public.prod.oc.srp.navigacloud.com:8443/opencontent/objects/64323030-3466-4139-b039-326130306435/files/64323030-3466-4139-b039-326130306435.xml",
+					"protocol": "https",
+					"host": [
+						"xlibris",
+						"public",
+						"prod",
+						"oc",
+						"srp",
+						"navigacloud",
+						"com"
+					],
+					"port": "8443",
+					"path": [
+						"opencontent",
+						"objects",
+						"64323030-3466-4139-b039-326130306435",
+						"files",
+						"64323030-3466-4139-b039-326130306435.xml"
+					]
+				}
+			},
+			"response": []
 		}
 	]
 }
