@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +34,7 @@ public class AssistantController {
     private AssistantRepository assistantRepository;
 
     
+    @Transactional
     @PostMapping("{projectId}")
     public ResponseEntity<String> updateAssistant(
         @PathVariable int projectId,
@@ -53,7 +55,10 @@ public class AssistantController {
         assistant = new Assistant(assistant, newInstruction);
         //System.out.println("Assistant OAI:");
         //printJsonNode(assistantOai);
-        assistantRepository.updateAssistant(assistant);
+        Assistant modifiedAssistant = new Assistant(
+            assistant, request
+        );
+        assistantRepository.updateAssistant(modifiedAssistant);
         return ResponseEntity.ok().body(assistantOai.toString());
     }
     @GetMapping("{projectId}")

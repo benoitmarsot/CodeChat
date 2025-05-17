@@ -2,6 +2,7 @@ package com.unbumpkin.codechat.dto.openai;
 
 import java.time.LocalDateTime;
 
+import com.unbumpkin.codechat.dto.request.ModifyAssistantRequest;
 import com.unbumpkin.codechat.service.openai.AssistantBuilder.ReasoningEfforts;
 import com.unbumpkin.codechat.service.openai.BaseOpenAIClient.Models;
 
@@ -48,5 +49,12 @@ public record Assistant(
              assistant.model(), assistant.temperature(), assistant.maxResults(), 
              assistant.codevsid(), assistant.markupvsid(), assistant.configvsid(), 
              assistant.fullvsid(), LocalDateTime.now());
+    }
+    public Assistant(Assistant assistant, ModifyAssistantRequest request) {
+        this(assistant.aid(), assistant.oaiAid(), assistant.projectid(), request.name(), 
+             assistant.description(), request.getInstructions(assistant.instruction),
+             assistant.reasoningEffort(), assistant.model(), request.temperature(), 
+             request.maxResults(), assistant.codevsid(), assistant.markupvsid(), 
+             assistant.configvsid(),  assistant.fullvsid(), LocalDateTime.now());
     }
 }
