@@ -4,7 +4,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.unbumpkin.codechat.dto.cms.SearchedArticle;
 import com.unbumpkin.codechat.dto.cms.ArticleReferences;
 import com.unbumpkin.codechat.dto.cms.PDSearchRequest;

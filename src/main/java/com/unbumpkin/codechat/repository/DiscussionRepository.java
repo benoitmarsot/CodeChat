@@ -146,24 +146,17 @@ public class DiscussionRepository {
      */
     public void deleteDiscussion(int did) {
         String sql = """
-            WITH auth_check AS (
-                SELECT 1 FROM core.discussion d
-                JOIN core.project p ON d.projectid = p.projectid
-                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
-                WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
-            )
-            DELETE FROM core.message WHERE did = ? AND EXISTS (SELECT 1 FROM core.auth_check);
-            
-            WITH auth_check AS (
-                SELECT 1 FROM core.discussion d
-                JOIN core.project p ON d.projectid = p.projectid
-                LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
-                WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
-            )
-            DELETE FROM core.discussion WHERE did = ? AND EXISTS (SELECT 1 FROM core.auth_check);
+        DELETE FROM core.discussion 
+        WHERE did = ? 
+        AND EXISTS (
+            SELECT 1 FROM core.discussion d
+            JOIN core.project p ON d.projectid = p.projectid
+            LEFT JOIN core.sharedproject sp ON p.projectid = sp.projectid
+            WHERE d.did = ? AND (p.authorid = ? OR sp.userid = ?)
+        )
         """;
         int userId = currentUserProvider.getCurrentUser().getUserId();
-        jdbcTemplate.update(sql, did, userId, userId, did, did, userId, userId, did);
+        jdbcTemplate.update(sql, did, did, userId, userId);
     }
 
     public void deleteAll() {
